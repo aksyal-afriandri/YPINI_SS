@@ -364,8 +364,9 @@
                             </div>
                         </div>
                         <div class="card-body">
+                            <div id="siswaApiStatus" class="small text-muted mb-3" role="status" aria-live="polite">Memuat data siswa...</div>
                                                         <div class="table-responsive">
-                                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                                <table class="table table-bordered" id="siswaTable" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
                                             <!-- <th><input type="checkbox"></th> -->
@@ -1022,8 +1023,8 @@
                                 </ul>
                                 <div class="tab-content">
                                     <div class="tab-pane fade show active" id="manualSiswaPane" role="tabpanel" aria-labelledby="manualSiswaTab">
-                                                                                <form method="POST" action="http://127.0.0.1:8000/admin/siswa/data-siswa" enctype="multipart/form-data">
-                                            <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                            <div class="form-group">
+                                                                                <form id="tambahSiswaForm" enctype="multipart/form-data">
+                                            <div class="form-group">
                                                 <label for="tambahNisn">NISN</label>
                                                 <input type="text" name="nisn" class="form-control" id="tambahNisn" required>
                                             </div>
@@ -1036,21 +1037,11 @@
                                                 <input type="file" name="photo" class="form-control-file" id="tambahPhoto" accept="image/jpeg,image/png,image/gif">
                                             </div>
                                             <button type="submit" class="btn btn-primary">Tambah</button>
+                                            <div class="api-error text-danger small mt-2" role="alert"></div>
                                         </form>
                                     </div>
                                     <div class="tab-pane fade" id="importSiswaPane" role="tabpanel" aria-labelledby="importSiswaTab">
-                                        <form method="POST" action="http://127.0.0.1:8000/admin/siswa/data-siswa/import" enctype="multipart/form-data">
-                                            <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                            <div class="form-row align-items-end">
-                                                <div class="col-md-8 form-group mb-md-0">
-                                                    <label for="fileSiswa">Pilih file Excel</label>
-                                                    <input type="file" name="file" id="fileSiswa" class="form-control-file" accept=".xlsx,.xls,.csv" required>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <button type="submit" class="btn btn-success btn-block">Import</button>
-                                                </div>
-                                            </div>
-                                            <small class="form-text text-muted mt-3">teks jadi export template later</small>
-                                        </form>
+                                        <div class="alert alert-info mb-0">Import Excel belum tersedia dari frontend GitHub Pages. Tambah, edit, dan hapus siswa sudah terhubung ke API.</div>
                                     </div>
                                 </div>
                             </div>
@@ -1068,8 +1059,8 @@
                                 </button>
                             </div>
                             <div class="modal-body">
-                                <form method="POST" action="#" enctype="multipart/form-data" data-update-url="http://127.0.0.1:8000/admin/siswa/data-siswa/__ID__">
-                                    <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                    <input type="hidden" name="_method" value="PUT">                                    <input type="hidden" name="student_id" id="editSiswaId">
+                                <form id="editSiswaForm" enctype="multipart/form-data">
+                                    <input type="hidden" name="student_id" id="editSiswaId">
                                     <div class="form-group">
                                         <label for="editNisn">NISN</label>
                                         <input type="text" name="nisn" class="form-control" id="editNisn" required>
@@ -1084,6 +1075,7 @@
                                         <input type="file" name="photo" class="form-control-file" id="editPhoto" accept="image/jpeg,image/png,image/gif">
                                     </div>
                                     <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                                    <div class="api-error text-danger small mt-2" role="alert"></div>
                                 </form>
                             </div>
                         </div>
@@ -1099,31 +1091,49 @@
                                 </button>
                             </div>
                             <div class="modal-body">
-                                <form method="POST" action="" id="hapusSiswaForm">
-                                    <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                    <input type="hidden" name="_method" value="DELETE">                                    <p>Apakah Anda yakin ingin menghapus data siswa ini?</p>
+                                <form id="hapusSiswaForm">
+                                    <p>Apakah Anda yakin ingin menghapus data siswa ini?</p>
                                     <button type="submit" class="btn btn-danger">Hapus</button>
+                                    <div class="api-error text-danger small mt-2" role="alert"></div>
                                 </form>
                             </div>
                         </div>
                     </div>
 
+                <script src="../../../api.js"></script>
                 <script>
-                    
+                    const siswaBody = document.querySelector('#siswaTable tbody');
+                    const siswaStatus = document.getElementById('siswaApiStatus');
+                    const siswaPhotoUrls = new Set();
+
+                    function setSiswaStatus(message, isError = false) {
+                        siswaStatus.textContent = message;
+                        siswaStatus.classList.toggle('text-danger', isError);
+                        siswaStatus.classList.toggle('text-muted', !isError);
+                    }
+
+                    function addSiswaCell(row, value) {
+                        const cell = document.createElement('td');
+                        cell.textContent = value ?? '';
+                        row.appendChild(cell);
+                        return cell;
+                    }
+
                     function previewFotoSiswa(button) {
-                        document.getElementById('previewFotoSiswaImage').src = button.dataset.photo;
-                        document.getElementById('previewFotoSiswaImage').alt = 'Foto ' + button.dataset.name;
+                        const image = document.getElementById('previewFotoSiswaImage');
+                        image.src = button.dataset.photo;
+                        image.alt = 'Foto ' + button.dataset.name;
                         document.getElementById('previewFotoSiswaTitle').textContent = 'Foto ' + button.dataset.name;
                     }
 
                     function editSiswa(button) {
-                        const modal = document.getElementById('editSiswaModal');
-                        const form = modal.querySelector('form');
-
-                        form.action = form.dataset.updateUrl.replace('__ID__', encodeURIComponent(button.dataset.id));
+                        const form = document.getElementById('editSiswaForm');
+                        form.dataset.studentId = button.dataset.id;
                         form.querySelector('[name="nisn"]').value = button.dataset.nisn;
                         form.querySelector('[name="nama"]').value = button.dataset.nama;
                         form.querySelector('[name="student_id"]').value = button.dataset.id;
                         form.querySelector('[name="photo"]').value = '';
+                        form.querySelector('.api-error').textContent = '';
 
                         const preview = document.getElementById('editPhotoPreview');
                         if (button.dataset.photo) {
@@ -1136,14 +1146,145 @@
                     }
 
                     function hapusSiswa(button) {
-                        const modal = document.getElementById('hapusSiswaModal');
-                        const form = modal.querySelector('form');
-
-                        form.action = '/admin/siswa/data-siswa/' + encodeURIComponent(button.dataset.id);
-                        modal.querySelector('p').textContent = 'Apakah Anda yakin ingin menghapus data siswa "' + button.dataset.nama + '"?';
+                        const form = document.getElementById('hapusSiswaForm');
+                        form.dataset.studentId = button.dataset.id;
+                        form.querySelector('.api-error').textContent = '';
+                        form.querySelector('p').textContent = 'Apakah Anda yakin ingin menghapus data siswa "' + button.dataset.nama + '"?';
                     }
 
-                    // add later checkbox all between entries
+                    function makeActionButton(label, className, student, handler) {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.className = className;
+                        button.textContent = label;
+                        button.dataset.id = student.id;
+                        button.dataset.nisn = student.nisn;
+                        button.dataset.nama = student.nama;
+                        button.addEventListener('click', () => handler(button));
+                        return button;
+                    }
+
+                    async function loadSiswa() {
+                        siswaPhotoUrls.forEach((url) => URL.revokeObjectURL(url));
+                        siswaPhotoUrls.clear();
+                        siswaBody.replaceChildren();
+                        setSiswaStatus('Memuat data siswa...');
+
+                        try {
+                            const result = await apiGet('/data/siswa');
+                            const students = result.data || [];
+
+                            students.forEach((student, index) => {
+                                const row = document.createElement('tr');
+                                addSiswaCell(row, index + 1);
+                                addSiswaCell(row, student.nisn);
+                                addSiswaCell(row, student.nama);
+
+                                const photoCell = document.createElement('td');
+                                if (student.photo_endpoint) {
+                                    const previewButton = document.createElement('button');
+                                    previewButton.type = 'button';
+                                    previewButton.className = 'btn p-0 border-0 bg-transparent';
+                                    previewButton.dataset.toggle = 'modal';
+                                    previewButton.dataset.target = '#previewFotoSiswaModal';
+                                    previewButton.dataset.name = student.nama;
+                                    previewButton.setAttribute('aria-label', 'Lihat foto ' + student.nama);
+
+                                    const photo = document.createElement('img');
+                                    photo.alt = 'Foto ' + student.nama;
+                                    photo.width = 50;
+                                    photo.height = 50;
+                                    photo.className = 'rounded';
+                                    photo.style.objectFit = 'cover';
+                                    previewButton.appendChild(photo);
+                                    previewButton.addEventListener('click', () => previewFotoSiswa(previewButton));
+                                    photoCell.appendChild(previewButton);
+
+                                    apiGetBlob(student.photo_endpoint).then((url) => {
+                                        siswaPhotoUrls.add(url);
+                                        previewButton.dataset.photo = url;
+                                        photo.src = url;
+                                    }).catch(() => {
+                                        previewButton.textContent = 'Foto gagal dimuat';
+                                    });
+                                } else {
+                                    photoCell.textContent = 'Tanpa foto';
+                                }
+                                row.appendChild(photoCell);
+
+                                const actions = document.createElement('td');
+                                const editButton = makeActionButton('Edit', 'btn btn-sm btn-warning mr-1', student, editSiswa);
+                                editButton.dataset.toggle = 'modal';
+                                editButton.dataset.target = '#editSiswaModal';
+                                const deleteButton = makeActionButton('Hapus', 'btn btn-sm btn-danger', student, hapusSiswa);
+                                deleteButton.dataset.toggle = 'modal';
+                                deleteButton.dataset.target = '#hapusSiswaModal';
+                                actions.append(editButton, deleteButton);
+                                row.appendChild(actions);
+                                siswaBody.appendChild(row);
+                            });
+
+                            setSiswaStatus(`${students.length} data siswa dimuat dari database.`);
+                        } catch (error) {
+                            setSiswaStatus(error.message, true);
+                        }
+                    }
+
+                    function showFormError(form, error) {
+                        form.querySelector('.api-error').textContent = error.message;
+                    }
+
+                    document.getElementById('tambahSiswaForm').addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const form = event.currentTarget;
+                        form.querySelector('.api-error').textContent = '';
+                        try {
+                            await apiPost('/data/siswa', new FormData(form));
+                            form.reset();
+                            $('#tambahSiswaModal').modal('hide');
+                            await loadSiswa();
+                        } catch (error) {
+                            showFormError(form, error);
+                        }
+                    });
+
+                    document.getElementById('editSiswaForm').addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const form = event.currentTarget;
+                        form.querySelector('.api-error').textContent = '';
+                        const data = new FormData(form);
+                        data.delete('student_id');
+                        try {
+                            await apiPut(`/data/siswa/${encodeURIComponent(form.dataset.studentId)}`, data);
+                            $('#editSiswaModal').modal('hide');
+                            await loadSiswa();
+                        } catch (error) {
+                            showFormError(form, error);
+                        }
+                    });
+
+                    document.getElementById('hapusSiswaForm').addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const form = event.currentTarget;
+                        form.querySelector('.api-error').textContent = '';
+                        try {
+                            await apiDelete(`/data/siswa/${encodeURIComponent(form.dataset.studentId)}`);
+                            $('#hapusSiswaModal').modal('hide');
+                            await loadSiswa();
+                        } catch (error) {
+                            showFormError(form, error);
+                        }
+                    });
+
+                    document.addEventListener('DOMContentLoaded', () => {
+                        document.getElementById('logoutForm').addEventListener('submit', async (event) => {
+                            event.preventDefault();
+                            await apiLogout();
+                            window.location.href = '../../../';
+                        });
+                    });
+
+                    loadSiswa();
                 </script>
                     <!-- Main Page "Main Container"  -->
                     
@@ -1186,8 +1327,8 @@
                 <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <form method="POST" action="http://127.0.0.1:8000/logout">
-                        <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                        <button class="btn btn-primary" type="submit">Logout</button>
+                    <form id="logoutForm">
+                        <button class="btn btn-primary" type="submit">Logout</button>
                     </form>
                 </div>
             </div>
@@ -1207,7 +1348,6 @@
     <script src="../../../assets/vendor/datatables/jquery.dataTables.min.js"></script>
     <script src="../../../assets/vendor/datatables/dataTables.bootstrap4.min.js"></script>
 
-    <!-- Page level custom scripts -->
-    <script src="../../../assets/js/demo/datatables-demo.js"></script></body>
+    </body>
 
 </html>

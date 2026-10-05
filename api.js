@@ -54,6 +54,21 @@ function apiGet(path) {
   return apiRequest(path);
 }
 
+async function apiGetBlob(path) {
+  const headers = new Headers({
+    Authorization: `Bearer ${sessionStorage.getItem(API_TOKEN_KEY) || ""}`,
+    "ngrok-skip-browser-warning": "true",
+  });
+  const response = await fetch(`${API_BASE}${path}`, { headers });
+
+  if (!response.ok) {
+    const result = await response.json().catch(() => null);
+    throw new Error(result?.message || `Request gagal (${response.status}).`);
+  }
+
+  return URL.createObjectURL(await response.blob());
+}
+
 function apiPost(path, payload) {
   return apiRequest(path, {
     method: "POST",
