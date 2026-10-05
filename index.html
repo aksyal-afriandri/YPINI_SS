@@ -36,8 +36,8 @@
                             <div class="text-center">
                                 <h1 class="h4 text-gray-900 mb-4">Login</h1>
                             </div>
-                            <form class="user" method="POST" action="http://127.0.0.1:8000/login">
-                                <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                <div class="form-group">
+                            <form class="user" id="loginForm">
+                                <div class="form-group">
                                     <input type="text" name="name" class="form-control form-control-user"
                                         id="exampleInputName" value="" autocomplete="username"
                                         placeholder="Nama" required autofocus>
@@ -57,6 +57,7 @@
                                 <button type="submit" class="btn btn-primary btn-user btn-block">
                                     Login
                                 </button>
+                                <div id="loginError" class="text-danger small mt-3" role="alert" aria-live="polite"></div>
                             </form>
                         </div>
                     </div>
@@ -70,8 +71,25 @@
 
     <script src="api.js"></script>
     <script>
-    apiGet("/health").then(data => {
-        console.log(data);
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const errorBox = document.getElementById("loginError");
+        const submitButton = form.querySelector('button[type="submit"]');
+        errorBox.textContent = "";
+        submitButton.disabled = true;
+
+        try {
+            await apiLogin({
+                name: form.elements.name.value,
+                password: form.elements.password.value,
+            });
+            window.location.href = "admin/dashboard/";
+        } catch (error) {
+            errorBox.textContent = error.message;
+        } finally {
+            submitButton.disabled = false;
+        }
     });
     </script>
 
