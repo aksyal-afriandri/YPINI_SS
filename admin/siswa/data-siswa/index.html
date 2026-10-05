@@ -20,7 +20,7 @@
     <link href="../../../assets/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
 
 </head>
-<body id="page-top">
+<body id="page-top" data-login-path="../../../index.html">
     <!-- Page Wrapper -->
     <div id="wrapper">
         <!-- Sidebar -->
@@ -1038,7 +1038,14 @@
                                         </form>
                                     </div>
                                     <div class="tab-pane fade" id="importSiswaPane" role="tabpanel" aria-labelledby="importSiswaTab">
-                                        <div class="alert alert-info mb-0">Import Excel belum tersedia dari frontend GitHub Pages. Tambah, edit, dan hapus siswa sudah terhubung ke API.</div>
+                                        <form id="importSiswaForm">
+                                            <div class="form-group">
+                                                <label for="importSiswaFile">Pilih file Excel</label>
+                                                <input type="file" name="file" class="form-control-file" id="importSiswaFile" accept=".xlsx,.xls,.csv" required>
+                                            </div>
+                                            <button type="submit" class="btn btn-success">Import</button>
+                                            <div class="api-error text-danger small mt-2" role="alert"></div>
+                                        </form>
                                     </div>
                                 </div>
                             </div>
@@ -1097,6 +1104,9 @@
                         </div>
                     </div>
 
+                <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+                <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+                <script src="../../../supabase-config.js"></script>
                 <script src="../../../api.js"></script>
                 <script>
                     const siswaBody = document.querySelector('#siswaTable tbody');
@@ -1170,6 +1180,10 @@
                         siswaPhotoUrls.forEach((url) => URL.revokeObjectURL(url));
                         siswaPhotoUrls.clear();
                         siswaBody.replaceChildren();
+                        if (!(await window.adminSessionReady)) {
+                            setSiswaStatus(window.adminSessionError || 'Sesi admin diperlukan.', true);
+                            return;
+                        }
                         setSiswaStatus('Memuat data siswa...');
 
                         try {
@@ -1299,12 +1313,24 @@
                         }
                     });
 
-                    document.addEventListener('DOMContentLoaded', () => {
-                        document.getElementById('logoutForm').addEventListener('submit', async (event) => {
-                            event.preventDefault();
-                            await apiLogout();
-                            window.location.href = '../../../';
-                        });
+                    document.getElementById('importSiswaForm').addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const form = event.currentTarget;
+                        const file = form.querySelector('input[type="file"]').files[0];
+                        form.querySelector('.api-error').textContent = '';
+                        try {
+                            if (!file) throw new Error('Pilih file Excel terlebih dahulu.');
+                            const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+                            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const rows = XLSX.utils.sheet_to_json(sheet, { range: 1, defval: '' });
+                            const result = await apiImport('siswa', rows);
+                            form.reset();
+                            $('#tambahSiswaModal').modal('hide');
+                            await loadSiswa();
+                            setSiswaStatus(`${result.imported} data diimpor; ${result.skipped} duplikat dilewati.`);
+                        } catch (error) {
+                            showFormError(form, error);
+                        }
                     });
 
                     document.addEventListener('DOMContentLoaded', loadSiswa);
@@ -1370,6 +1396,7 @@
     <!-- Page level plugins -->
     <script src="../../../assets/vendor/datatables/jquery.dataTables.min.js"></script>
     <script src="../../../assets/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="../../../admin-session.js"></script>
 
     </body>
 

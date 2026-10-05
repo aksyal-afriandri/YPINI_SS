@@ -1,93 +1,235 @@
-const API_BASE = "https://cubbyhole-stem-viselike.ngrok-free.dev/api";
-const API_TOKEN_KEY = "ypini_api_token";
+const SUPABASE_STORAGE_BUCKET = "student-photos";
+const RESOURCE_FIELDS = {
+  siswa: ["nisn", "nama"],
+  guru: ["nip", "nama"],
+  kelas: ["nama_kelas"],
+  pelajaran: ["nama_pelajaran"],
+  tahun: ["tahun_ajaran"],
+};
 
-async function apiRequest(path, options = {}) {
-  const { auth = true, ...fetchOptions } = options;
-  const headers = new Headers(fetchOptions.headers || {});
-  headers.set("ngrok-skip-browser-warning", "true");
-  const token = sessionStorage.getItem(API_TOKEN_KEY);
+let supabaseClient = null;
 
-  if (auth && token) {
-    headers.set("Authorization", `Bearer ${token}`);
+function getSupabaseClient() {
+  const config = window.SUPABASE_CONFIG;
+  if (!config?.url || !config?.anonKey) {
+    throw new Error("Konfigurasi Supabase belum diisi di supabase-config.js.");
   }
-
-  if (fetchOptions.body && !(fetchOptions.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
+  if (!window.supabase?.createClient) {
+    throw new Error("Library Supabase gagal dimuat. Periksa koneksi internet Anda.");
   }
+  if (!supabaseClient) {
+    supabaseClient = window.supabase.createClient(config.url, config.anonKey);
+  }
+  return supabaseClient;
+}
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...fetchOptions,
-    headers,
+function throwSupabaseError(error) {
+  if (error?.code === "23505") {
+    throw new Error("Data dengan NISN atau NIP tersebut sudah terdaftar.");
+  }
+  if (error?.code === "42501") {
+    throw new Error("Akses ditolak. Pastikan akun memiliki peran admin.");
+  }
+  throw new Error(error?.message || "Permintaan ke Supabase gagal.");
+}
+
+function parseDataPath(path, expectsId = false) {
+  const match = path.match(/^\/data\/(siswa|guru|kelas|pelajaran|tahun)(?:\/([^/]+))?$/);
+  if (!match || (expectsId && !match[2])) {
+    throw new Error("Alamat data tidak dikenal.");
+  }
+  return { resource: match[1], id: match[2] ? decodeURIComponent(match[2]) : null };
+}
+
+function resourceTable(resource) {
+  return {
+    siswa: "data_siswa",
+    guru: "data_guru",
+    kelas: "data_kelas",
+    pelajaran: "data_pelajaran",
+    tahun: "tahun_ajaran",
+  }[resource];
+}
+
+function formPayload(resource, input) {
+  const values = {};
+  RESOURCE_FIELDS[resource].forEach((field) => {
+    const value = input instanceof FormData ? input.get(field) : input[field];
+    if (value !== undefined && value !== null) {
+      values[field] = String(value).trim();
+    }
   });
-  const result = await response.json().catch(() => null);
+  return values;
+}
 
-  if (!response.ok) {
-    const validationMessage = result?.errors
-      ? Object.values(result.errors).flat().join(" ")
-      : null;
-    throw new Error(validationMessage || result?.message || `Request gagal (${response.status}).`);
+function safeFileName(name) {
+  return name.normalize("NFKD").replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+async function uploadStudentPhoto(file) {
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (!/^image\/(jpeg|png|gif)$/.test(file.type) || file.size > 2 * 1024 * 1024) {
+    throw new Error("Foto harus JPG, PNG, atau GIF dan maksimal 2 MB.");
   }
 
-  return result;
+  const path = `siswa/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+  const { data, error } = await getSupabaseClient()
+    .storage.from(SUPABASE_STORAGE_BUCKET).upload(path, file, {
+      contentType: file.type,
+      upsert: false,
+    });
+  if (error) throwSupabaseError(error);
+  return data.path;
 }
 
 async function apiLogin(credentials) {
-  const result = await apiRequest("/login", {
-    method: "POST",
-    body: JSON.stringify(credentials),
-    auth: false,
+  const client = getSupabaseClient();
+  const { data, error } = await client.auth.signInWithPassword({
+    email: credentials.email,
+    password: credentials.password,
   });
+  if (error) throwSupabaseError(error);
 
-  sessionStorage.setItem(API_TOKEN_KEY, result.token);
-  return result;
+  const { data: profile, error: profileError } = await client
+    .from("profiles")
+    .select("name, role")
+    .eq("user_id", data.user.id)
+    .single();
+
+  if (profileError || profile?.role !== "admin") {
+    await client.auth.signOut();
+    throw new Error("Akun ini tidak memiliki akses admin.");
+  }
+
+  return { user: { id: data.user.id, name: profile.name, role: profile.role } };
 }
 
 async function apiLogout() {
-  try {
-    await apiRequest("/logout", { method: "POST" });
-  } finally {
-    sessionStorage.removeItem(API_TOKEN_KEY);
-  }
+  const { error } = await getSupabaseClient().auth.signOut();
+  if (error) throwSupabaseError(error);
 }
 
-function apiGet(path) {
-  return apiRequest(path);
+async function apiGet(path) {
+  const { resource } = parseDataPath(path);
+  const { data, error } = await getSupabaseClient()
+    .from(resourceTable(resource))
+    .select("*")
+    .order("id", { ascending: true });
+
+  if (error) throwSupabaseError(error);
+  const records = resource === "siswa"
+    ? data.map((record) => ({ ...record, photo_endpoint: record.photo_path }))
+    : data;
+  return { data: records };
 }
 
-async function apiGetBlob(path) {
-  const headers = new Headers({
-    Authorization: `Bearer ${sessionStorage.getItem(API_TOKEN_KEY) || ""}`,
-    "ngrok-skip-browser-warning": "true",
-  });
-  const response = await fetch(`${API_BASE}${path}`, { headers });
+async function saveRecord(path, input, isUpdate) {
+  const { resource, id } = parseDataPath(path, isUpdate);
+  const client = getSupabaseClient();
+  const payload = formPayload(resource, input);
+  let uploadedPath = null;
+  let previousPhotoPath = null;
 
-  if (!response.ok) {
-    const result = await response.json().catch(() => null);
-    throw new Error(result?.message || `Request gagal (${response.status}).`);
+  if (resource === "siswa" && input instanceof FormData) {
+    if (isUpdate && input.get("photo") instanceof File && input.get("photo").size > 0) {
+      const { data: current, error: currentError } = await client
+        .from(resourceTable(resource)).select("photo_path").eq("id", id).single();
+      if (currentError) throwSupabaseError(currentError);
+      previousPhotoPath = current.photo_path;
+    }
+    uploadedPath = await uploadStudentPhoto(input.get("photo"));
+    if (uploadedPath) payload.photo_path = uploadedPath;
   }
 
-  return URL.createObjectURL(await response.blob());
+  const query = isUpdate
+    ? client.from(resourceTable(resource)).update(payload).eq("id", id)
+    : client.from(resourceTable(resource)).insert(payload);
+  const { data, error } = await query.select("*").single();
+  if (error) {
+    if (uploadedPath) await client.storage.from(SUPABASE_STORAGE_BUCKET).remove([uploadedPath]);
+    throwSupabaseError(error);
+  }
+  if (previousPhotoPath) {
+    await client.storage.from(SUPABASE_STORAGE_BUCKET).remove([previousPhotoPath]);
+  }
+  return { data: resource === "siswa" ? { ...data, photo_endpoint: data.photo_path } : data };
 }
 
 function apiPost(path, payload) {
-  return apiRequest(path, {
-    method: "POST",
-    body: payload instanceof FormData ? payload : JSON.stringify(payload),
-  });
+  return saveRecord(path, payload, false);
 }
 
 function apiPut(path, payload) {
-  if (payload instanceof FormData) {
-    payload.set("_method", "PUT");
-    return apiRequest(path, { method: "POST", body: payload });
-  }
-
-  return apiRequest(path, {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
+  return saveRecord(path, payload, true);
 }
 
-function apiDelete(path) {
-  return apiRequest(path, { method: "DELETE" });
+async function apiDelete(path) {
+  const { resource, id } = parseDataPath(path, true);
+  const client = getSupabaseClient();
+  let photoPath = null;
+
+  if (resource === "siswa") {
+    const { data, error } = await client.from(resourceTable(resource))
+      .select("photo_path").eq("id", id).single();
+    if (error) throwSupabaseError(error);
+    photoPath = data.photo_path;
+  }
+
+  const { error } = await client.from(resourceTable(resource)).delete().eq("id", id);
+  if (error) throwSupabaseError(error);
+  if (photoPath) await client.storage.from(SUPABASE_STORAGE_BUCKET).remove([photoPath]);
+  return { message: "Data berhasil dihapus." };
+}
+
+async function apiGetBlob(path) {
+  const { data, error } = await getSupabaseClient()
+    .storage.from(SUPABASE_STORAGE_BUCKET).createSignedUrl(path, 60);
+  if (error) throwSupabaseError(error);
+  const response = await fetch(data.signedUrl);
+  if (!response.ok) throw new Error("Foto siswa gagal dimuat.");
+  return URL.createObjectURL(await response.blob());
+}
+
+async function apiImport(resource, rows) {
+  if (!RESOURCE_FIELDS[resource] || !Array.isArray(rows)) {
+    throw new Error("Format data import tidak valid.");
+  }
+
+  const fields = RESOURCE_FIELDS[resource];
+  const uniqueField = { siswa: "nisn", guru: "nip" }[resource];
+  const client = getSupabaseClient();
+  const normalizedRows = rows.map((row) => {
+    const normalized = {};
+    Object.entries(row).forEach(([key, value]) => {
+      normalized[key.trim().toLowerCase()] = String(value ?? "").trim();
+    });
+    return Object.fromEntries(fields.map((field) => [field, normalized[field] || ""]));
+  }).filter((record) => fields.some((field) => record[field]));
+  const records = normalizedRows.map((record, index) => {
+    if (fields.some((field) => !record[field] || record[field].length > 255)) {
+      throw new Error(`Baris Excel ${index + 3}: kolom wajib kosong atau melebihi 255 karakter.`);
+    }
+    return record;
+  });
+
+  let existingValues = new Set();
+  if (uniqueField) {
+    const { data, error } = await client.from(resourceTable(resource)).select(uniqueField);
+    if (error) throwSupabaseError(error);
+    existingValues = new Set(data.map((record) => record[uniqueField]));
+  }
+
+  const seen = new Set(existingValues);
+  const uniqueRecords = records.filter((record) => {
+    if (!uniqueField) return true;
+    if (seen.has(record[uniqueField])) return false;
+    seen.add(record[uniqueField]);
+    return true;
+  });
+
+  if (uniqueRecords.length) {
+    const { error } = await client.from(resourceTable(resource)).insert(uniqueRecords);
+    if (error) throwSupabaseError(error);
+  }
+  return { imported: uniqueRecords.length, skipped: records.length - uniqueRecords.length };
 }

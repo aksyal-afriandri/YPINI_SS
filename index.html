@@ -38,9 +38,9 @@
                             </div>
                             <form class="user" id="loginForm">
                                 <div class="form-group">
-                                    <input type="text" name="name" class="form-control form-control-user"
+                                    <input type="email" name="email" class="form-control form-control-user"
                                         id="exampleInputName" value="" autocomplete="username"
-                                        placeholder="Nama" required autofocus>
+                                        placeholder="Email" required autofocus>
                                                                     </div>
                                 <div class="form-group">
                                     <input type="password" name="password" class="form-control form-control-user"
@@ -69,6 +69,8 @@
 
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
     <script src="api.js"></script>
     <script>
     document.getElementById("loginForm").addEventListener("submit", async (event) => {
@@ -81,7 +83,7 @@
 
         try {
             await apiLogin({
-                name: form.elements.name.value,
+                email: form.elements.email.value,
                 password: form.elements.password.value,
             });
             window.location.href = "admin/dashboard/";

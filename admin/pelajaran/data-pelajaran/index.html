@@ -20,7 +20,7 @@
     <link href="../../../assets/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
 
 </head>
-<body id="page-top">
+<body id="page-top" data-login-path="../../../index.html" data-supabase-resource="pelajaran">
     <!-- Page Wrapper -->
     <div id="wrapper">
         <!-- Sidebar -->
@@ -390,7 +390,7 @@
                                 </button>
                             </div>
                             <div class="modal-body">
-                                <form method="POST" action="http://127.0.0.1:8000/admin/pelajaran/data-pelajaran">
+                                <form method="POST" action="#">
                                     <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                    <div class="form-group">
                                         <label for="tambahNamaPelajaran">Nama Pelajaran</label>
                                         <input type="text" name="nama_pelajaran" class="form-control" id="tambahNamaPelajaran" required>
@@ -412,7 +412,7 @@
                                 </button>
                             </div>
                             <div class="modal-body">
-                                <form method="POST" action="#" data-update-url="http://127.0.0.1:8000/admin/pelajaran/data-pelajaran/__ID__">
+                                <form method="POST" action="#">
                                     <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                    <input type="hidden" name="_method" value="PUT">                                    <div class="form-group">
                                         <label for="editNamaPelajaran">Nama Pelajaran</label>
                                         <input type="text" name="nama_pelajaran" class="form-control" id="editNamaPelajaran" required>
@@ -499,7 +499,7 @@
                 <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <form method="POST" action="http://127.0.0.1:8000/logout">
+                    <form id="logoutForm" action="#" method="post">
                         <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                        <button class="btn btn-primary" type="submit">Logout</button>
                     </form>
                 </div>
@@ -521,6 +521,12 @@
     <script src="../../../assets/vendor/datatables/dataTables.bootstrap4.min.js"></script>
 
     <!-- Page level custom scripts -->
-    <script src="../../../assets/js/demo/datatables-demo.js"></script></body>
+    <script src="../../../assets/js/demo/datatables-demo.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../../supabase-config.js"></script>
+    <script src="../../../api.js"></script>
+    <script src="../../../admin-session.js"></script>
+    <script src="../../../resource-page.js"></script>
+</body>
 
 </html>

@@ -20,7 +20,7 @@
     <link href="../../../assets/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
 
 </head>
-<body id="page-top">
+<body id="page-top" data-login-path="../../../index.html" data-supabase-resource="guru">
     <!-- Page Wrapper -->
     <div id="wrapper">
         <!-- Sidebar -->
@@ -641,7 +641,7 @@
                                 </ul>
                                 <div class="tab-content">
                                     <div class="tab-pane fade show active" id="manual" role="tabpanel" aria-labelledby="manual-tab">
-                                        <form method="POST" action="http://127.0.0.1:8000/admin/guru/data-guru">
+                                        <form method="POST" action="#">
                                             <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                            <div class="form-group">
                                                 <label for="nip">NIP</label>
                                                 <input type="text" name="nip" class="form-control" id="nip" required>
@@ -654,7 +654,7 @@
                                         </form>
                                     </div>
                                     <div class="tab-pane fade" id="import" role="tabpanel" aria-labelledby="import-tab">
-                                        <form method="POST" action="http://127.0.0.1:8000/admin/guru/data-guru/import" enctype="multipart/form-data">
+                                        <form method="POST" action="#" enctype="multipart/form-data">
                                             <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                            <div class="form-row align-items-end">
                                                 <div class="col-md-8 form-group mb-md-0">
                                                     <label for="file">Pilih file Excel</label>
@@ -786,7 +786,7 @@
                 <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <form method="POST" action="http://127.0.0.1:8000/logout">
+                    <form id="logoutForm" action="#" method="post">
                         <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                        <button class="btn btn-primary" type="submit">Logout</button>
                     </form>
                 </div>
@@ -808,6 +808,13 @@
     <script src="../../../assets/vendor/datatables/dataTables.bootstrap4.min.js"></script>
 
     <!-- Page level custom scripts -->
-    <script src="../../../assets/js/demo/datatables-demo.js"></script></body>
+    <script src="../../../assets/js/demo/datatables-demo.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="../../../supabase-config.js"></script>
+    <script src="../../../api.js"></script>
+    <script src="../../../admin-session.js"></script>
+    <script src="../../../resource-page.js"></script>
+</body>
 
 </html>
