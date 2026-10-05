@@ -4,7 +4,10 @@ const API_TOKEN_KEY = "ypini_api_token";
 async function apiRequest(path, options = {}) {
   const { auth = true, ...fetchOptions } = options;
   const headers = new Headers(fetchOptions.headers || {});
+<<<<<<< HEAD
   headers.set("ngrok-skip-browser-warning", "true");
+=======
+>>>>>>> cf540e16ecfd2572d68567edae6a4967a3d9999d
   const token = sessionStorage.getItem(API_TOKEN_KEY);
 
   if (auth && token) {
