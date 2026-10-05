@@ -1102,6 +1102,7 @@
                     const siswaBody = document.querySelector('#siswaTable tbody');
                     const siswaStatus = document.getElementById('siswaApiStatus');
                     const siswaPhotoUrls = new Set();
+                    let siswaDataTable = null;
 
                     function setSiswaStatus(message, isError = false) {
                         siswaStatus.textContent = message;
@@ -1162,6 +1163,10 @@
                     }
 
                     async function loadSiswa() {
+                        if (siswaDataTable) {
+                            siswaDataTable.destroy();
+                            siswaDataTable = null;
+                        }
                         siswaPhotoUrls.forEach((url) => URL.revokeObjectURL(url));
                         siswaPhotoUrls.clear();
                         siswaBody.replaceChildren();
@@ -1225,6 +1230,23 @@
                                 siswaBody.appendChild(row);
                             });
 
+                            siswaDataTable = $('#siswaTable').DataTable({
+                                pageLength: 10,
+                                lengthMenu: [10, 25, 50, 100],
+                                language: {
+                                    search: 'Cari:',
+                                    lengthMenu: 'Tampilkan _MENU_ entri',
+                                    info: 'Menampilkan _START_ sampai _END_ dari _TOTAL_ entri',
+                                    infoEmpty: 'Tidak ada data untuk ditampilkan',
+                                    zeroRecords: 'Data tidak ditemukan',
+                                    paginate: {
+                                        first: 'Awal',
+                                        last: 'Akhir',
+                                        next: 'Berikutnya',
+                                        previous: 'Sebelumnya',
+                                    },
+                                },
+                            });
                             setSiswaStatus(`${students.length} data siswa dimuat dari database.`);
                         } catch (error) {
                             setSiswaStatus(error.message, true);
@@ -1285,7 +1307,7 @@
                         });
                     });
 
-                    loadSiswa();
+                    document.addEventListener('DOMContentLoaded', loadSiswa);
                 </script>
                     <!-- Main Page "Main Container"  -->
                     
