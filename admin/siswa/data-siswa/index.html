@@ -323,8 +323,7 @@
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <span class="mr-2 d-none d-lg-inline text-gray-600 small">Douglas McGee</span>
-                                <img class="img-profile rounded-circle"
-                                    src="img/undraw_profile.svg">
+                                <span class="img-profile rounded-circle d-inline-flex align-items-center justify-content-center bg-primary text-white" aria-label="Profil">S</span>
                             </a>
                             <!-- Dropdown - User Information -->
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
@@ -384,15 +383,13 @@
                                             <td>765</td>
                                             <td>243545</td>
                                             <td>
-                                                                                                    <button type="button" class="btn p-0 border-0 bg-transparent" data-toggle="modal" data-target="#previewFotoSiswaModal" data-photo="http://127.0.0.1:8000/storage/siswa/h5XcVF5KOHdH0GdZVrqTV1rEN2SM7Msw43E7FD5N.jpg" data-name="243545" onclick="previewFotoSiswa(this)" aria-label="Lihat foto 243545">
-                                                        <img src="http://127.0.0.1:8000/storage/siswa/h5XcVF5KOHdH0GdZVrqTV1rEN2SM7Msw43E7FD5N.jpg" alt="Foto 243545" width="50" height="50" class="rounded" style="object-fit: cover;">
-                                                    </button>
+                                                                                                    <span>Tanpa foto</span>
                                                                                             </td>
                                             <td>
                                                 <button type="button" class="btn btn-sm btn-warning"
                                                     data-toggle="modal" data-target="#editSiswaModal"
                                                     data-id="1" data-nisn="765" data-nama="243545"
-                                                    data-photo="http://127.0.0.1:8000/storage/siswa/h5XcVF5KOHdH0GdZVrqTV1rEN2SM7Msw43E7FD5N.jpg"
+                                                    data-photo=""
                                                     onclick="editSiswa(this)">Edit</button>
                                                 <button type="button" class="btn btn-sm btn-danger"
                                                     data-toggle="modal" data-target="#hapusSiswaModal"
@@ -1181,6 +1178,7 @@
                                 addSiswaCell(row, student.nama);
 
                                 const photoCell = document.createElement('td');
+                                let editButton;
                                 if (student.photo_endpoint) {
                                     const previewButton = document.createElement('button');
                                     previewButton.type = 'button';
@@ -1204,6 +1202,9 @@
                                         siswaPhotoUrls.add(url);
                                         previewButton.dataset.photo = url;
                                         photo.src = url;
+                                        if (editButton) {
+                                            editButton.dataset.photo = url;
+                                        }
                                     }).catch(() => {
                                         previewButton.textContent = 'Foto gagal dimuat';
                                     });
@@ -1213,7 +1214,7 @@
                                 row.appendChild(photoCell);
 
                                 const actions = document.createElement('td');
-                                const editButton = makeActionButton('Edit', 'btn btn-sm btn-warning mr-1', student, editSiswa);
+                                editButton = makeActionButton('Edit', 'btn btn-sm btn-warning mr-1', student, editSiswa);
                                 editButton.dataset.toggle = 'modal';
                                 editButton.dataset.target = '#editSiswaModal';
                                 const deleteButton = makeActionButton('Hapus', 'btn btn-sm btn-danger', student, hapusSiswa);
