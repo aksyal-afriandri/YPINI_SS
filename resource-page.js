@@ -42,31 +42,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const cardBody = table?.closest(".card")?.querySelector(".card-body");
   if (!table || !tableBody || !cardBody) return;
 
-  const debugControl = document.createElement("div");
-  debugControl.className = "d-flex justify-content-end mb-1";
-  const debugButton = document.createElement("button");
-  debugButton.type = "button";
-  debugButton.className = "btn btn-link btn-sm p-0";
-  debugButton.textContent = "Tampilkan debug";
-  debugButton.setAttribute("aria-expanded", "false");
-  const statusPanel = document.createElement("div");
-  statusPanel.className = "d-none small text-muted mb-2";
   const status = document.createElement("div");
   status.id = "supabaseStatus";
+  status.className = "small text-muted mb-2";
   status.setAttribute("role", "status");
   cardBody.insertBefore(status, cardBody.firstChild);
-  statusPanel.append(status);
-  cardBody.insertBefore(statusPanel, cardBody.firstChild);
-  cardBody.insertBefore(debugControl, cardBody.firstChild);
-  debugControl.append(debugButton);
-  let debugEnabled = false;
-
-  debugButton.addEventListener("click", () => {
-    debugEnabled = !debugEnabled;
-    debugButton.textContent = debugEnabled ? "Sembunyikan debug" : "Tampilkan debug";
-    debugButton.setAttribute("aria-expanded", String(debugEnabled));
-    statusPanel.classList.toggle("d-none", !debugEnabled && status.dataset.debugOnly === "true");
-  });
 
   const addModal = document.getElementById(config.addModal);
   const editModal = document.getElementById(config.editModal);
@@ -84,11 +64,10 @@ document.addEventListener("DOMContentLoaded", () => {
   tableBody.replaceChildren();
 
   function setStatus(message, isError = false, isDebug = false) {
+    if (isDebug && !isError) return;
     status.textContent = message;
     status.classList.toggle("text-danger", isError);
     status.classList.toggle("text-muted", !isError);
-    status.dataset.debugOnly = String(isDebug && !isError);
-    statusPanel.classList.toggle("d-none", !isError && isDebug && !debugEnabled);
   }
 
   function addFormError(form, message) {
