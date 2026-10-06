@@ -201,8 +201,7 @@ async function saveRecord(path, input, isUpdate) {
   if (resource === "siswa" && input instanceof FormData) {
     const photoFile = input.get("photo");
     const hasNewPhoto = photoFile instanceof File && photoFile.size > 0;
-    const removePhoto = isUpdate && input.get("remove_photo") === "1";
-    if (isUpdate && (hasNewPhoto || removePhoto)) {
+    if (isUpdate && hasNewPhoto) {
       const { data: current, error: currentError } = await client
         .from(resourceTable(resource)).select("photo_path").eq("id", id).single();
       if (currentError) throwSupabaseError(currentError);
@@ -210,7 +209,6 @@ async function saveRecord(path, input, isUpdate) {
     }
     uploadedPath = await uploadStudentPhoto(photoFile);
     if (uploadedPath) payload.photo_path = uploadedPath;
-    else if (removePhoto) payload.photo_path = null;
   }
 
   const query = isUpdate
@@ -348,6 +346,22 @@ async function apiImportStudentsToClass(classId, rows) {
 
 function apiPut(path, payload) {
   return saveRecord(path, payload, true);
+}
+
+async function apiDeleteStudentPhoto(id) {
+  const client = getSupabaseClient();
+  const { data: student, error: lookupError } = await client.from("data_siswa")
+    .select("photo_path").eq("id", id).single();
+  if (lookupError) throwSupabaseError(lookupError);
+  if (!student.photo_path) return { removed: false, cleanupWarning: false };
+
+  const { error: updateError } = await client.from("data_siswa")
+    .update({ photo_path: null }).eq("id", id);
+  if (updateError) throwSupabaseError(updateError);
+
+  const { error: storageError } = await client.storage.from(SUPABASE_STORAGE_BUCKET)
+    .remove([student.photo_path]);
+  return { removed: true, cleanupWarning: Boolean(storageError) };
 }
 
 async function apiDelete(path) {

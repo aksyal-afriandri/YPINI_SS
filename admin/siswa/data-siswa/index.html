@@ -1108,7 +1108,6 @@
                             <div class="modal-body">
                                 <form id="editSiswaForm" enctype="multipart/form-data">
                                     <input type="hidden" name="student_id" id="editSiswaId">
-                                    <input type="hidden" name="remove_photo" value="0">
                                     <div class="form-group">
                                         <label for="editNis">NIS</label>
                                         <input type="text" name="nis" class="form-control" id="editNis" required>
@@ -1122,7 +1121,6 @@
                                         <label for="editPhoto">Ganti foto (opsional)</label>
                                         <input type="file" name="photo" class="form-control-file" id="editPhoto" accept="image/jpeg,image/png,image/gif">
                                         <button type="button" class="btn btn-outline-danger btn-sm mt-2 d-none" id="hapusFotoEdit">Hapus Foto</button>
-                                        <small id="hapusFotoEditNotice" class="form-text text-muted d-none">Foto akan dihapus saat perubahan disimpan.</small>
                                     </div>
                                     <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
                                     <div class="api-error text-danger small mt-2" role="alert"></div>
@@ -1214,19 +1212,22 @@
                         form.querySelector('[name="nama"]').value = button.dataset.nama;
                         form.querySelector('[name="student_id"]').value = button.dataset.id;
                         form.querySelector('[name="photo"]').value = '';
-                        form.querySelector('[name="remove_photo"]').value = '0';
                         form.querySelector('.api-error').textContent = '';
 
                         const preview = document.getElementById('editPhotoPreview');
                         const removePhotoButton = document.getElementById('hapusFotoEdit');
-                        document.getElementById('hapusFotoEditNotice').classList.add('d-none');
+                        removePhotoButton.disabled = false;
+                        removePhotoButton.textContent = 'Hapus Foto';
                         if (button.dataset.photo) {
                             preview.src = button.dataset.photo;
                             preview.classList.remove('d-none');
-                            removePhotoButton.classList.remove('d-none');
                         } else {
                             preview.removeAttribute('src');
                             preview.classList.add('d-none');
+                        }
+                        if (button.dataset.hasPhoto === 'true') {
+                            removePhotoButton.classList.remove('d-none');
+                        } else {
                             removePhotoButton.classList.add('d-none');
                         }
                     }
@@ -1246,6 +1247,7 @@
                         button.dataset.id = student.id;
                         button.dataset.nis = student.nis;
                         button.dataset.nama = student.nama;
+                        button.dataset.hasPhoto = String(Boolean(student.photo_endpoint));
                         button.addEventListener('click', () => handler(button));
                         return button;
                     }
@@ -1447,14 +1449,26 @@
                         }
                     });
 
-                    document.getElementById('hapusFotoEdit').addEventListener('click', () => {
-                        if (!window.confirm('Hapus foto siswa ini? Foto akan dihapus setelah perubahan disimpan.')) return;
+                    document.getElementById('hapusFotoEdit').addEventListener('click', async () => {
+                        if (!window.confirm('Hapus foto siswa ini sekarang? Data siswa tetap disimpan.')) return;
 
                         const form = document.getElementById('editSiswaForm');
-                        form.querySelector('[name="remove_photo"]').value = '1';
-                        document.getElementById('editPhotoPreview').classList.add('d-none');
-                        document.getElementById('hapusFotoEdit').classList.add('d-none');
-                        document.getElementById('hapusFotoEditNotice').classList.remove('d-none');
+                        const button = document.getElementById('hapusFotoEdit');
+                        button.disabled = true;
+                        button.textContent = 'Menghapus...';
+                        form.querySelector('.api-error').textContent = '';
+                        try {
+                            const result = await apiDeleteStudentPhoto(form.dataset.studentId);
+                            $('#editSiswaModal').modal('hide');
+                            await loadSiswa();
+                            setSiswaStatus(result.cleanupWarning
+                                ? 'Foto dihapus dari data siswa, tetapi file di penyimpanan gagal dibersihkan.'
+                                : 'Foto siswa berhasil dihapus.', result.cleanupWarning);
+                        } catch (error) {
+                            showFormError(form, error);
+                            button.disabled = false;
+                            button.textContent = 'Hapus Foto';
+                        }
                     });
 
                     document.getElementById('hapusSiswaForm').addEventListener('submit', async (event) => {
