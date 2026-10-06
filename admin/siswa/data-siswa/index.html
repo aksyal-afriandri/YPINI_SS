@@ -1175,7 +1175,8 @@
                     function syncSiswaSelectionUi() {
                         const selectAll = document.getElementById('pilihSemuaSiswa');
                         const selectedCount = selectedSiswaIds.size;
-                        document.getElementById('jumlahSiswaTerpilih').textContent = `${selectedCount} siswa dipilih`;
+                        const selectedCountLabel = document.getElementById('jumlahSiswaTerpilih');
+                        if (selectedCountLabel) selectedCountLabel.textContent = `${selectedCount} siswa dipilih`;
                         document.getElementById('hapusSiswaTerpilih').disabled = selectedCount === 0;
                         selectAll.checked = allSiswaIds.length > 0 && allSiswaIds.every((id) => selectedSiswaIds.has(id));
                         selectAll.indeterminate = selectedCount > 0 && !selectAll.checked;
