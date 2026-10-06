@@ -7,16 +7,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const studentPageUrl = new URL(allStudentsLink.href);
   const isStudentPage = pageUrl.pathname === studentPageUrl.pathname;
   const selectedClassId = pageUrl.searchParams.get("kelas");
-  const studentNavigation = document.getElementById("studentNavigation");
-  const studentNavigationToggle = document.querySelector('[data-target="#collapseStudentNavigation"]');
-
-  if (isStudentPage) {
-    studentNavigation?.classList.add("active");
-    studentNavigationToggle?.classList.remove("collapsed");
-    studentNavigationToggle?.setAttribute("aria-expanded", "true");
-    document.getElementById("collapseStudentNavigation")?.classList.add("show");
-    if (!selectedClassId) allStudentsLink.classList.add("active");
-  }
 
   if (!(await window.adminSessionReady)) {
     classLinks.textContent = "Sesi admin diperlukan untuk memuat kelas.";
