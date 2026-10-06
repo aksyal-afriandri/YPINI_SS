@@ -1017,6 +1017,9 @@
                                     <li class="nav-item" role="presentation">
                                         <a class="nav-link" id="importSiswaTab" data-toggle="tab" href="#importSiswaPane" role="tab" aria-controls="importSiswaPane" aria-selected="false">Import Excel</a>
                                     </li>
+                                    <li class="nav-item" role="presentation">
+                                        <a class="nav-link" id="fotoMassalSiswaTab" data-toggle="tab" href="#fotoMassalSiswaPane" role="tab" aria-controls="fotoMassalSiswaPane" aria-selected="false">Foto Massal</a>
+                                    </li>
                                 </ul>
                                 <div class="tab-content">
                                     <div class="tab-pane fade show active" id="manualSiswaPane" role="tabpanel" aria-labelledby="manualSiswaTab">
@@ -1045,6 +1048,26 @@
                                             </div>
                                             <button type="submit" class="btn btn-success">Import</button>
                                             <div class="api-error text-danger small mt-2" role="alert"></div>
+                                        </form>
+                                    </div>
+                                    <div class="tab-pane fade" id="fotoMassalSiswaPane" role="tabpanel" aria-labelledby="fotoMassalSiswaTab">
+                                        <form id="fotoMassalSiswaForm">
+                                            <div class="form-group">
+                                                <label for="fotoSiswaFiles">Pilih banyak foto</label>
+                                                <input type="file" class="form-control-file" id="fotoSiswaFiles" accept="image/jpeg,image/png,image/gif" multiple>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="fotoSiswaFolder">Pilih folder foto</label>
+                                                <input type="file" class="form-control-file" id="fotoSiswaFolder" accept="image/jpeg,image/png,image/gif" webkitdirectory directory multiple>
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="fotoSiswaZip">Atau pilih file ZIP</label>
+                                                <input type="file" class="form-control-file" id="fotoSiswaZip" accept=".zip,application/zip">
+                                            </div>
+                                            <small class="form-text text-muted mb-3">Nama file foto harus sama dengan nama siswa, contoh: Budi Santoso.jpg. Foto maksimal 2 MB per file.</small>
+                                            <button type="submit" class="btn btn-primary">Unggah Foto</button>
+                                            <div class="api-error text-danger small mt-2" role="alert"></div>
+                                            <div id="fotoMassalSiswaResult" class="small mt-2" role="status" aria-live="polite"></div>
                                         </form>
                                     </div>
                                 </div>
@@ -1106,6 +1129,7 @@
 
                 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
                 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
                 <script src="../../../supabase-config.js"></script>
                 <script src="../../../api.js"></script>
                 <script>
@@ -1271,6 +1295,37 @@
                         form.querySelector('.api-error').textContent = error.message;
                     }
 
+                    function isStudentPhotoFile(file) {
+                        return /\.(jpe?g|png|gif)$/i.test(file.name);
+                    }
+
+                    function studentPhotoType(fileName) {
+                        const extension = fileName.split('.').pop().toLowerCase();
+                        return {
+                            jpg: 'image/jpeg',
+                            jpeg: 'image/jpeg',
+                            png: 'image/png',
+                            gif: 'image/gif',
+                        }[extension] || '';
+                    }
+
+                    async function readStudentPhotoZip(zipFile) {
+                        if (!zipFile) return { files: [], skipped: [] };
+                        if (!window.JSZip) throw new Error('Library pembaca ZIP gagal dimuat.');
+
+                        const archive = await JSZip.loadAsync(zipFile);
+                        const entries = Object.values(archive.files).filter((entry) => !entry.dir && isStudentPhotoFile(entry.name));
+                        const files = await Promise.all(entries.map(async (entry) => {
+                            const blob = await entry.async('blob');
+                            const fileName = entry.name.split('/').pop();
+                            return new File([blob], fileName, { type: studentPhotoType(fileName) });
+                        }));
+                        const skipped = Object.values(archive.files)
+                            .filter((entry) => !entry.dir && !isStudentPhotoFile(entry.name))
+                            .map((entry) => ({ file: entry.name, reason: 'Bukan file foto JPG, PNG, atau GIF' }));
+                        return { files, skipped };
+                    }
+
                     document.getElementById('tambahSiswaForm').addEventListener('submit', async (event) => {
                         event.preventDefault();
                         const form = event.currentTarget;
@@ -1328,6 +1383,35 @@
                             $('#tambahSiswaModal').modal('hide');
                             await loadSiswa();
                             setSiswaStatus(`${result.imported} data diimpor; ${result.skipped} duplikat dilewati.`);
+                        } catch (error) {
+                            showFormError(form, error);
+                        }
+                    });
+
+                    document.getElementById('fotoMassalSiswaForm').addEventListener('submit', async (event) => {
+                        event.preventDefault();
+                        const form = event.currentTarget;
+                        const resultElement = document.getElementById('fotoMassalSiswaResult');
+                        form.querySelector('.api-error').textContent = '';
+                        resultElement.textContent = '';
+                        try {
+                            const selectedFiles = [
+                                ...document.getElementById('fotoSiswaFiles').files,
+                                ...document.getElementById('fotoSiswaFolder').files,
+                            ];
+                            const zipResult = await readStudentPhotoZip(document.getElementById('fotoSiswaZip').files[0]);
+                            const files = [...selectedFiles, ...zipResult.files];
+                            if (!files.length) throw new Error('Pilih foto, folder, atau file ZIP terlebih dahulu.');
+
+                            const result = await apiBulkUploadStudentPhotos(files);
+                            const skipped = [...zipResult.skipped, ...result.skipped];
+                            const issues = [...skipped, ...result.failed];
+                            await loadSiswa();
+                            setSiswaStatus(`${result.updated} foto diperbarui; ${skipped.length} dilewati; ${result.failed.length} gagal.`, result.failed.length > 0);
+                            resultElement.classList.toggle('text-danger', issues.length > 0);
+                            resultElement.classList.toggle('text-success', issues.length === 0);
+                            resultElement.textContent = `${result.updated} foto diperbarui; ${skipped.length} dilewati; ${result.failed.length} gagal.` +
+                                (issues.length ? ` Rincian: ${issues.slice(0, 5).map((item) => `${item.file} (${item.reason})`).join('; ')}${issues.length > 5 ? '; dan lainnya' : ''}` : '');
                         } catch (error) {
                             showFormError(form, error);
                         }

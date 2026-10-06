@@ -82,6 +82,74 @@ async function uploadStudentPhoto(file) {
   return data.path;
 }
 
+function normalizeStudentPhotoName(value) {
+  return value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+async function apiBulkUploadStudentPhotos(files) {
+  if (!Array.isArray(files) || !files.length) {
+    throw new Error("Pilih setidaknya satu foto siswa.");
+  }
+
+  const client = getSupabaseClient();
+  const { data: students, error } = await client.from("data_siswa")
+    .select("id, nama, photo_path");
+  if (error) throwSupabaseError(error);
+
+  const studentsByName = new Map();
+  students.forEach((student) => {
+    const key = normalizeStudentPhotoName(student.nama);
+    studentsByName.set(key, [...(studentsByName.get(key) || []), student]);
+  });
+
+  const filesByName = new Map();
+  files.forEach((file) => {
+    const fileName = file.name.split(/[\\/]/).pop();
+    const key = normalizeStudentPhotoName(fileName.replace(/\.[^.]+$/, ""));
+    filesByName.set(key, [...(filesByName.get(key) || []), file]);
+  });
+
+  const result = { updated: 0, skipped: [], failed: [] };
+  for (const [key, matchingFiles] of filesByName) {
+    const matchingStudents = studentsByName.get(key) || [];
+    if (matchingStudents.length !== 1) {
+      result.skipped.push({
+        file: matchingFiles.map((file) => file.name).join(", "),
+        reason: matchingStudents.length ? "Nama siswa tidak unik" : "Nama siswa tidak ditemukan",
+      });
+      continue;
+    }
+    if (matchingFiles.length !== 1) {
+      result.skipped.push({
+        file: matchingFiles.map((file) => file.name).join(", "),
+        reason: "Ada lebih dari satu foto dengan nama yang sama",
+      });
+      continue;
+    }
+
+    const student = matchingStudents[0];
+    let uploadedPath = null;
+    try {
+      uploadedPath = await uploadStudentPhoto(matchingFiles[0]);
+      const { error: updateError } = await client.from("data_siswa")
+        .update({ photo_path: uploadedPath }).eq("id", student.id);
+      if (updateError) throwSupabaseError(updateError);
+      if (student.photo_path) {
+        await client.storage.from(SUPABASE_STORAGE_BUCKET).remove([student.photo_path]);
+      }
+      result.updated += 1;
+    } catch (uploadError) {
+      if (uploadedPath) {
+        await client.storage.from(SUPABASE_STORAGE_BUCKET).remove([uploadedPath]);
+      }
+      result.failed.push({ file: matchingFiles[0].name, reason: uploadError.message });
+    }
+  }
+
+  return result;
+}
+
 async function apiLogin(credentials) {
   const client = getSupabaseClient();
   const { data, error } = await client.auth.signInWithPassword({
