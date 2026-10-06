@@ -1381,8 +1381,9 @@
                         form.querySelector('.api-error').textContent = error.message;
                     }
 
-                    function isStudentPhotoFile(file) {
-                        return /\.(jpe?g|png|gif)$/i.test(file.name);
+                    function isStudentPhotoFile(fileOrName) {
+                        const fileName = typeof fileOrName === 'string' ? fileOrName : fileOrName.name;
+                        return /\.(jpe?g|png|gif)$/i.test(fileName);
                     }
 
                     function studentPhotoType(fileName) {
