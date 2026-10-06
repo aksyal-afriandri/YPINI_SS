@@ -249,6 +249,24 @@ async function apiDelete(path) {
   return { message: "Data berhasil dihapus." };
 }
 
+async function apiBulkDeleteStudents(ids) {
+  const studentIds = [...new Set((ids || []).map((id) => String(id)).filter(Boolean))];
+  if (!studentIds.length) throw new Error("Pilih setidaknya satu siswa.");
+
+  const client = getSupabaseClient();
+  const { data, error } = await client.from("data_siswa")
+    .delete().in("id", studentIds).select("id, photo_path");
+  if (error) throwSupabaseError(error);
+
+  const photoPaths = data.map((student) => student.photo_path).filter(Boolean);
+  let photoCleanupWarning = false;
+  if (photoPaths.length) {
+    const { error: storageError } = await client.storage.from(SUPABASE_STORAGE_BUCKET).remove(photoPaths);
+    photoCleanupWarning = Boolean(storageError);
+  }
+  return { deleted: data.length, photoCleanupWarning };
+}
+
 async function apiGetBlob(path) {
   const { data, error } = await getSupabaseClient()
     .storage.from(SUPABASE_STORAGE_BUCKET).createSignedUrl(path, 60);

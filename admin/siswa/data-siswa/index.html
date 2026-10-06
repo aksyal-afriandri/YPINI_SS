@@ -364,11 +364,17 @@
                         </div>
                         <div class="card-body">
                             <div id="siswaApiStatus" class="small text-muted mb-3" role="status" aria-live="polite">Memuat data siswa...</div>
+                            <div class="d-flex align-items-center mb-3">
+                                <button type="button" class="btn btn-danger btn-sm" id="hapusSiswaTerpilih" disabled>
+                                    <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Hapus terpilih
+                                </button>
+                                <span id="jumlahSiswaTerpilih" class="small text-muted ml-3">0 siswa dipilih</span>
+                            </div>
                                                         <div class="table-responsive">
                                 <table class="table table-bordered" id="siswaTable" width="100%" cellspacing="0">
                                     <thead>
                                         <tr>
-                                            <!-- <th><input type="checkbox"></th> -->
+                                            <th><input type="checkbox" id="pilihSemuaSiswa" aria-label="Pilih semua siswa"></th>
                                             <th>No</th>
                                             <th>NISN</th>
                                             <th>Nama</th>
@@ -1136,6 +1142,8 @@
                     const siswaBody = document.querySelector('#siswaTable tbody');
                     const siswaStatus = document.getElementById('siswaApiStatus');
                     const siswaPhotoUrls = new Set();
+                    const selectedSiswaIds = new Set();
+                    let allSiswaIds = [];
                     let siswaDataTable = null;
 
                     function setSiswaStatus(message, isError = false) {
@@ -1149,6 +1157,18 @@
                         cell.textContent = value ?? '';
                         row.appendChild(cell);
                         return cell;
+                    }
+
+                    function syncSiswaSelectionUi() {
+                        const selectAll = document.getElementById('pilihSemuaSiswa');
+                        const selectedCount = selectedSiswaIds.size;
+                        document.getElementById('jumlahSiswaTerpilih').textContent = `${selectedCount} siswa dipilih`;
+                        document.getElementById('hapusSiswaTerpilih').disabled = selectedCount === 0;
+                        selectAll.checked = allSiswaIds.length > 0 && allSiswaIds.every((id) => selectedSiswaIds.has(id));
+                        selectAll.indeterminate = selectedCount > 0 && !selectAll.checked;
+                        siswaBody.querySelectorAll('.siswa-row-checkbox').forEach((checkbox) => {
+                            checkbox.checked = selectedSiswaIds.has(checkbox.dataset.id);
+                        });
                     }
 
                     function previewFotoSiswa(button) {
@@ -1203,6 +1223,9 @@
                         }
                         siswaPhotoUrls.forEach((url) => URL.revokeObjectURL(url));
                         siswaPhotoUrls.clear();
+                        selectedSiswaIds.clear();
+                        allSiswaIds = [];
+                        syncSiswaSelectionUi();
                         siswaBody.replaceChildren();
                         if (!(await window.adminSessionReady)) {
                             setSiswaStatus(window.adminSessionError || 'Sesi admin diperlukan.', true);
@@ -1213,9 +1236,23 @@
                         try {
                             const result = await apiGet('/data/siswa');
                             const students = result.data || [];
+                            allSiswaIds = students.map((student) => String(student.id));
 
                             students.forEach((student, index) => {
                                 const row = document.createElement('tr');
+                                const selectionCell = document.createElement('td');
+                                const checkbox = document.createElement('input');
+                                checkbox.type = 'checkbox';
+                                checkbox.className = 'siswa-row-checkbox';
+                                checkbox.dataset.id = String(student.id);
+                                checkbox.setAttribute('aria-label', `Pilih ${student.nama}`);
+                                checkbox.addEventListener('change', () => {
+                                    if (checkbox.checked) selectedSiswaIds.add(checkbox.dataset.id);
+                                    else selectedSiswaIds.delete(checkbox.dataset.id);
+                                    syncSiswaSelectionUi();
+                                });
+                                selectionCell.appendChild(checkbox);
+                                row.appendChild(selectionCell);
                                 addSiswaCell(row, index + 1);
                                 addSiswaCell(row, student.nisn);
                                 addSiswaCell(row, student.nama);
@@ -1271,6 +1308,7 @@
                             siswaDataTable = $('#siswaTable').DataTable({
                                 pageLength: 10,
                                 lengthMenu: [10, 25, 50, 100],
+                                columnDefs: [{ targets: [0, 5], orderable: false }],
                                 language: {
                                     search: 'Cari:',
                                     lengthMenu: 'Tampilkan _MENU_ entri',
@@ -1285,6 +1323,9 @@
                                     },
                                 },
                             });
+                            $('#siswaTable').off('draw.dt.siswaSelection')
+                                .on('draw.dt.siswaSelection', syncSiswaSelectionUi);
+                            syncSiswaSelectionUi();
                             setSiswaStatus(`${students.length} data siswa dimuat dari database.`);
                         } catch (error) {
                             setSiswaStatus(error.message, true);
@@ -1365,6 +1406,28 @@
                             await loadSiswa();
                         } catch (error) {
                             showFormError(form, error);
+                        }
+                    });
+
+                    document.getElementById('pilihSemuaSiswa').addEventListener('change', (event) => {
+                        if (event.currentTarget.checked) {
+                            allSiswaIds.forEach((id) => selectedSiswaIds.add(id));
+                        } else {
+                            selectedSiswaIds.clear();
+                        }
+                        syncSiswaSelectionUi();
+                    });
+
+                    document.getElementById('hapusSiswaTerpilih').addEventListener('click', async () => {
+                        const ids = [...selectedSiswaIds];
+                        if (!ids.length || !window.confirm(`Hapus ${ids.length} siswa yang dipilih beserta data fotonya? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+                        try {
+                            const result = await apiBulkDeleteStudents(ids);
+                            await loadSiswa();
+                            setSiswaStatus(`${result.deleted} siswa berhasil dihapus.${result.photoCleanupWarning ? ' Sebagian foto gagal dibersihkan dari penyimpanan.' : ''}`, result.photoCleanupWarning);
+                        } catch (error) {
+                            setSiswaStatus(error.message, true);
                         }
                     });
 
