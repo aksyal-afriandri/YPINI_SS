@@ -62,11 +62,24 @@
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <!-- data dari admin (guru mungkin bisa cek ini) -->
-                        <a class="collapse-item" href="../../siswa/data-siswa/">Data Siswa</a>
                         <a class="collapse-item" href="../data-guru/">Data Guru</a>
                         <a class="collapse-item" href="../../kelas/data-kelas/">Data Kelas</a>
                         <a class="collapse-item" href="../../pelajaran/data-pelajaran/">Data Pelajaran</a>
                         <a class="collapse-item" href="../../tahun/data-tahun/">Data Tahun Ajaran</a>
+                    </div>
+                </div>
+            </li>
+
+            <li class="nav-item" id="studentNavigation">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseStudentNavigation" aria-expanded="false" aria-controls="collapseStudentNavigation">
+                    <i class="fas fa-fw fa-user-graduate"></i>
+                    <span>Data Siswa</span>
+                </a>
+                <div id="collapseStudentNavigation" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" id="sidebarAllStudentsLink" href="../../siswa/data-siswa/">Semua Siswa</a>
+                        <h6 class="collapse-header">Siswa per Kelas:</h6>
+                        <div id="sidebarClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
                     </div>
                 </div>
             </li>
@@ -814,6 +827,7 @@
     <script src="../../../supabase-config.js"></script>
     <script src="../../../api.js"></script>
     <script src="../../../admin-session.js"></script>
+    <script src="../../../class-navigation.js"></script>
     <script src="../../../resource-page.js"></script>
 </body>
 

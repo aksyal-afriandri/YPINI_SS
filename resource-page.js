@@ -108,7 +108,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
       config.fields.forEach(({ key }) => {
         const cell = document.createElement("td");
-        cell.textContent = record[key] ?? "";
+        if (config.resource === "kelas" && key === "nama_kelas") {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "btn btn-link p-0 text-left";
+          button.textContent = record[key] ?? "";
+          button.setAttribute("aria-label", `Lihat siswa kelas ${record[key] ?? ""}`);
+          button.dataset.recordAction = "students";
+          button.dataset.recordId = record.id;
+          cell.append(button);
+        } else {
+          cell.textContent = record[key] ?? "";
+        }
         row.append(cell);
       });
 
@@ -123,8 +134,10 @@ document.addEventListener("DOMContentLoaded", () => {
         button.textContent = label;
         button.dataset.recordAction = action;
         button.dataset.recordId = record.id;
-        button.dataset.toggle = "modal";
-        button.dataset.target = `#${target}`;
+        if (target) {
+          button.dataset.toggle = "modal";
+          button.dataset.target = `#${target}`;
+        }
         actions.append(button);
       });
       row.append(actions);
@@ -162,13 +175,40 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  tableBody.addEventListener("click", (event) => {
+  tableBody.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-record-action]");
     if (!button) return;
     const record = records.find((item) => String(item.id) === button.dataset.recordId);
     if (!record) return;
 
-    if (button.dataset.recordAction === "edit") {
+    if (button.dataset.recordAction === "students") {
+      const modal = document.getElementById("lihatSiswaKelasModal");
+      const studentBody = document.getElementById("siswaKelasBody");
+      const studentStatus = document.getElementById("siswaKelasStatus");
+      if (!modal || !studentBody || !studentStatus) return;
+
+      document.getElementById("lihatSiswaKelasTitle").textContent = `Siswa Kelas ${record.nama_kelas}`;
+      studentBody.replaceChildren();
+      studentStatus.textContent = "Memuat daftar siswa...";
+      window.jQuery("#lihatSiswaKelasModal").modal("show");
+      try {
+        const result = await apiGetClassStudents(record.id);
+        result.data.forEach((student, index) => {
+          const row = document.createElement("tr");
+          [index + 1, student.nisn, student.nama].forEach((value) => {
+            const cell = document.createElement("td");
+            cell.textContent = String(value ?? "");
+            row.append(cell);
+          });
+          studentBody.append(row);
+        });
+        studentStatus.textContent = result.data.length
+          ? `${result.data.length} siswa terhubung ke kelas ini.`
+          : "Belum ada siswa yang terhubung ke kelas ini.";
+      } catch (error) {
+        studentStatus.textContent = error.message;
+      }
+    } else if (button.dataset.recordAction === "edit") {
       editForm.dataset.recordId = record.id;
       config.fields.forEach(({ key }) => {
         const input = editForm.querySelector(`[name="${key}"]`);

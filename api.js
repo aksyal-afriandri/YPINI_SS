@@ -319,3 +319,124 @@ async function apiImport(resource, rows) {
   }
   return { imported: uniqueRecords.length, skipped: records.length - uniqueRecords.length };
 }
+
+function normalizeClassName(value) {
+  return String(value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+}
+
+async function apiGetClassStudents(classId) {
+  const client = getSupabaseClient();
+  const { data: classRecord, error: classError } = await client.from("data_kelas")
+    .select("nama_kelas").eq("id", classId).single();
+  if (classError) throwSupabaseError(classError);
+
+  const { data: links, error } = await client.from("siswa_kelas")
+    .select("siswa_id").eq("kelas_id", classId);
+  if (error) throwSupabaseError(error);
+  if (!links.length) return { data: [], className: classRecord.nama_kelas };
+
+  const studentIds = [...new Set(links.map((link) => link.siswa_id))];
+  const { data, error: studentsError } = await client.from("data_siswa")
+    .select("id, nisn, nama, photo_path").in("id", studentIds).order("nama", { ascending: true });
+  if (studentsError) throwSupabaseError(studentsError);
+  return {
+    data: data.map((student) => ({ ...student, photo_endpoint: student.photo_path })),
+    className: classRecord.nama_kelas,
+  };
+}
+
+async function apiImportStudentsByClass(sheetGroups) {
+  if (!Array.isArray(sheetGroups) || !sheetGroups.length) {
+    throw new Error("File Excel harus berisi sheet dengan data siswa.");
+  }
+
+  const groups = sheetGroups.map((group) => ({
+    className: String(group.name ?? "").trim(),
+    rows: Array.isArray(group.rows) ? group.rows : [],
+  })).filter((group) => group.rows.length);
+  if (!groups.length) throw new Error("File Excel tidak berisi data siswa.");
+
+  const client = getSupabaseClient();
+  const { data: classes, error: classesError } = await client.from("data_kelas")
+    .select("id, nama_kelas");
+  if (classesError) throwSupabaseError(classesError);
+
+  const classesByName = new Map();
+  classes.forEach((record) => {
+    const key = normalizeClassName(record.nama_kelas);
+    classesByName.set(key, [...(classesByName.get(key) || []), record]);
+  });
+
+  const classForSheet = new Map();
+  groups.forEach((group) => {
+    const key = normalizeClassName(group.className);
+    const matches = classesByName.get(key) || [];
+    if (!group.className || !matches.length) {
+      throw new Error(`Kelas "${group.className || "(kosong)"}" belum tersedia. Tambahkan kelas dulu sebelum import.`);
+    }
+    if (matches.length > 1) {
+      throw new Error(`Nama kelas "${group.className}" terdaftar lebih dari sekali. Periksa data kelas dulu.`);
+    }
+    classForSheet.set(group, matches[0]);
+  });
+
+  const rowsByNisn = new Map();
+  const requestedLinks = new Map();
+  groups.forEach((group) => {
+    const classRecord = classForSheet.get(group);
+    group.rows.forEach((row, index) => {
+      const normalized = {};
+      Object.entries(row).forEach(([key, value]) => {
+        normalized[key.trim().toLowerCase()] = String(value ?? "").trim();
+      });
+      const nisn = normalized.nisn || "";
+      const nama = normalized.nama || "";
+      if (!nisn && !nama) return;
+      if (!nisn || !nama || nisn.length > 255 || nama.length > 255) {
+        throw new Error(`Sheet "${group.className}", baris ${index + 3}: NISN dan Nama wajib diisi (maksimal 255 karakter).`);
+      }
+
+      const existingRow = rowsByNisn.get(nisn);
+      if (existingRow && existingRow.nama !== nama) {
+        throw new Error(`NISN ${nisn} memiliki nama berbeda pada file Excel.`);
+      }
+      rowsByNisn.set(nisn, { nisn, nama });
+      requestedLinks.set(`${classRecord.id}:${nisn}`, { classId: classRecord.id, nisn });
+    });
+  });
+  if (!rowsByNisn.size) throw new Error("Tidak ada baris siswa yang dapat diimpor.");
+
+  const nisns = [...rowsByNisn.keys()];
+  const { data: existingStudents, error: studentsError } = await client.from("data_siswa")
+    .select("id, nisn").in("nisn", nisns);
+  if (studentsError) throwSupabaseError(studentsError);
+
+  const studentsByNisn = new Map(existingStudents.map((student) => [student.nisn, student]));
+  const newStudents = [...rowsByNisn.values()].filter((row) => !studentsByNisn.has(row.nisn));
+  if (newStudents.length) {
+    const { data, error } = await client.from("data_siswa").insert(newStudents).select("id, nisn");
+    if (error) throwSupabaseError(error);
+    data.forEach((student) => studentsByNisn.set(student.nisn, student));
+  }
+
+  const studentIds = [...new Set([...studentsByNisn.values()].map((student) => student.id))];
+  const { data: existingLinks, error: linksError } = await client.from("siswa_kelas")
+    .select("kelas_id, siswa_id").in("siswa_id", studentIds);
+  if (linksError) throwSupabaseError(linksError);
+  const existingLinkKeys = new Set(existingLinks.map((link) => `${link.kelas_id}:${link.siswa_id}`));
+  const newLinks = [...requestedLinks.values()].map((link) => ({
+    kelas_id: link.classId,
+    siswa_id: studentsByNisn.get(link.nisn).id,
+  })).filter((link) => !existingLinkKeys.has(`${link.kelas_id}:${link.siswa_id}`));
+
+  if (newLinks.length) {
+    const { error } = await client.from("siswa_kelas").insert(newLinks);
+    if (error) throwSupabaseError(error);
+  }
+
+  return {
+    studentsAdded: newStudents.length,
+    linksAdded: newLinks.length,
+    linksExisting: requestedLinks.size - newLinks.length,
+  };
+}
