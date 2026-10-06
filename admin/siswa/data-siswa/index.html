@@ -1042,6 +1042,7 @@
                                 <div class="tab-content">
                                     <div class="tab-pane fade show active" id="manualSiswaPane" role="tabpanel" aria-labelledby="manualSiswaTab">
                                                                                 <form id="tambahSiswaForm" enctype="multipart/form-data">
+                                                                                    <small id="siswaKelasAddNote" class="form-text text-muted mb-3 d-none"></small>
                                             <div class="form-group">
                                                 <label for="tambahNisn">NISN</label>
                                                 <input type="text" name="nisn" class="form-control" id="tambahNisn" required>
@@ -1061,9 +1062,9 @@
                                     <div class="tab-pane fade" id="importSiswaPane" role="tabpanel" aria-labelledby="importSiswaTab">
                                         <form id="importSiswaForm">
                                             <div class="form-group">
-                                                <label for="importSiswaFile">Pilih file Excel daftar kelas</label>
-                                                <input type="file" name="file" class="form-control-file" id="importSiswaFile" accept=".xlsx,.xls" required>
-                                                <small class="form-text text-muted">Setiap sheet mewakili satu kelas dan namanya harus sama dengan kelas yang sudah dibuat. Baris kedua berisi header NISN dan Nama; baris pertama dilewati.</small>
+                                                <label for="importSiswaFile">Pilih file Excel siswa</label>
+                                                <input type="file" name="file" class="form-control-file" id="importSiswaFile" accept=".xlsx,.xls,.csv" required>
+                                                <small class="form-text text-muted">Data diambil dari sheet pertama. Baris pertama dilewati; header NISN dan Nama harus ada di baris kedua.</small>
                                             </div>
                                             <button type="submit" class="btn btn-success">Import</button>
                                             <div class="api-error text-danger small mt-2" role="alert"></div>
@@ -1156,8 +1157,19 @@
                     const siswaStatus = document.getElementById('siswaApiStatus');
                     const siswaPhotoUrls = new Set();
                     const selectedSiswaIds = new Set();
+                    const currentClassId = new URLSearchParams(window.location.search).get('kelas');
                     let allSiswaIds = [];
                     let siswaDataTable = null;
+
+                    if (currentClassId) {
+                        const addStudentButton = document.querySelector('[data-target="#tambahSiswaModal"]');
+                        addStudentButton.textContent = 'Tambah Siswa ke Kelas';
+                        document.getElementById('tambahSiswaModalLabel').textContent = 'Tambah Siswa ke Kelas';
+                        document.getElementById('importSiswaTab').closest('.nav-item').classList.add('d-none');
+                        const classNote = document.getElementById('siswaKelasAddNote');
+                        classNote.textContent = 'Jika NISN sudah terdaftar, siswa yang ada akan dihubungkan ke kelas ini tanpa membuat data duplikat.';
+                        classNote.classList.remove('d-none');
+                    }
 
                     function setSiswaStatus(message, isError = false) {
                         siswaStatus.textContent = message;
@@ -1248,8 +1260,8 @@
                         setSiswaStatus('Memuat data siswa...');
 
                         try {
-                            const result = new URLSearchParams(window.location.search).get('kelas')
-                                ? await apiGetClassStudents(new URLSearchParams(window.location.search).get('kelas'))
+                            const result = currentClassId
+                                ? await apiGetClassStudents(currentClassId)
                                 : await apiGet('/data/siswa');
                             const students = result.data || [];
                             document.getElementById('siswaPageTitle').textContent = result.className
@@ -1391,10 +1403,18 @@
                         const form = event.currentTarget;
                         form.querySelector('.api-error').textContent = '';
                         try {
-                            await apiPost('/data/siswa', new FormData(form));
+                            const result = currentClassId
+                                ? await apiPostStudentToClass(currentClassId, new FormData(form))
+                                : null;
+                            if (!currentClassId) await apiPost('/data/siswa', new FormData(form));
                             form.reset();
                             $('#tambahSiswaModal').modal('hide');
                             await loadSiswa();
+                            if (currentClassId) {
+                                setSiswaStatus(result.linked
+                                    ? `${result.created ? 'Siswa baru ditambahkan' : 'Siswa yang sudah ada'} berhasil dihubungkan ke kelas.`
+                                    : 'Siswa tersebut sudah terhubung ke kelas ini.');
+                            }
                         } catch (error) {
                             showFormError(form, error);
                         }
@@ -1458,15 +1478,13 @@
                         try {
                             if (!file) throw new Error('Pilih file Excel terlebih dahulu.');
                             const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-                            const sheetGroups = workbook.SheetNames.map((name) => ({
-                                name,
-                                rows: XLSX.utils.sheet_to_json(workbook.Sheets[name], { range: 1, defval: '' }),
-                            }));
-                            const result = await apiImportStudentsByClass(sheetGroups);
+                            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const rows = XLSX.utils.sheet_to_json(sheet, { range: 1, defval: '' });
+                            const result = await apiImport('siswa', rows);
                             form.reset();
                             $('#tambahSiswaModal').modal('hide');
                             await loadSiswa();
-                            setSiswaStatus(`${result.studentsAdded} siswa baru ditambahkan; ${result.linksAdded} relasi kelas dibuat; ${result.linksExisting} relasi yang sudah ada dilewati.`);
+                            setSiswaStatus(`${result.imported} siswa diimpor; ${result.skipped} NISN duplikat dilewati.`);
                         } catch (error) {
                             showFormError(form, error);
                         }
