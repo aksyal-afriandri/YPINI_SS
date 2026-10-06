@@ -1,6 +1,6 @@
 const SUPABASE_STORAGE_BUCKET = "student-photos";
 const RESOURCE_FIELDS = {
-  siswa: ["nisn", "nama"],
+  siswa: ["nis", "nama"],
   guru: ["nip", "nama"],
   kelas: ["nama_kelas"],
   pelajaran: ["nama_pelajaran"],
@@ -25,7 +25,7 @@ function getSupabaseClient() {
 
 function throwSupabaseError(error) {
   if (error?.code === "23505") {
-    throw new Error("Data dengan NISN atau NIP tersebut sudah terdaftar.");
+    throw new Error("Data dengan NIS atau NIP tersebut sudah terdaftar.");
   }
   if (error?.code === "42501") {
     throw new Error("Akses ditolak. Pastikan akun memiliki peran admin.");
@@ -236,7 +236,7 @@ async function apiPostStudentToClass(classId, input) {
 
   const values = formPayload("siswa", input);
   const { data: existingStudent, error: studentError } = await client.from("data_siswa")
-    .select("id, nisn, nama").eq("nisn", values.nisn).maybeSingle();
+    .select("id, nis, nama").eq("nis", values.nis).maybeSingle();
   if (studentError) throwSupabaseError(studentError);
 
   const { data: existingLink, error: linkLookupError } = await client.from("siswa_kelas")
@@ -277,45 +277,45 @@ async function apiImportStudentsToClass(classId, rows) {
     Object.entries(row).forEach(([key, value]) => {
       normalized[key.trim().toLowerCase()] = String(value ?? "").trim();
     });
-    return { nisn: normalized.nisn || "", nama: normalized.nama || "", rowNumber: index + 3 };
-  }).filter((row) => row.nisn || row.nama);
+    return { nis: normalized.nis || "", nama: normalized.nama || "", rowNumber: index + 3 };
+  }).filter((row) => row.nis || row.nama);
 
-  const rowsByNisn = new Map();
+  const rowsByNis = new Map();
   normalizedRows.forEach((row) => {
-    if (!row.nisn || !row.nama || row.nisn.length > 255 || row.nama.length > 255) {
-      throw new Error(`Baris Excel ${row.rowNumber}: NISN dan Nama wajib diisi (maksimal 255 karakter).`);
+    if (!row.nis || !row.nama || row.nis.length > 255 || row.nama.length > 255) {
+      throw new Error(`Baris Excel ${row.rowNumber}: NIS dan Nama wajib diisi (maksimal 255 karakter).`);
     }
-    const previous = rowsByNisn.get(row.nisn);
+    const previous = rowsByNis.get(row.nis);
     if (previous && previous.nama !== row.nama) {
-      throw new Error(`NISN ${row.nisn} memiliki nama berbeda di file Excel.`);
+      throw new Error(`NIS ${row.nis} memiliki nama berbeda di file Excel.`);
     }
-    rowsByNisn.set(row.nisn, row);
+    rowsByNis.set(row.nis, row);
   });
-  if (!rowsByNisn.size) throw new Error("File Excel tidak berisi data siswa.");
+  if (!rowsByNis.size) throw new Error("File Excel tidak berisi data siswa.");
 
-  const nisns = [...rowsByNisn.keys()];
+  const nisValues = [...rowsByNis.keys()];
   const { data: existingStudents, error: lookupError } = await client.from("data_siswa")
-    .select("id, nisn").in("nisn", nisns);
+    .select("id, nis").in("nis", nisValues);
   if (lookupError) throwSupabaseError(lookupError);
 
-  const studentsByNisn = new Map(existingStudents.map((student) => [student.nisn, student]));
-  const newStudents = [...rowsByNisn.values()]
-    .filter((row) => !studentsByNisn.has(row.nisn))
-    .map(({ nisn, nama }) => ({ nisn, nama }));
+  const studentsByNis = new Map(existingStudents.map((student) => [student.nis, student]));
+  const newStudents = [...rowsByNis.values()]
+    .filter((row) => !studentsByNis.has(row.nis))
+    .map(({ nis, nama }) => ({ nis, nama }));
 
   if (newStudents.length) {
     const { data, error } = await client.from("data_siswa")
-      .insert(newStudents).select("id, nisn");
+      .insert(newStudents).select("id, nis");
     if (error) throwSupabaseError(error);
-    data.forEach((student) => studentsByNisn.set(student.nisn, student));
+    data.forEach((student) => studentsByNis.set(student.nis, student));
   }
 
-  const students = [...rowsByNisn.keys()].map((nisn) => studentsByNisn.get(nisn));
+  const students = [...rowsByNis.keys()].map((nis) => studentsByNis.get(nis));
   const { data: existingLinks, error: linksLookupError } = await client.from("siswa_kelas")
     .select("siswa_id").eq("kelas_id", classId)
     .in("siswa_id", students.map((student) => student.id));
   if (linksLookupError) {
-    const newStudentIds = newStudents.map((row) => studentsByNisn.get(row.nisn).id);
+    const newStudentIds = newStudents.map((row) => studentsByNis.get(row.nis).id);
     if (newStudentIds.length) await client.from("data_siswa").delete().in("id", newStudentIds);
     throwSupabaseError(linksLookupError);
   }
@@ -328,7 +328,7 @@ async function apiImportStudentsToClass(classId, rows) {
   if (newLinks.length) {
     const { error } = await client.from("siswa_kelas").insert(newLinks);
     if (error) {
-      const newStudentIds = newStudents.map((row) => studentsByNisn.get(row.nisn).id);
+      const newStudentIds = newStudents.map((row) => studentsByNis.get(row.nis).id);
       if (newStudentIds.length) await client.from("data_siswa").delete().in("id", newStudentIds);
       throwSupabaseError(error);
     }
@@ -397,7 +397,7 @@ async function apiImport(resource, rows) {
   }
 
   const fields = RESOURCE_FIELDS[resource];
-  const uniqueField = { siswa: "nisn", guru: "nip" }[resource];
+  const uniqueField = { siswa: "nis", guru: "nip" }[resource];
   const client = getSupabaseClient();
   const normalizedRows = rows.map((row) => {
     const normalized = {};
@@ -448,7 +448,7 @@ async function apiGetClassStudents(classId) {
 
   const studentIds = [...new Set(links.map((link) => link.siswa_id))];
   const { data, error: studentsError } = await client.from("data_siswa")
-    .select("id, nisn, nama, photo_path").in("id", studentIds).order("nama", { ascending: true });
+    .select("id, nis, nama, photo_path").in("id", studentIds).order("nama", { ascending: true });
   if (studentsError) throwSupabaseError(studentsError);
   return {
     data: data.map((student) => ({ ...student, photo_endpoint: student.photo_path })),

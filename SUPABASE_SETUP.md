@@ -22,6 +22,7 @@ Frontend statis berada di folder ini. Saat berjalan, aplikasi memakai Supabase A
 
 1. Buat project baru di Supabase dan simpan password database project di password manager. Password itu tidak digunakan oleh frontend.
 2. Buka **SQL Editor > New query**, salin seluruh isi `supabase-schema.sql`, lalu pilih **Run**.
+  Untuk project lama yang masih memakai kolom `data_siswa.nisn`, jalankan ulang schema terbaru ini. Bagian migrasinya mengganti nama kolom menjadi `nis` tanpa menghapus data siswa.
 3. Di **Authentication > Users**, buat user admin dengan email dan password yang kuat.
 4. Di SQL Editor, jalankan query berikut dan ganti alamat email dengan email admin tadi:
 
@@ -52,7 +53,7 @@ Frontend statis berada di folder ini. Saat berjalan, aplikasi memakai Supabase A
 1. Di phpMyAdmin, ekspor tabel Laravel berikut satu per satu sebagai CSV: `data_siswa`, `data_guru`, `data_kelas`, `tahun_ajaran`, `data_pelajaran`, `semester`, `wali_kelas`, dan `siswa_kelas`.
 2. Impor CSV ke tabel dengan nama sama di Supabase **Table Editor**. Pertahankan nilai `id` dan foreign key. Import urutan ini agar relasi tersedia:
    `data_guru`, `data_kelas`, `tahun_ajaran`, `data_siswa`, `data_pelajaran`, `semester`, lalu `wali_kelas` dan `siswa_kelas`.
-3. Periksa jumlah baris pada tiap tabel di sumber dan tujuan. Cek juga beberapa nilai NISN/NIP dan foreign key secara manual. Pastikan spreadsheet tidak menghapus angka nol di depan NISN/NIP.
+3. Periksa jumlah baris pada tiap tabel di sumber dan tujuan. Cek juga beberapa nilai NIS/NIP dan foreign key secara manual. Pastikan spreadsheet tidak menghapus angka nol di depan NIS/NIP.
 4. Setelah mengimpor ID secara eksplisit, jalankan query berikut **satu kali** di SQL Editor agar ID baru tidak bentrok:
 
    ```sql

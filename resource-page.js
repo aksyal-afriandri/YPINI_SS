@@ -195,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const result = await apiGetClassStudents(record.id);
         result.data.forEach((student, index) => {
           const row = document.createElement("tr");
-          [index + 1, student.nisn, student.nama].forEach((value) => {
+          [index + 1, student.nis, student.nama].forEach((value) => {
             const cell = document.createElement("td");
             cell.textContent = String(value ?? "");
             row.append(cell);
