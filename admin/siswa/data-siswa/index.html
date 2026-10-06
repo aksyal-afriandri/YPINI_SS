@@ -1082,7 +1082,7 @@
                                             </div>
                                             <div class="form-group">
                                                 <label for="fotoSiswaZip">Atau pilih file ZIP</label>
-                                                <input type="file" class="form-control-file" id="fotoSiswaZip" accept=".zip,application/zip">
+                                                <input type="file" class="form-control-file" id="fotoSiswaZip" accept=".zip,application/zip,application/x-zip-compressed">
                                             </div>
                                             <small class="form-text text-muted mb-3">Nama file foto harus sama dengan nama siswa, contoh: Budi Santoso.jpg. Foto maksimal 2 MB per file.</small>
                                             <button type="submit" class="btn btn-primary">Unggah Foto</button>
@@ -1403,7 +1403,7 @@
                         const entries = Object.values(archive.files).filter((entry) => !entry.dir && isStudentPhotoFile(entry.name));
                         const files = await Promise.all(entries.map(async (entry) => {
                             const blob = await entry.async('blob');
-                            const fileName = entry.name.split('/').pop();
+                            const fileName = entry.name.split(/[\\/]/).pop();
                             return new File([blob], fileName, { type: studentPhotoType(fileName) });
                         }));
                         const skipped = Object.values(archive.files)
@@ -1541,7 +1541,11 @@
                                 ...document.getElementById('fotoSiswaFiles').files,
                                 ...document.getElementById('fotoSiswaFolder').files,
                             ];
-                            const zipResult = await readStudentPhotoZip(document.getElementById('fotoSiswaZip').files[0]);
+                            const zipFile = document.getElementById('fotoSiswaZip').files[0];
+                            const zipResult = await readStudentPhotoZip(zipFile);
+                            if (zipFile && !zipResult.files.length) {
+                                throw new Error(`ZIP "${zipFile.name}" sudah dipilih, tetapi tidak berisi foto JPG, PNG, atau GIF yang didukung.`);
+                            }
                             const files = [...selectedFiles, ...zipResult.files];
                             if (!files.length) throw new Error('Pilih foto, folder, atau file ZIP terlebih dahulu.');
 
