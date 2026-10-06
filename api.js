@@ -263,6 +263,85 @@ async function apiPostStudentToClass(classId, input) {
   return { created, linked: true, student };
 }
 
+async function apiImportStudentsToClass(classId, rows) {
+  if (!Array.isArray(rows)) throw new Error("Format data Excel tidak valid.");
+
+  const client = getSupabaseClient();
+  const { data: classRecord, error: classError } = await client.from("data_kelas")
+    .select("id, nama_kelas").eq("id", classId).maybeSingle();
+  if (classError) throwSupabaseError(classError);
+  if (!classRecord) throw new Error("Kelas tidak ditemukan. Tambahkan kelas dulu.");
+
+  const normalizedRows = rows.map((row, index) => {
+    const normalized = {};
+    Object.entries(row).forEach(([key, value]) => {
+      normalized[key.trim().toLowerCase()] = String(value ?? "").trim();
+    });
+    return { nisn: normalized.nisn || "", nama: normalized.nama || "", rowNumber: index + 3 };
+  }).filter((row) => row.nisn || row.nama);
+
+  const rowsByNisn = new Map();
+  normalizedRows.forEach((row) => {
+    if (!row.nisn || !row.nama || row.nisn.length > 255 || row.nama.length > 255) {
+      throw new Error(`Baris Excel ${row.rowNumber}: NISN dan Nama wajib diisi (maksimal 255 karakter).`);
+    }
+    const previous = rowsByNisn.get(row.nisn);
+    if (previous && previous.nama !== row.nama) {
+      throw new Error(`NISN ${row.nisn} memiliki nama berbeda di file Excel.`);
+    }
+    rowsByNisn.set(row.nisn, row);
+  });
+  if (!rowsByNisn.size) throw new Error("File Excel tidak berisi data siswa.");
+
+  const nisns = [...rowsByNisn.keys()];
+  const { data: existingStudents, error: lookupError } = await client.from("data_siswa")
+    .select("id, nisn").in("nisn", nisns);
+  if (lookupError) throwSupabaseError(lookupError);
+
+  const studentsByNisn = new Map(existingStudents.map((student) => [student.nisn, student]));
+  const newStudents = [...rowsByNisn.values()]
+    .filter((row) => !studentsByNisn.has(row.nisn))
+    .map(({ nisn, nama }) => ({ nisn, nama }));
+
+  if (newStudents.length) {
+    const { data, error } = await client.from("data_siswa")
+      .insert(newStudents).select("id, nisn");
+    if (error) throwSupabaseError(error);
+    data.forEach((student) => studentsByNisn.set(student.nisn, student));
+  }
+
+  const students = [...rowsByNisn.keys()].map((nisn) => studentsByNisn.get(nisn));
+  const { data: existingLinks, error: linksLookupError } = await client.from("siswa_kelas")
+    .select("siswa_id").eq("kelas_id", classId)
+    .in("siswa_id", students.map((student) => student.id));
+  if (linksLookupError) {
+    const newStudentIds = newStudents.map((row) => studentsByNisn.get(row.nisn).id);
+    if (newStudentIds.length) await client.from("data_siswa").delete().in("id", newStudentIds);
+    throwSupabaseError(linksLookupError);
+  }
+
+  const existingIds = new Set(existingLinks.map((link) => String(link.siswa_id)));
+  const newLinks = students
+    .filter((student) => !existingIds.has(String(student.id)))
+    .map((student) => ({ kelas_id: classId, siswa_id: student.id }));
+
+  if (newLinks.length) {
+    const { error } = await client.from("siswa_kelas").insert(newLinks);
+    if (error) {
+      const newStudentIds = newStudents.map((row) => studentsByNisn.get(row.nisn).id);
+      if (newStudentIds.length) await client.from("data_siswa").delete().in("id", newStudentIds);
+      throwSupabaseError(error);
+    }
+  }
+
+  return {
+    className: classRecord.nama_kelas,
+    studentsAdded: newStudents.length,
+    linksAdded: newLinks.length,
+    linksExisting: students.length - newLinks.length,
+  };
+}
+
 function apiPut(path, payload) {
   return saveRecord(path, payload, true);
 }
