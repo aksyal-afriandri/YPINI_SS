@@ -199,14 +199,18 @@ async function saveRecord(path, input, isUpdate) {
   let previousPhotoPath = null;
 
   if (resource === "siswa" && input instanceof FormData) {
-    if (isUpdate && input.get("photo") instanceof File && input.get("photo").size > 0) {
+    const photoFile = input.get("photo");
+    const hasNewPhoto = photoFile instanceof File && photoFile.size > 0;
+    const removePhoto = isUpdate && input.get("remove_photo") === "1";
+    if (isUpdate && (hasNewPhoto || removePhoto)) {
       const { data: current, error: currentError } = await client
         .from(resourceTable(resource)).select("photo_path").eq("id", id).single();
       if (currentError) throwSupabaseError(currentError);
       previousPhotoPath = current.photo_path;
     }
-    uploadedPath = await uploadStudentPhoto(input.get("photo"));
+    uploadedPath = await uploadStudentPhoto(photoFile);
     if (uploadedPath) payload.photo_path = uploadedPath;
+    else if (removePhoto) payload.photo_path = null;
   }
 
   const query = isUpdate
