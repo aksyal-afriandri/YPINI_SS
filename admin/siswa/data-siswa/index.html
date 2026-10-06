@@ -376,7 +376,13 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <div id="siswaApiStatus" class="small text-muted mb-3" role="status" aria-live="polite"></div>
+                            <div class="d-flex align-items-start justify-content-between mb-2">
+                                <div id="siswaApiStatus" class="small text-muted" role="status" aria-live="polite"></div>
+                                <button type="button" class="btn btn-link btn-sm p-0" id="toggleSiswaDebug" aria-expanded="false" aria-controls="siswaDebugPanel">Tampilkan debug</button>
+                            </div>
+                            <div id="siswaDebugPanel" class="d-none small text-muted mb-3">
+                                <div id="siswaDebugStatus" role="status" aria-live="polite"></div>
+                            </div>
                             <div class="d-flex align-items-center mb-3">
                                 <button type="button" class="btn btn-danger btn-sm" id="hapusSiswaTerpilih" disabled>
                                     <i class="fas fa-trash-alt mr-1" aria-hidden="true"></i>Hapus terpilih
@@ -1155,6 +1161,7 @@
                 <script>
                     const siswaBody = document.querySelector('#siswaTable tbody');
                     const siswaStatus = document.getElementById('siswaApiStatus');
+                    const siswaDebugStatus = document.getElementById('siswaDebugStatus');
                     const siswaPhotoUrls = new Set();
                     const selectedSiswaIds = new Set();
                     const currentClassId = new URLSearchParams(window.location.search).get('kelas');
@@ -1170,10 +1177,11 @@
                         classNote.classList.remove('d-none');
                     }
 
-                    function setSiswaStatus(message, isError = false) {
-                        siswaStatus.textContent = message;
-                        siswaStatus.classList.toggle('text-danger', isError);
-                        siswaStatus.classList.toggle('text-muted', !isError);
+                    function setSiswaStatus(message, isError = false, isDebug = false) {
+                        const target = isDebug ? siswaDebugStatus : siswaStatus;
+                        target.textContent = message;
+                        target.classList.toggle('text-danger', isError);
+                        target.classList.toggle('text-muted', !isError);
                     }
 
                     function addSiswaCell(row, value) {
@@ -1256,7 +1264,7 @@
                             setSiswaStatus(window.adminSessionError || 'Sesi admin diperlukan.', true);
                             return;
                         }
-                        setSiswaStatus('Memuat data siswa...');
+                        setSiswaStatus('Memuat data siswa...', false, true);
 
                         try {
                             const result = currentClassId
@@ -1360,7 +1368,7 @@
                             $('#siswaTable').off('draw.dt.siswaSelection')
                                 .on('draw.dt.siswaSelection', syncSiswaSelectionUi);
                             syncSiswaSelectionUi();
-                            setSiswaStatus(`${students.length} data siswa dimuat dari database.`);
+                            setSiswaStatus(`${students.length} data siswa dimuat dari database.`, false, true);
                         } catch (error) {
                             setSiswaStatus(error.message, true);
                         }
@@ -1369,6 +1377,15 @@
                     function showFormError(form, error) {
                         form.querySelector('.api-error').textContent = error.message;
                     }
+
+                    document.getElementById('toggleSiswaDebug').addEventListener('click', (event) => {
+                        const button = event.currentTarget;
+                        const panel = document.getElementById('siswaDebugPanel');
+                        const isExpanded = button.getAttribute('aria-expanded') === 'true';
+                        button.setAttribute('aria-expanded', String(!isExpanded));
+                        button.textContent = isExpanded ? 'Tampilkan debug' : 'Sembunyikan debug';
+                        panel.classList.toggle('d-none', isExpanded);
+                    });
 
                     function isStudentPhotoFile(file) {
                         return /\.(jpe?g|png|gif)$/i.test(file.name);
