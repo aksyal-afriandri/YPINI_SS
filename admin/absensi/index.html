@@ -470,8 +470,8 @@
                                 <a class="nav-link active" id="dailyAttendanceTab" data-toggle="tab" href="#dailyAttendancePanel" role="tab" aria-controls="dailyAttendancePanel" aria-selected="true">rekap 1</a>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <!-- <a class="nav-link" id="monthlyAttendanceTab" data-toggle="tab" href="#monthlyAttendancePanel" role="tab" aria-controls="monthlyAttendancePanel" aria-selected="false">Bulanan</a> -->
-                                <a class="nav-link" id="monthlyAttendanceTab" data-toggle="tab" href="" role="tab" aria-controls="monthlyAttendancePanel" aria-selected="false">rekap 2</a>
+                                <a class="nav-link" id="monthlyAttendanceTab" data-toggle="tab" href="#monthlyAttendancePanel" role="tab" aria-controls="monthlyAttendancePanel" aria-selected="false">rekap 2</a>
+                                <!-- <a class="nav-link" id="monthlyAttendanceTab" data-toggle="tab" href="" role="tab" aria-controls="monthlyAttendancePanel" aria-selected="false">rekap 2</a> -->
                             </li>
                         </ul>
 
@@ -503,14 +503,14 @@
                             <div class="tab-pane fade" id="monthlyAttendancePanel" role="tabpanel" aria-labelledby="monthlyAttendanceTab">
                                 <div class="card shadow mb-4">
                                     <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap">
-                                        <h6 class="m-0 font-weight-bold text-primary" id="monthlyAttendanceHeading">Rekap Bulanan</h6>
+                                        <h6 class="m-0 font-weight-bold text-primary" id="monthlyAttendanceHeading">Rekap 2</h6>
                                         <div class="d-flex align-items-center flex-wrap mt-2 mt-md-0">
                                             <label class="small text-muted mb-0 mr-2" for="attendanceMonthFilter">Bulan / Tahun</label>
                                             <input type="month" class="form-control form-control-sm" id="attendanceMonthFilter" aria-label="Filter bulan dan tahun">
                                         </div>
                                     </div>
                                     <div class="card-body">
-                                        <div class="small text-muted mb-2"><span class="badge badge-success">H</span> Hadir, waktu scan ditampilkan saat diarahkan</div>
+                                        <!-- <div class="small text-muted mb-2"><span class="badge badge-success">H</span> Hadir, waktu scan ditampilkan saat diarahkan</div> -->
                                         <div class="table-responsive">
                                             <table class="table table-bordered table-sm table-hover" id="monthlyAttendanceTable" width="100%" cellspacing="0">
                                                 <thead id="monthlyAttendanceHead"></thead>
@@ -727,7 +727,7 @@
                 const badge = document.createElement("span");
                 badge.className = "badge badge-success";
                 badge.textContent = record.status;
-                row.cells[3].replaceChildren(badge);
+                row.cells[4].replaceChildren(badge);
             });
 
             attendanceDataTable = $("#attendanceTable").DataTable({
