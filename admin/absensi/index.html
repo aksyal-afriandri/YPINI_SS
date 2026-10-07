@@ -651,7 +651,7 @@
                 dateStyle: "long",
             }).format(selectedDate);
             const className = heading.dataset.className;
-            heading.textContent = `${className ? `Kehadiran ${className}` : ""}${dateLabel}`;
+            heading.textContent = `${dateLabel}`;
         }
 
         function updateMonthlyAttendanceHeading() {
