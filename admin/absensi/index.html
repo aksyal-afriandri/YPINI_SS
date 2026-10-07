@@ -479,7 +479,7 @@
                             <div class="tab-pane fade show active" id="dailyAttendancePanel" role="tabpanel" aria-labelledby="dailyAttendanceTab">
                                 <div class="card shadow mb-4">
                                     <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap">
-                                        <h6 class="m-0 font-weight-bold text-primary" id="attendanceClassHeading">Kehadiran Hari Ini</h6>
+                                        <h6 class="m-0 font-weight-bold text-primary" id="attendanceClassHeading"></h6>
                                         <div class="d-flex align-items-center flex-wrap mt-2 mt-md-0">
                                             <label class="small text-muted mb-0 mr-2" for="attendanceDateFilter">Tanggal</label>
                                             <input type="date" class="form-control form-control-sm" id="attendanceDateFilter" aria-label="Filter tanggal kehadiran">
@@ -503,7 +503,7 @@
                             <div class="tab-pane fade" id="monthlyAttendancePanel" role="tabpanel" aria-labelledby="monthlyAttendanceTab">
                                 <div class="card shadow mb-4">
                                     <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap">
-                                        <h6 class="m-0 font-weight-bold text-primary" id="monthlyAttendanceHeading">Rekap 2</h6>
+                                        <h6 class="m-0 font-weight-bold text-primary" id="monthlyAttendanceHeading"></h6>
                                         <div class="d-flex align-items-center flex-wrap mt-2 mt-md-0">
                                             <label class="small text-muted mb-0 mr-2" for="attendanceMonthFilter">Bulan / Tahun</label>
                                             <input type="month" class="form-control form-control-sm" id="attendanceMonthFilter" aria-label="Filter bulan dan tahun">
@@ -666,7 +666,7 @@
                 year: "numeric",
             }).format(selectedMonth);
             const className = heading.dataset.className;
-            heading.textContent = `${className ? `Rekap ${className}` : ""} ${monthLabel}`;
+            heading.textContent = `${monthLabel}`;
         }
 
         function updateJakartaClock() {
