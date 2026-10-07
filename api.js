@@ -191,6 +191,165 @@ async function apiGet(path) {
   return { data: records };
 }
 
+function attendanceDateInJakarta(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function parseAttendanceNis(rawCode) {
+  const value = String(rawCode || "").trim();
+  if (!value) throw new Error("QR atau barcode belum terbaca.");
+
+  try {
+    const payload = JSON.parse(value);
+    const nis = payload && typeof payload === "object"
+      ? payload.nis ?? payload.NIS
+      : null;
+    if (nis !== undefined && nis !== null && String(nis).trim()) {
+      return String(nis).trim();
+    }
+  } catch {
+    const match = value.match(/(?:^|[\r\n;,|])\s*nis\s*[:=]\s*([^\r\n;,|]+)/i);
+    if (match) return match[1].trim();
+  }
+
+  return value;
+}
+
+async function apiRecordAttendance(rawCode) {
+  const client = getSupabaseClient();
+  const nis = parseAttendanceNis(rawCode);
+  const { data: student, error: studentError } = await client.from("data_siswa")
+    .select("id, nis, nama, photo_path").eq("nis", nis).maybeSingle();
+  if (studentError) throwSupabaseError(studentError);
+  if (!student) throw new Error(`NIS ${nis} tidak ditemukan di data siswa.`);
+
+  const attendanceDate = attendanceDateInJakarta();
+  const markedAt = new Date().toISOString();
+  const { data: attendance, error: attendanceError } = await client.from("absensi")
+    .insert({
+      siswa_id: student.id,
+      tanggal: attendanceDate,
+      waktu_scan: markedAt,
+      status: "Hadir",
+    })
+    .select("id, tanggal, waktu_scan, status")
+    .single();
+
+  let alreadyRecorded = false;
+  let record = attendance;
+  if (attendanceError?.code === "23505") {
+    const { data: existing, error: existingError } = await client.from("absensi")
+      .select("id, tanggal, waktu_scan, status")
+      .eq("siswa_id", student.id)
+      .eq("tanggal", attendanceDate)
+      .single();
+    if (existingError) throwSupabaseError(existingError);
+    record = existing;
+    alreadyRecorded = true;
+  } else if (attendanceError) {
+    throwSupabaseError(attendanceError);
+  }
+
+  let photoUrl = null;
+  if (student.photo_path) {
+    const { data: photo, error: photoError } = await client.storage
+      .from(SUPABASE_STORAGE_BUCKET).createSignedUrl(student.photo_path, 600);
+    if (!photoError) photoUrl = photo.signedUrl;
+  }
+
+  return {
+    student: { id: student.id, nis: student.nis, nama: student.nama, photoUrl },
+    attendance: record,
+    alreadyRecorded,
+  };
+}
+
+async function apiGetTodayAttendance(classId = null, attendanceDate = attendanceDateInJakarta()) {
+  const client = getSupabaseClient();
+  let studentIds = null;
+
+  if (classId) {
+    const { data: classStudents, error: classStudentsError } = await client
+      .from("siswa_kelas").select("siswa_id").eq("kelas_id", classId);
+    if (classStudentsError) throwSupabaseError(classStudentsError);
+    studentIds = [...new Set(classStudents.map((record) => record.siswa_id))];
+    if (!studentIds.length) return { data: [] };
+  }
+
+  let query = client.from("absensi")
+    .select("id, tanggal, waktu_scan, status, data_siswa(nis, nama)")
+    .eq("tanggal", attendanceDate)
+    .order("waktu_scan", { ascending: false });
+  if (studentIds) query = query.in("siswa_id", studentIds);
+
+  const { data, error } = await query;
+  if (error) throwSupabaseError(error);
+  return { data };
+}
+
+async function apiGetMonthlyAttendance(classId, year, month) {
+  const numericYear = Number(year);
+  const numericMonth = Number(month);
+  if (!Number.isInteger(numericYear) || numericYear < 2000 || numericYear > 2100
+    || !Number.isInteger(numericMonth) || numericMonth < 1 || numericMonth > 12) {
+    throw new Error("Bulan atau tahun rekap tidak valid.");
+  }
+
+  const client = getSupabaseClient();
+  let studentIds = null;
+  if (classId) {
+    const { data: classStudents, error: classStudentsError } = await client
+      .from("siswa_kelas").select("siswa_id").eq("kelas_id", classId);
+    if (classStudentsError) throwSupabaseError(classStudentsError);
+    studentIds = [...new Set(classStudents.map((record) => record.siswa_id))];
+    if (!studentIds.length) return { students: [], records: [] };
+  }
+
+  const students = [];
+  const studentPageSize = 1000;
+  for (let offset = 0; ; offset += studentPageSize) {
+    let studentsQuery = client.from("data_siswa").select("id, nis, nama")
+      .order("nama").order("id", { ascending: true })
+      .range(offset, offset + studentPageSize - 1);
+    if (studentIds) studentsQuery = studentsQuery.in("id", studentIds);
+    const { data: page, error: studentsError } = await studentsQuery;
+    if (studentsError) throwSupabaseError(studentsError);
+    students.push(...page);
+    if (page.length < studentPageSize) break;
+  }
+
+  const monthStart = `${numericYear}-${String(numericMonth).padStart(2, "0")}-01`;
+  const daysInMonth = new Date(numericYear, numericMonth, 0).getDate();
+  const monthEnd = `${numericYear}-${String(numericMonth).padStart(2, "0")}-${daysInMonth}`;
+  const records = [];
+  const pageSize = 1000;
+
+  for (let offset = 0; ; offset += pageSize) {
+    let recordsQuery = client.from("absensi")
+      .select("id, siswa_id, tanggal, waktu_scan, status")
+      .gte("tanggal", monthStart)
+      .lte("tanggal", monthEnd)
+      .order("tanggal", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (studentIds) recordsQuery = recordsQuery.in("siswa_id", studentIds);
+
+    const { data: page, error: recordsError } = await recordsQuery;
+    if (recordsError) throwSupabaseError(recordsError);
+    records.push(...page);
+    if (page.length < pageSize) break;
+  }
+
+  return { students, records, daysInMonth };
+}
+
 async function saveRecord(path, input, isUpdate) {
   const { resource, id } = parseDataPath(path, isUpdate);
   const client = getSupabaseClient();
