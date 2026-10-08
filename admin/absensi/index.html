@@ -496,6 +496,9 @@
                                         <div class="d-flex align-items-center flex-wrap mt-2 mt-md-0">
                                             <label class="small text-muted mb-0 mr-2" for="attendanceMonthFilter">Bulan / Tahun</label>
                                             <input type="month" class="form-control form-control-sm" id="attendanceMonthFilter" aria-label="Filter bulan dan tahun">
+                                            <button class="btn btn-success btn-sm ml-2" id="exportMonthlyAttendance" type="button" disabled>
+                                                <i class="fas fa-file-excel mr-1"></i>Export Excel
+                                            </button>
                                         </div>
                                     </div>
                                     <div class="card-body">
@@ -572,6 +575,7 @@
     <!-- Page level plugins -->
     <script src="../../assets/vendor/datatables/jquery.dataTables.min.js"></script>
     <script src="../../assets/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <!-- Page level custom scripts -->
     <script src="../../assets/js/demo/datatables-demo.js"></script>
@@ -585,6 +589,7 @@
         let attendanceDataTable = null;
         let monthlyAttendanceDataTable = null;
         let monthlyAttendanceLoaded = false;
+        let monthlyAttendanceExportData = null;
         const attendanceScanMode = attendanceMode === "scan";
 
         if (attendanceScanMode) {
@@ -739,6 +744,9 @@
         async function refreshMonthlyAttendance() {
             const classId = new URL(window.location.href).searchParams.get("kelas");
             const monthValue = document.getElementById("attendanceMonthFilter").value;
+            const exportButton = document.getElementById("exportMonthlyAttendance");
+            exportButton.disabled = true;
+            monthlyAttendanceExportData = null;
             const [year, month] = monthValue.split("-").map(Number);
             const { students, records, daysInMonth } = await apiGetMonthlyAttendance(classId, year, month);
             const head = document.getElementById("monthlyAttendanceHead");
@@ -776,8 +784,12 @@
             const attendanceByStudentDate = new Map(
                 records.map((record) => [`${record.siswa_id}:${record.tanggal}`, record]),
             );
+            const exportHeaders = ["No.", "NIS", "Nama Siswa"];
+            for (let day = 1; day <= daysInMonth; day += 1) exportHeaders.push(day);
+            const exportRows = [];
             students.forEach((student, index) => {
                 const row = body.insertRow();
+                const exportRow = [index + 1, student.nis, student.nama];
                 [index + 1, student.nis, student.nama].forEach((value) => {
                     const cell = row.insertCell();
                     cell.textContent = value;
@@ -788,6 +800,7 @@
                     const date = `${monthValue}-${String(day).padStart(2, "0")}`;
                     const record = attendanceByStudentDate.get(`${student.id}:${date}`);
                     cell.className = "text-center";
+                    exportRow.push(record ? "H" : "-");
                     if (record) {
                         cell.textContent = "H";
                         cell.classList.add("text-success", "font-weight-bold");
@@ -798,7 +811,10 @@
                         cell.classList.add("text-muted");
                     }
                 }
+                exportRows.push(exportRow);
             });
+            monthlyAttendanceExportData = { headers: exportHeaders, rows: exportRows, monthValue };
+            exportButton.disabled = false;
 
             monthlyAttendanceDataTable = $("#monthlyAttendanceTable").DataTable({
                 pageLength: 25,
@@ -825,6 +841,29 @@
                     },
                 },
             });
+        }
+
+        function exportMonthlyAttendanceToExcel() {
+            if (!monthlyAttendanceExportData || !window.XLSX) {
+                setAttendanceStatus("Data rekap atau library Excel belum siap untuk diekspor.", true);
+                return;
+            }
+
+            const { headers, rows, monthValue } = monthlyAttendanceExportData;
+            const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            worksheet["!cols"] = [
+                { wch: 6 },
+                { wch: 18 },
+                { wch: 30 },
+                ...headers.slice(3).map(() => ({ wch: 5 })),
+            ];
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Bulanan");
+            const className = document.getElementById("attendanceClassHeading")?.dataset.className;
+            const classSuffix = className
+                ? `_${className.normalize("NFKD").replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "")}`
+                : "";
+            XLSX.writeFile(workbook, `rekap_absensi_${monthValue}${classSuffix}.xlsx`);
         }
 
         function showAttendanceLoadError(error) {
@@ -970,6 +1009,8 @@
                     showMonthlyAttendanceLoadError(error);
                 }
             });
+
+            document.getElementById("exportMonthlyAttendance")?.addEventListener("click", exportMonthlyAttendanceToExcel);
 
             $("#monthlyAttendanceTab").on("shown.bs.tab", async () => {
                 if (!monthlyAttendanceLoaded) {
