@@ -32,7 +32,6 @@
         .attendance-scan-mode .topbar,
         .attendance-scan-mode footer,
         .attendance-scan-mode #rekap,
-        .attendance-scan-mode #openAttendanceScanner,
         .attendance-report-mode #scanner,
         .attendance-report-mode #attendanceIdentity,
         .attendance-report-mode #attendanceBackButton { display: none !important; }
@@ -396,16 +395,6 @@
                             </a>
                             <h1 class="h3 mb-1 text-gray-800" id="attendancePageTitle"></h1>
                         </div>
-                        <div class="d-flex align-items-center">
-                            <a class="btn btn-primary mr-3" id="openAttendanceScanner" href="?mode=scan">
-                                <i class="fas fa-qrcode mr-1"></i>Scan Absensi
-                            </a>
-                            <!-- <div class="attendance-clock border-left-primary pl-3">
-                                <div class="small text-muted">Waktu Indonesia Barat</div>
-                                <div class="h4 mb-0 font-weight-bold text-gray-800" id="jakartaClock">--:--:-- WIB</div>
-                                <div class="small text-muted" id="todayDateText"></div>
-                            </div> -->
-                        </div>
                     </div>
 
                     <div class="row">
@@ -604,11 +593,6 @@
             backUrl.searchParams.delete("mode");
             backUrl.hash = "rekap";
             document.getElementById("attendanceBackButton").href = backUrl.href;
-        } else {
-            const scanUrl = new URL(window.location.href);
-            scanUrl.searchParams.set("mode", "scan");
-            scanUrl.hash = "scanner";
-            document.getElementById("openAttendanceScanner").href = scanUrl.href;
         }
 
         const jakartaTimeFormatter = new Intl.DateTimeFormat("id-ID", {

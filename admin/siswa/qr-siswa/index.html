@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>QR / Barcode Siswa</title>
+    <link href="../../../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,300,400,600,700,800,900" rel="stylesheet">
+    <link href="../../../assets/css/sb-admin-2.min.css" rel="stylesheet">
+    <style>
+        .student-code { min-height: 230px; }
+        #studentQr img, #studentQr canvas { margin: 0 auto; }
+        #studentBarcode { max-width: 100%; height: auto; }
+        .class-code-card { break-inside: avoid; page-break-inside: avoid; }
+        .class-code-card svg { max-width: 100%; height: auto; }
+        @media print {
+            body.print-single-qr * { visibility: hidden !important; }
+            body.print-single-qr #studentQr, body.print-single-qr #studentQr * { visibility: visible !important; }
+            body.print-single-qr #studentQr { position: absolute; inset: 30% 0 auto; }
+            body.print-single-qr #studentQr img, body.print-single-qr #studentQr canvas { width: 280px !important; height: 280px !important; }
+            body.print-single-barcode * { visibility: hidden !important; }
+            body.print-single-barcode #studentBarcode { visibility: visible !important; position: absolute; inset: 40% 5%; width: 90%; height: auto; }
+            body.print-single-barcode #studentBarcode * { visibility: visible !important; }
+            body.print-class * { visibility: hidden !important; }
+            body.print-class #classCodePanel, body.print-class #classCodePanel * { visibility: visible !important; }
+            body.print-class #classCodePanel { position: absolute; inset: 0; width: 100%; }
+            body.print-class #classCodeGrid { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            body.print-class #classCodeGrid > div { width: 100%; max-width: none; }
+            body.print-class .class-code-card { box-shadow: none !important; }
+        }
+    </style>
+</head>
+<body id="page-top" data-login-path="../../../index.html">
+    <div id="wrapper">
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="../../dashboard/">
+                <div class="sidebar-brand-icon"><i class="fas fa-school"></i></div>
+                <div class="sidebar-brand-text mx-3">Website</div>
+            </a>
+            <hr class="sidebar-divider my-0">
+            <li class="nav-item">
+                <a class="nav-link" href="../../dashboard/"><i class="fas fa-fw fa-tachometer-alt"></i><span>Dashboard</span></a>
+            </li>
+            <hr class="sidebar-divider">
+            <div class="sidebar-heading">Interface</div>
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseData" aria-expanded="false" aria-controls="collapseData">
+                    <i class="fas fa-fw fa-database"></i><span>Data</span>
+                </a>
+                <div id="collapseData" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="../../guru/data-guru/">Data Guru</a>
+                        <a class="collapse-item" href="../../kelas/data-kelas/">Data Kelas</a>
+                        <a class="collapse-item" href="../../pelajaran/data-pelajaran/">Data Pelajaran</a>
+                        <a class="collapse-item" href="../../tahun/data-tahun/">Data Tahun Ajaran</a>
+                    </div>
+                </div>
+            </li>
+            <li class="nav-item" id="studentNavigation">
+                <a class="nav-link collapsed" href="#collapseStudentNavigation" data-toggle="collapse" aria-expanded="false" aria-controls="collapseStudentNavigation">
+                    <i class="fas fa-fw fa-user-graduate"></i><span>Data Siswa</span>
+                </a>
+                <div id="collapseStudentNavigation" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" id="sidebarAllStudentsLink" href="../data-siswa/">Semua Siswa</a>
+                        <h6 class="collapse-header">Siswa per Kelas:</h6>
+                        <div id="sidebarClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+                    </div>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#collapseAttendance" data-toggle="collapse" aria-expanded="false" aria-controls="collapseAttendance">
+                    <i class="fas fa-fw fa-clipboard-check"></i><span>Absensi</span>
+                </a>
+                <div id="collapseAttendance" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" id="sidebarAttendanceLink" href="../../absensi/?mode=scan#scanner">Scan Absensi</a>
+                        <a class="collapse-item" href="../../absensi/#rekap">Rekap Absensi</a>
+                        <h6 class="collapse-header">Rekap per Kelas:</h6>
+                        <div id="sidebarAttendanceClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+                    </div>
+                </div>
+            </li>
+            <hr class="sidebar-divider d-none d-md-block">
+            <div class="text-center d-none d-md-inline"><button class="rounded-circle border-0" id="sidebarToggle"></button></div>
+        </ul>
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3" aria-label="Buka navigasi"><i class="fa fa-bars"></i></button>
+                    <span class="font-weight-bold text-gray-800">QR / Barcode Siswa</span>
+                    <ul class="navbar-nav ml-auto">
+                        <li class="nav-item">
+                            <form id="logoutForm" class="my-2">
+                                <button class="btn btn-link nav-link" type="submit" aria-label="Logout"><i class="fas fa-sign-out-alt"></i></button>
+                            </form>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- kontainer one by one -->
+                <main class="container-fluid">
+                    <div id="supabaseStatus" class="small text-danger mb-3" role="status" aria-live="polite"></div>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap mb-4">
+                        <h1 class="h3 mb-0 text-gray-800">QR / Barcode Siswa</h1>
+                    </div>
+                    <div class="btn-group mb-4" role="group" aria-label="Mode pembuatan kode">
+                        <button class="btn btn-primary" id="singleModeButton" type="button" aria-pressed="true">Satu Siswa</button>
+                        <button class="btn btn-outline-primary" id="classModeButton" type="button" aria-pressed="false">Per Kelas</button>
+                    </div>
+                    <section id="singleStudentPanel">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <div class="form-row align-items-end">
+                                    <div class="form-group col-md-5 mb-md-0">
+                                        <label for="studentSearch">Cari nama atau NIS</label>
+                                        <input class="form-control" id="studentSearch" type="search" autocomplete="off">
+                                    </div>
+                                    <div class="form-group col-md-7 mb-0">
+                                        <label for="studentSelect">Siswa</label>
+                                        <select class="form-control" id="studentSelect" disabled>
+                                            <option value="">Memuat data siswa...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <section class="card shadow-sm" id="studentCard">
+                            <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                                <h2 class="h6 m-0 font-weight-bold text-primary">Kode Identitas</h2>
+                                <div class="d-flex flex-wrap">
+                                    <button class="btn btn-outline-primary btn-sm mr-2 mb-1" id="printStudentQr" type="button" disabled>
+                                        <i class="fas fa-print mr-1"></i>Cetak QR
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm mr-2 mb-1" id="saveStudentQr" type="button" disabled>
+                                        <i class="fas fa-download mr-1"></i>Simpan QR
+                                    </button>
+                                    <button class="btn btn-primary btn-sm mr-2 mb-1" id="printStudentBarcode" type="button" disabled>
+                                        <i class="fas fa-print mr-1"></i>Cetak Barcode
+                                    </button>
+                                    <button class="btn btn-primary btn-sm mb-1" id="saveStudentBarcode" type="button" disabled>
+                                        <i class="fas fa-download mr-1"></i>Simpan Barcode
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="text-center py-5 text-muted" id="emptyState">
+                                    <i class="fas fa-id-card fa-2x mb-3" aria-hidden="true"></i>
+                                    <div>Pilih siswa</div>
+                                </div>
+                                <div id="studentCodeOutput" class="d-none">
+                                    <div class="text-center mb-4">
+                                        <h3 class="h4 mb-1 text-gray-800" id="studentName"></h3>
+                                        <div class="text-muted">NIS: <span id="studentNis"></span></div>
+                                    </div>
+                                    <div class="row justify-content-center">
+                                        <div class="col-md-5 text-center student-code mb-4 mb-md-0">
+                                            <h4 class="h6 text-uppercase text-gray-600">QR Code</h4>
+                                            <div id="studentQr" class="d-flex justify-content-center"></div>
+                                        </div>
+                                        <div class="col-md-5 text-center student-code">
+                                            <h4 class="h6 text-uppercase text-gray-600">Barcode</h4>
+                                            <svg id="studentBarcode" aria-label="Barcode NIS siswa"></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                    </section>
+                    <section class="d-none" id="classGenerationPanel">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body">
+                                <div class="form-row align-items-end">
+                                    <div class="form-group col-md-6 mb-md-0">
+                                        <label for="classSelect">Kelas</label>
+                                        <select class="form-control" id="classSelect" disabled>
+                                            <option value="">Memuat data kelas...</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 mt-3 mt-md-0 d-flex flex-wrap">
+                                        <button class="btn btn-primary mr-2 mb-2 mb-md-0" id="printClassCodes" type="button" disabled>
+                                            <i class="fas fa-print mr-1"></i>Cetak Semua
+                                        </button>
+                                        <button class="btn btn-outline-primary mr-2 mb-2 mb-md-0" id="downloadQrZip" type="button" disabled>
+                                            <i class="fas fa-qrcode mr-1"></i>ZIP QR
+                                        </button>
+                                        <button class="btn btn-outline-secondary mb-2 mb-md-0" id="downloadBarcodeZip" type="button" disabled>
+                                            <i class="fas fa-barcode mr-1"></i>ZIP Barcode
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="small text-muted mt-3" id="classCodeStatus" role="status" aria-live="polite"></div>
+                            <section class="d-none border-top mt-3 pt-3" id="classCodePanel">
+                                <h2 class="h6 m-0 font-weight-bold text-primary" id="classCodeHeading">Pilih kelas</h2>
+                                <div class="row" id="classCodeGrid"></div>
+                            </section>
+                        </div>
+                    </section>
+                </main>
+            </div>
+        </div>
+    </div>
+    <script src="../../../assets/vendor/jquery/jquery.min.js"></script>
+    <script src="../../../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="../../../assets/js/sb-admin-2.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="../../../supabase-config.js"></script>
+    <script src="../../../api.js"></script>
+    <script src="../../../admin-session.js"></script>
+    <script src="../../../class-navigation.js"></script>
+    <script>
+        let students = [];
+        let classes = [];
+        let classMemberships = [];
+        let selectedClassStudents = [];
+        const studentSearch = document.getElementById("studentSearch");
+        const studentSelect = document.getElementById("studentSelect");
+        const status = document.getElementById("supabaseStatus");
+        const classSelect = document.getElementById("classSelect");
+        const classCodeStatus = document.getElementById("classCodeStatus");
+
+        function setMode(mode) {
+            const isClassMode = mode === "class";
+            document.getElementById("singleStudentPanel").classList.toggle("d-none", isClassMode);
+            document.getElementById("classGenerationPanel").classList.toggle("d-none", !isClassMode);
+            document.getElementById("singleModeButton").classList.toggle("btn-primary", !isClassMode);
+            document.getElementById("singleModeButton").classList.toggle("btn-outline-primary", isClassMode);
+            document.getElementById("singleModeButton").setAttribute("aria-pressed", String(!isClassMode));
+            document.getElementById("classModeButton").classList.toggle("btn-primary", isClassMode);
+            document.getElementById("classModeButton").classList.toggle("btn-outline-primary", !isClassMode);
+            document.getElementById("classModeButton").setAttribute("aria-pressed", String(isClassMode));
+        }
+
+        function renderStudentCodes(student) {
+            const nis = String(student.nis || "").trim();
+            if (!nis) throw new Error("Siswa ini belum memiliki NIS.");
+            if (!window.QRCode || typeof window.JsBarcode !== "function") {
+                throw new Error("Library QR/barcode gagal dimuat. Periksa koneksi internet.");
+            }
+
+            document.getElementById("studentName").textContent = student.nama || "Tanpa nama";
+            document.getElementById("studentNis").textContent = nis;
+            const qrTarget = document.getElementById("studentQr");
+            qrTarget.replaceChildren();
+            new QRCode(qrTarget, {
+                text: nis,
+                width: 180,
+                height: 180,
+                correctLevel: QRCode.CorrectLevel.M,
+            });
+            JsBarcode("#studentBarcode", nis, {
+                format: "CODE128",
+                displayValue: true,
+                fontSize: 16,
+                height: 72,
+                margin: 8,
+            });
+            document.getElementById("emptyState").classList.add("d-none");
+            document.getElementById("studentCodeOutput").classList.remove("d-none");
+            document.getElementById("printStudentQr").disabled = false;
+            document.getElementById("saveStudentQr").disabled = false;
+            document.getElementById("printStudentBarcode").disabled = false;
+            document.getElementById("saveStudentBarcode").disabled = false;
+            status.textContent = "";
+        }
+
+        function updateStudentOptions() {
+            const query = studentSearch.value.trim().toLocaleLowerCase("id-ID");
+            const matchingStudents = students.filter((student) =>
+                `${student.nama || ""} ${student.nis || ""}`.toLocaleLowerCase("id-ID").includes(query));
+            const selectedId = studentSelect.value;
+            studentSelect.replaceChildren(new Option(
+                matchingStudents.length ? "Pilih siswa..." : "Siswa tidak ditemukan",
+                "",
+            ));
+            matchingStudents.forEach((student) => {
+                studentSelect.add(new Option(`${student.nama || "Tanpa nama"} - ${student.nis || "Tanpa NIS"}`, String(student.id)));
+            });
+            studentSelect.disabled = matchingStudents.length === 0;
+            if (matchingStudents.some((student) => String(student.id) === selectedId)) {
+                studentSelect.value = selectedId;
+            } else {
+                studentSelect.value = "";
+                document.getElementById("studentCodeOutput").classList.add("d-none");
+                document.getElementById("emptyState").classList.remove("d-none");
+                document.getElementById("printStudentQr").disabled = true;
+                document.getElementById("saveStudentQr").disabled = true;
+                document.getElementById("printStudentBarcode").disabled = true;
+                document.getElementById("saveStudentBarcode").disabled = true;
+            }
+        }
+
+        function renderClassCodes() {
+            const selectedClass = classes.find((record) => String(record.id) === classSelect.value);
+            const classCodeGrid = document.getElementById("classCodeGrid");
+            const classCodePanel = document.getElementById("classCodePanel");
+            classCodeGrid.replaceChildren();
+            selectedClassStudents = [];
+            document.getElementById("classCodeHeading").textContent = selectedClass
+                ? `QR / Barcode - ${selectedClass.nama_kelas}`
+                : "Pilih kelas";
+
+            if (!selectedClass) {
+                classCodePanel.classList.add("d-none");
+                classCodeStatus.textContent = "";
+                document.getElementById("printClassCodes").disabled = true;
+                document.getElementById("downloadQrZip").disabled = true;
+                document.getElementById("downloadBarcodeZip").disabled = true;
+                return;
+            }
+
+            const memberIds = new Set(classMemberships
+                .filter((membership) => String(membership.kelas_id) === String(selectedClass.id))
+                .map((membership) => String(membership.siswa_id)));
+            const classStudents = students.filter((student) => memberIds.has(String(student.id)));
+            const studentsWithNis = classStudents.filter((student) => String(student.nis || "").trim());
+            const missingNisCount = classStudents.length - studentsWithNis.length;
+            if (!studentsWithNis.length) {
+                classCodePanel.classList.add("d-none");
+                classCodeStatus.textContent = classStudents.length
+                    ? `${classStudents.length} siswa tidak memiliki NIS.`
+                    : "Belum ada siswa di kelas ini.";
+                document.getElementById("printClassCodes").disabled = true;
+                document.getElementById("downloadQrZip").disabled = true;
+                document.getElementById("downloadBarcodeZip").disabled = true;
+                return;
+            }
+
+            try {
+                classCodePanel.classList.remove("d-none");
+                studentsWithNis.forEach((student) => {
+                    const column = document.createElement("div");
+                    column.className = "col-sm-6 col-xl-4 mb-3";
+                    const card = document.createElement("article");
+                    card.className = "card h-100 class-code-card";
+                    const body = document.createElement("div");
+                    body.className = "card-body text-center";
+                    const name = document.createElement("h3");
+                    name.className = "h6 font-weight-bold text-gray-800";
+                    name.textContent = student.nama || "Tanpa nama";
+                    const nis = document.createElement("div");
+                    nis.className = "small text-muted mb-3";
+                    nis.textContent = `NIS: ${student.nis}`;
+                    const codes = document.createElement("div");
+                    codes.className = "d-flex flex-column align-items-center";
+                    const qr = document.createElement("div");
+                    qr.className = "class-student-qr mb-3";
+                    const barcode = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+                    barcode.classList.add("class-student-barcode");
+                    codes.append(qr, barcode);
+                    body.append(name, nis, codes);
+                    card.append(body);
+                    column.append(card);
+                    classCodeGrid.append(column);
+                    new QRCode(qr, {
+                        text: String(student.nis),
+                        width: 150,
+                        height: 150,
+                        correctLevel: QRCode.CorrectLevel.M,
+                    });
+                    JsBarcode(barcode, String(student.nis), {
+                        format: "CODE128",
+                        displayValue: true,
+                        fontSize: 13,
+                        height: 48,
+                        margin: 5,
+                    });
+                    selectedClassStudents.push({ student, card });
+                });
+                classCodeStatus.textContent = `${studentsWithNis.length} siswa${missingNisCount ? ` siap; ${missingNisCount} siswa tanpa NIS dilewati.` : " siap."}`;
+                document.getElementById("printClassCodes").disabled = false;
+                document.getElementById("downloadQrZip").disabled = false;
+                document.getElementById("downloadBarcodeZip").disabled = false;
+            } catch (error) {
+                classCodeGrid.replaceChildren();
+                selectedClassStudents = [];
+                document.getElementById("printClassCodes").disabled = true;
+                document.getElementById("downloadQrZip").disabled = true;
+                document.getElementById("downloadBarcodeZip").disabled = true;
+                classCodeStatus.textContent = error.message || "Kode QR/barcode gagal dibuat.";
+            }
+        }
+
+        function waitForImage(image) {
+            if (image.complete && image.naturalWidth) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = () => reject(new Error("Gambar kode gagal disiapkan untuk ZIP."));
+            });
+        }
+
+        async function createStudentCodeFile(entry, codeType) {
+            if (codeType === "qr") {
+                const qrElement = entry.card.querySelector(".class-student-qr canvas, .class-student-qr img");
+                if (!qrElement) throw new Error("QR siswa belum siap untuk ZIP.");
+                if (qrElement.tagName !== "CANVAS") await waitForImage(qrElement);
+
+                const canvas = document.createElement("canvas");
+                canvas.width = 512;
+                canvas.height = 512;
+                canvas.getContext("2d").drawImage(qrElement, 0, 0, 512, 512);
+                const blob = await new Promise((resolve, reject) => {
+                    canvas.toBlob((imageBlob) => imageBlob
+                        ? resolve(imageBlob)
+                        : reject(new Error("Gambar QR gagal dibuat.")), "image/png");
+                });
+                return { blob, extension: "png" };
+            }
+
+            const barcode = document.createElement("canvas");
+            JsBarcode(barcode, String(entry.student.nis), {
+                format: "CODE128",
+                displayValue: false,
+                height: 100,
+                margin: 12,
+            });
+            const blob = await new Promise((resolve, reject) => {
+                barcode.toBlob((imageBlob) => imageBlob
+                    ? resolve(imageBlob)
+                    : reject(new Error("Gambar barcode gagal dibuat.")), "image/png");
+            });
+            return { blob, extension: "png" };
+        }
+
+        function safeFilePart(value) {
+            return String(value).normalize("NFKD").replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "siswa";
+        }
+
+        async function saveSingleStudentCode(codeType) {
+            const student = students.find((record) => String(record.id) === studentSelect.value);
+            if (!student) return;
+
+            let canvas;
+            if (codeType === "qr") {
+                const qrElement = document.querySelector("#studentQr canvas, #studentQr img");
+                if (!qrElement) throw new Error("QR siswa belum siap disimpan.");
+                if (qrElement.tagName !== "CANVAS") await waitForImage(qrElement);
+                canvas = document.createElement("canvas");
+                canvas.width = 512;
+                canvas.height = 512;
+                canvas.getContext("2d").drawImage(qrElement, 0, 0, 512, 512);
+            } else {
+                canvas = document.createElement("canvas");
+                JsBarcode(canvas, String(student.nis), {
+                    format: "CODE128",
+                    displayValue: false,
+                    height: 120,
+                    margin: 12,
+                });
+            }
+
+            const blob = await new Promise((resolve, reject) => {
+                canvas.toBlob((imageBlob) => imageBlob
+                    ? resolve(imageBlob)
+                    : reject(new Error("Gambar gagal disimpan.")), "image/png");
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${safeFilePart(student.nis)}_${codeType}.png`;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function downloadClassCodesZip(codeType) {
+            if (!window.JSZip) {
+                classCodeStatus.textContent = "Library ZIP gagal dimuat. Periksa koneksi internet.";
+                return;
+            }
+            const zipButton = document.getElementById(codeType === "qr" ? "downloadQrZip" : "downloadBarcodeZip");
+            const className = classes.find((record) => String(record.id) === classSelect.value)?.nama_kelas;
+            const studentsToExport = [...selectedClassStudents];
+            zipButton.disabled = true;
+            classCodeStatus.textContent = `Menyiapkan ZIP ${codeType.toUpperCase()} untuk ${studentsToExport.length} siswa...`;
+            try {
+                const zip = new JSZip();
+                const folder = zip.folder(safeFilePart(className));
+                for (const entry of studentsToExport) {
+                    const file = await createStudentCodeFile(entry, codeType);
+                    folder.file(`${safeFilePart(entry.student.nis)}.${file.extension}`, file.blob);
+                }
+                const blob = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `kode_${codeType}_${safeFilePart(className)}.zip`;
+                link.click();
+                URL.revokeObjectURL(url);
+                classCodeStatus.textContent = `ZIP ${codeType.toUpperCase()} berhasil dibuat: ${studentsToExport.length} kode.`;
+            } catch (error) {
+                classCodeStatus.textContent = error.message || "ZIP gagal dibuat.";
+            } finally {
+                zipButton.disabled = false;
+            }
+        }
+
+        studentSearch.addEventListener("input", updateStudentOptions);
+        studentSelect.addEventListener("change", () => {
+            const student = students.find((record) => String(record.id) === studentSelect.value);
+            if (!student) return;
+            try {
+                renderStudentCodes(student);
+            } catch (error) {
+                status.textContent = error.message;
+            }
+        });
+        document.getElementById("singleModeButton").addEventListener("click", () => setMode("single"));
+        document.getElementById("classModeButton").addEventListener("click", () => setMode("class"));
+        document.getElementById("printStudentQr").addEventListener("click", () => {
+            document.body.classList.add("print-single-qr");
+            window.print();
+        });
+        document.getElementById("printStudentBarcode").addEventListener("click", () => {
+            document.body.classList.add("print-single-barcode");
+            window.print();
+        });
+        document.getElementById("saveStudentQr").addEventListener("click", () => {
+            saveSingleStudentCode("qr").catch((error) => { status.textContent = error.message; });
+        });
+        document.getElementById("saveStudentBarcode").addEventListener("click", () => {
+            saveSingleStudentCode("barcode").catch((error) => { status.textContent = error.message; });
+        });
+        document.getElementById("printClassCodes").addEventListener("click", () => {
+            document.body.classList.add("print-class");
+            window.print();
+        });
+        window.addEventListener("afterprint", () => document.body.classList.remove("print-single-qr", "print-single-barcode", "print-class"));
+        classSelect.addEventListener("change", renderClassCodes);
+        document.getElementById("downloadQrZip").addEventListener("click", () => downloadClassCodesZip("qr"));
+        document.getElementById("downloadBarcodeZip").addEventListener("click", () => downloadClassCodesZip("barcode"));
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            if (!(await window.adminSessionReady)) {
+                status.textContent = window.adminSessionError || "Sesi admin diperlukan.";
+                return;
+            }
+            try {
+                const client = getSupabaseClient();
+                const [studentResult, classResult, membershipResult] = await Promise.all([
+                    apiGet("/data/siswa"),
+                    apiGet("/data/kelas"),
+                    client.from("siswa_kelas").select("kelas_id, siswa_id"),
+                ]);
+                if (membershipResult.error) throw membershipResult.error;
+                students = (studentResult.data || []).sort((left, right) =>
+                    String(left.nama || "").localeCompare(String(right.nama || ""), "id"));
+                classes = (classResult.data || []).sort((left, right) =>
+                    String(left.nama_kelas || "").localeCompare(String(right.nama_kelas || ""), "id"));
+                classMemberships = membershipResult.data || [];
+                studentSelect.replaceChildren(new Option(
+                    students.length ? "Pilih siswa..." : "Belum ada data siswa",
+                    "",
+                ));
+                students.forEach((student) => {
+                    studentSelect.add(new Option(`${student.nama || "Tanpa nama"} - ${student.nis || "Tanpa NIS"}`, String(student.id)));
+                });
+                studentSelect.disabled = students.length === 0;
+                classSelect.replaceChildren(new Option(
+                    classes.length ? "Pilih kelas..." : "Belum ada data kelas",
+                    "",
+                ));
+                classes.forEach((record) => classSelect.add(new Option(record.nama_kelas, String(record.id))));
+                classSelect.disabled = classes.length === 0;
+            } catch (error) {
+                status.textContent = error.message || "Data siswa gagal dimuat.";
+                studentSelect.replaceChildren(new Option("Data siswa gagal dimuat", ""));
+            }
+        }, { once: true });
+    </script>
+</body>
+</html>

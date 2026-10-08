@@ -21,6 +21,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const pageUrl = new URL(window.location.href);
   const studentPageUrl = new URL(allStudentsLink.href);
+  const qrGenerationUrl = new URL("../qr-siswa/", studentPageUrl);
+  const qrNavigationItem = document.createElement("li");
+  qrNavigationItem.className = "nav-item";
+  const qrGenerationLink = document.createElement("a");
+  qrGenerationLink.className = "nav-link";
+  qrGenerationLink.href = qrGenerationUrl.href;
+  qrGenerationLink.innerHTML = '<i class="fas fa-fw fa-qrcode"></i><span>QR / Barcode Siswa</span>';
+  if (pageUrl.pathname === qrGenerationUrl.pathname) qrGenerationLink.classList.add("active");
+  qrNavigationItem.append(qrGenerationLink);
+  document.getElementById("studentNavigation")?.insertAdjacentElement("afterend", qrNavigationItem);
+
   const attendancePageUrl = attendanceLink ? new URL(attendanceLink.href) : null;
   attendancePageUrl?.searchParams.delete("mode");
   const isStudentPage = pageUrl.pathname === studentPageUrl.pathname;
