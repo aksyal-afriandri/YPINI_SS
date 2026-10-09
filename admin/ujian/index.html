@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<title>Pengaturan Ujian</title>
+	<link href="../../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css?family=Nunito:300,400,600,700,800" rel="stylesheet">
+	<link href="../../assets/css/sb-admin-2.min.css" rel="stylesheet">
+</head>
+<body id="page-top" data-login-path="../../index.html">
+	<div id="wrapper">
+		<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion">
+			<a class="sidebar-brand d-flex align-items-center justify-content-center" href="../dashboard/">
+				<span class="sidebar-brand-text mx-3">Website</span>
+			</a>
+			<hr class="sidebar-divider my-0">
+			<li class="nav-item"><a class="nav-link" href="../dashboard/"><i class="fas fa-fw fa-tachometer-alt"></i><span>Dashboard</span></a></li>
+			<li class="nav-item active"><a class="nav-link" href="./"><i class="fas fa-fw fa-clipboard-list"></i><span>Pengaturan Ujian</span></a></li>
+			<li class="nav-item"><a class="nav-link" href="../pelajaran/data-pelajaran/"><i class="fas fa-fw fa-book"></i><span>Data Pelajaran</span></a></li>
+			<hr class="sidebar-divider d-none d-md-block">
+			<div class="text-center d-none d-md-inline"><button class="rounded-circle border-0" id="sidebarToggle"></button></div>
+		</ul>
+
+		<div id="content-wrapper" class="d-flex flex-column">
+			<div id="content">
+				<nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+					<button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3" aria-label="Buka navigasi"><i class="fa fa-bars"></i></button>
+					<span class="font-weight-bold text-gray-800">Pengaturan Ujian</span>
+					<ul class="navbar-nav ml-auto">
+						<li class="nav-item dropdown no-arrow">
+							<a class="nav-link dropdown-toggle" href="#" data-toggle="dropdown"><span class="mr-2 text-gray-600 small">Admin</span><i class="fas fa-user-circle fa-lg"></i></a>
+							<div class="dropdown-menu dropdown-menu-right shadow"><a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal"><i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>Keluar</a></div>
+						</li>
+					</ul>
+				</nav>
+
+				<main class="container-fluid">
+					<div id="pageMessage" class="alert d-none" role="status" aria-live="polite"></div>
+					<div id="examListView">
+					<div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+						<div>
+							<h1 class="h3 mb-1 text-gray-800">Ujian</h1>
+							<p class="mb-0 text-muted">Atur mata pelajaran, jadwal, status, dan soal ujian.</p>
+						</div>
+						<button id="newExamButton" class="btn btn-primary mt-3 mt-md-0" type="button"><i class="fas fa-plus mr-2"></i>Buat ujian</button>
+					</div>
+					<section class="card shadow-sm mb-4">
+						<div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+							<h2 class="h6 mb-0 font-weight-bold text-primary">Daftar ujian</h2>
+							<button id="refreshExamsButton" class="btn btn-sm btn-outline-secondary" type="button" title="Muat ulang"><i class="fas fa-sync-alt"></i></button>
+						</div>
+						<div class="card-body">
+							<div class="table-responsive">
+								<table class="table table-hover" id="examTable">
+									<thead><tr><th>Nama ujian</th><th>Mata pelajaran</th><th>Jadwal</th><th>Durasi</th><th>Status</th><th>Aksi</th></tr></thead>
+									<tbody><tr><td colspan="6" class="text-center text-muted py-4">Memuat ujian...</td></tr></tbody>
+								</table>
+							</div>
+						</div>
+					</section>
+					</div>
+
+					<section id="questionsSection" class="card shadow-sm mb-4 d-none">
+						<div class="card-header bg-white py-3 d-flex flex-wrap justify-content-between align-items-center">
+							<div class="d-flex align-items-center">
+								<button id="questionsBackButton" class="btn btn-sm btn-outline-secondary mr-3" type="button" title="Kembali ke daftar ujian"><i class="fas fa-arrow-left"></i></button>
+								<div><h2 class="h6 mb-1 font-weight-bold text-primary">Daftar soal</h2><div id="selectedExamLabel" class="small text-muted"></div></div>
+							</div>
+							<div class="d-flex flex-wrap align-items-center mt-2 mt-md-0">
+								<button id="downloadQuestionTemplate" class="btn btn-sm btn-outline-secondary mr-2" type="button" title="Unduh template Excel/CSV"><i class="fas fa-download mr-1"></i>Template</button>
+								<button id="importQuestionsButton" class="btn btn-sm btn-outline-primary mr-2" type="button"><i class="fas fa-file-import mr-1"></i>Import</button>
+								<button id="newQuestionButton" class="btn btn-sm btn-primary" type="button"><i class="fas fa-plus mr-1"></i>Tambah soal</button>
+							</div>
+						</div>
+						<div class="card-body">
+							<div id="questionsMessage" class="small text-muted mb-3"></div>
+							<div class="table-responsive">
+								<table class="table table-hover" id="questionTable">
+									<thead><tr><th>No.</th><th>Tipe</th><th>Soal</th><th>Aksi</th></tr></thead>
+									<tbody></tbody>
+								</table>
+							</div>
+							<input id="importQuestionsFile" type="file" class="d-none" accept=".xlsx,.xls,.csv">
+						</div>
+					</section>
+				</main>
+			</div>
+			<footer class="sticky-footer bg-white"><div class="container my-auto"><div class="copyright text-center my-auto"><span>Pengelolaan ujian</span></div></div></footer>
+		</div>
+	</div>
+
+	<div class="modal fade" id="examModal" tabindex="-1" role="dialog" aria-labelledby="examModalTitle" aria-hidden="true">
+		<div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+			<form id="examForm">
+				<div class="modal-header"><h5 class="modal-title" id="examModalTitle">Buat ujian</h5><button class="close" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button></div>
+				<div class="modal-body">
+					<div id="examFormError" class="alert alert-danger d-none" role="alert"></div>
+					<div class="form-row">
+						<div class="form-group col-md-7"><label for="examName">Nama ujian</label><input id="examName" name="nama_ujian" class="form-control" maxlength="255" required></div>
+						<div class="form-group col-md-5"><label for="examSubject">Mata pelajaran</label><select id="examSubject" name="pelajaran_id" class="form-control" required><option value="">Pilih mata pelajaran</option></select></div>
+					</div>
+					<div class="form-row">
+						<div class="form-group col-md-4"><label for="examDuration">Durasi (menit)</label><input id="examDuration" name="waktu_menit" type="number" class="form-control" min="1" step="1" required></div>
+						<div class="form-group col-md-4"><label for="examOpenAt">Mulai dibuka</label><input id="examOpenAt" name="dibuka_at" type="datetime-local" class="form-control" required></div>
+						<div class="form-group col-md-4"><label for="examCloseAt">Ditutup</label><input id="examCloseAt" name="ditutup_at" type="datetime-local" class="form-control" required></div>
+					</div>
+					<div class="form-row border-top pt-3">
+						<div class="form-group col-md-4"><div class="custom-control custom-switch"><input id="examActive" name="aktif" type="checkbox" class="custom-control-input"><label class="custom-control-label" for="examActive">Ujian aktif</label></div></div>
+						<div class="form-group col-md-4"><div class="custom-control custom-switch"><input id="randomQuestions" name="acak_soal" type="checkbox" class="custom-control-input"><label class="custom-control-label" for="randomQuestions">Acak urutan soal</label></div></div>
+						<div class="form-group col-md-4"><div class="custom-control custom-switch"><input id="randomAnswers" name="acak_jawaban" type="checkbox" class="custom-control-input"><label class="custom-control-label" for="randomAnswers">Acak pilihan jawaban</label></div></div>
+					</div>
+					<p class="small text-muted mb-0">Ujian hanya tersedia saat status aktif dan waktu sekarang berada di antara jadwal buka dan tutup.</p>
+				</div>
+				<div class="modal-footer"><button class="btn btn-light" type="button" data-dismiss="modal">Batal</button><button id="saveExamButton" class="btn btn-primary" type="submit">Simpan ujian</button></div>
+			</form>
+		</div></div>
+	</div>
+
+	<div class="modal fade" id="questionModal" tabindex="-1" role="dialog" aria-labelledby="questionModalTitle" aria-hidden="true">
+		<div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+			<form id="questionForm">
+				<div class="modal-header"><h5 class="modal-title" id="questionModalTitle">Tambah soal</h5><button class="close" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button></div>
+				<div class="modal-body">
+					<div id="questionFormError" class="alert alert-danger d-none" role="alert"></div>
+					<div class="form-row">
+						<div class="form-group col-sm-4"><label for="questionType">Tipe soal</label><select id="questionType" name="soal_type" class="form-control"><option value="pg">Pilihan ganda</option><option value="essay">Essay</option></select></div>
+						<div class="form-group col-sm-4"><label for="questionNumber">Nomor urut</label><input id="questionNumber" name="nomor_urut" type="number" class="form-control" min="1" step="1" required></div>
+					</div>
+					<div class="form-group"><label for="questionText">Pertanyaan</label><textarea id="questionText" name="pertanyaan" class="form-control" rows="3" required></textarea></div>
+					<div id="multipleChoiceFields">
+						<div class="form-row">
+							<div class="form-group col-md-6"><label for="choiceA">Pilihan A</label><input id="choiceA" name="pilihan_a" class="form-control"></div>
+							<div class="form-group col-md-6"><label for="choiceB">Pilihan B</label><input id="choiceB" name="pilihan_b" class="form-control"></div>
+							<div class="form-group col-md-6"><label for="choiceC">Pilihan C</label><input id="choiceC" name="pilihan_c" class="form-control"></div>
+							<div class="form-group col-md-6"><label for="choiceD">Pilihan D</label><input id="choiceD" name="pilihan_d" class="form-control"></div>
+						</div>
+						<div class="form-group"><label for="correctChoice">Kunci jawaban</label><select id="correctChoice" name="jawaban_benar" class="form-control"><option value="">Pilih kunci</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div>
+					</div>
+					<div id="essayFields" class="d-none">
+						<div class="form-group"><label for="essayReferences">Jawaban acuan essay</label><textarea id="essayReferences" name="jawaban_acuan" class="form-control" rows="4" placeholder="Satu variasi jawaban per baris"></textarea><small class="form-text text-muted">Masukkan beberapa jawaban yang dapat diterima, satu per baris. AI belum dijalankan dari halaman ini.</small></div>
+					</div>
+				</div>
+				<div class="modal-footer"><button class="btn btn-light" type="button" data-dismiss="modal">Batal</button><button id="saveQuestionButton" class="btn btn-primary" type="submit">Simpan soal</button></div>
+			</form>
+		</div></div>
+	</div>
+
+	<div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Keluar dari akun?</h5><button class="close" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button></div><div class="modal-body">Sesi admin akan diakhiri.</div><div class="modal-footer"><button class="btn btn-light" type="button" data-dismiss="modal">Batal</button><form id="logoutForm"><button class="btn btn-primary" type="submit">Keluar</button></form></div></div></div></div>
+
+	<script src="../../assets/vendor/jquery/jquery.min.js"></script>
+	<script src="../../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+	<script src="../../assets/js/sb-admin-2.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<script src="../../supabase-config.js"></script>
+	<script src="../../api.js"></script>
+	<script src="../../admin-session.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+	<script>
+		const client = getSupabaseClient();
+		const examForm = document.getElementById("examForm");
+		const questionForm = document.getElementById("questionForm");
+		const examRows = document.querySelector("#examTable tbody");
+		const questionRows = document.querySelector("#questionTable tbody");
+		const pageMessage = document.getElementById("pageMessage");
+		const examListView = document.getElementById("examListView");
+		const questionsSection = document.getElementById("questionsSection");
+		let subjects = [];
+		let exams = [];
+		let examQuestions = [];
+		let selectedExam = null;
+		let editingExamId = null;
+		let editingQuestion = null;
+
+		function escapeHtml(value) {
+			return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+				"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
+			})[character]);
+		}
+
+		function showMessage(message, kind = "success") {
+			pageMessage.textContent = message;
+			pageMessage.className = `alert alert-${kind}`;
+		}
+
+		function formatDate(value) {
+			return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+		}
+
+		function toLocalInput(value) {
+			const date = new Date(value);
+			return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+		}
+
+		function examStatus(exam) {
+			const now = Date.now();
+			if (!exam.aktif) return { label: "Nonaktif", style: "secondary" };
+			if (now < new Date(exam.dibuka_at).getTime()) return { label: "Terjadwal", style: "info" };
+			if (now <= new Date(exam.ditutup_at).getTime()) return { label: "Berlangsung", style: "success" };
+			return { label: "Selesai", style: "dark" };
+		}
+
+		async function loadSubjects() {
+			const { data, error } = await client.from("data_pelajaran")
+				.select("id, nama_pelajaran").order("nama_pelajaran");
+			if (error) throw error;
+			subjects = data || [];
+			document.getElementById("examSubject").innerHTML = '<option value="">Pilih mata pelajaran</option>' +
+				subjects.map((subject) => `<option value="${subject.id}">${escapeHtml(subject.nama_pelajaran)}</option>`).join("");
+		}
+
+		async function loadExams() {
+			examRows.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat ujian...</td></tr>';
+			const { data, error } = await client.from("ujian")
+				.select("*, data_pelajaran(nama_pelajaran)").order("created_at", { ascending: false });
+			if (error) throw error;
+			exams = data || [];
+			if (!exams.length) {
+				examRows.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Belum ada ujian. Buat ujian pertama untuk mulai mengatur jadwal dan soal.</td></tr>';
+				return;
+			}
+			examRows.innerHTML = exams.map((exam) => {
+				const status = examStatus(exam);
+				const subjectName = exam.data_pelajaran?.nama_pelajaran || subjects.find((subject) => subject.id === exam.pelajaran_id)?.nama_pelajaran || "-";
+				return `<tr>
+					<td class="font-weight-bold">${escapeHtml(exam.nama_ujian)}</td>
+					<td>${escapeHtml(subjectName)}</td>
+					<td class="small">${escapeHtml(formatDate(exam.dibuka_at))}<br><span class="text-muted">s.d. ${escapeHtml(formatDate(exam.ditutup_at))}</span></td>
+					<td>${exam.waktu_menit} menit</td>
+					<td>
+						<span class="badge badge-${status.style} mb-2">${status.label}</span>
+						<div class="custom-control custom-switch">
+							<input class="custom-control-input" type="checkbox" id="exam-active-${exam.id}" data-exam-active="${exam.id}" aria-label="${exam.aktif ? "Nonaktifkan" : "Aktifkan"} ${escapeHtml(exam.nama_ujian)}" ${exam.aktif ? "checked" : ""}>
+							<label class="custom-control-label small" for="exam-active-${exam.id}">${exam.aktif ? "Aktif" : "Nonaktif"}</label>
+						</div>
+					</td>
+					<td class="text-nowrap">
+						<button class="btn btn-sm btn-outline-primary" data-action="questions" data-id="${exam.id}" title="Atur soal"><i class="fas fa-list-ol"></i></button>
+						<button class="btn btn-sm btn-outline-secondary" data-action="edit-exam" data-id="${exam.id}" title="Edit ujian"><i class="fas fa-edit"></i></button>
+						<button class="btn btn-sm btn-outline-danger" data-action="delete-exam" data-id="${exam.id}" title="Hapus ujian"><i class="fas fa-trash"></i></button>
+					</td>
+				</tr>`;
+			}).join("");
+		}
+
+		function setQuestionType(type) {
+			const isMultipleChoice = type === "pg";
+			document.getElementById("multipleChoiceFields").classList.toggle("d-none", !isMultipleChoice);
+			document.getElementById("essayFields").classList.toggle("d-none", isMultipleChoice);
+			["choiceA", "choiceB", "choiceC", "choiceD", "correctChoice"].forEach((id) => {
+				document.getElementById(id).required = isMultipleChoice;
+			});
+			document.getElementById("essayReferences").required = !isMultipleChoice;
+		}
+
+		async function loadQuestions() {
+			if (!selectedExam) return;
+			document.getElementById("selectedExamLabel").textContent = selectedExam.nama_ujian;
+			document.getElementById("questionsMessage").textContent = "Memuat soal...";
+			const { data, error } = await client.from("soal_ujian")
+				.select("*").eq("ujian_id", selectedExam.id).order("nomor_urut");
+			if (error) throw error;
+			const questions = data || [];
+			examQuestions = questions;
+			document.getElementById("questionsMessage").textContent = questions.length
+				? `${questions.length} soal` : "Belum ada soal pada ujian ini.";
+			if (!questions.length) {
+				questionRows.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Tambahkan soal untuk ujian ini.</td></tr>';
+				return;
+			}
+			questionRows.innerHTML = questions.map((question) => `<tr>
+				<td>${question.nomor_urut}</td>
+				<td>${question.soal_type === "pg" ? "Pilihan ganda" : "Essay"}</td>
+				<td>${escapeHtml(question.pertanyaan)}</td>
+				<td class="text-nowrap">
+					<button class="btn btn-sm btn-outline-secondary" data-question-action="edit" data-id="${question.id}" title="Edit soal"><i class="fas fa-edit"></i></button>
+					<button class="btn btn-sm btn-outline-danger" data-question-action="delete" data-id="${question.id}" title="Hapus soal"><i class="fas fa-trash"></i></button>
+				</td>
+			</tr>`).join("");
+		}
+
+		function openNewExam() {
+			editingExamId = null;
+			examForm.reset();
+			document.getElementById("examModalTitle").textContent = "Buat ujian";
+			document.getElementById("examFormError").classList.add("d-none");
+			const now = new Date();
+			const later = new Date(now.getTime() + 60 * 60 * 1000);
+			document.getElementById("examOpenAt").value = toLocalInput(now);
+			document.getElementById("examCloseAt").value = toLocalInput(later);
+			document.getElementById("examDuration").value = 60;
+			$("#examModal").modal("show");
+		}
+
+		function openEditExam(exam) {
+			editingExamId = exam.id;
+			examForm.reset();
+			document.getElementById("examModalTitle").textContent = "Edit ujian";
+			document.getElementById("examFormError").classList.add("d-none");
+			examForm.elements.nama_ujian.value = exam.nama_ujian;
+			examForm.elements.pelajaran_id.value = String(exam.pelajaran_id);
+			examForm.elements.waktu_menit.value = exam.waktu_menit;
+			examForm.elements.dibuka_at.value = toLocalInput(exam.dibuka_at);
+			examForm.elements.ditutup_at.value = toLocalInput(exam.ditutup_at);
+			examForm.elements.aktif.checked = exam.aktif;
+			examForm.elements.acak_soal.checked = exam.acak_soal;
+			examForm.elements.acak_jawaban.checked = exam.acak_jawaban;
+			$("#examModal").modal("show");
+		}
+
+		function openNewQuestion() {
+			editingQuestion = null;
+			questionForm.reset();
+			document.getElementById("questionModalTitle").textContent = "Tambah soal";
+			document.getElementById("questionFormError").classList.add("d-none");
+			questionForm.elements.nomor_urut.value = String(examQuestions.length + 1);
+			setQuestionType("pg");
+			$("#questionModal").modal("show");
+		}
+
+		async function openEditQuestion(questionId) {
+			const { data: question, error } = await client.from("soal_ujian")
+				.select("*").eq("id", questionId).single();
+			if (error) throw error;
+			editingQuestion = question;
+			questionForm.reset();
+			document.getElementById("questionModalTitle").textContent = "Edit soal";
+			document.getElementById("questionFormError").classList.add("d-none");
+			questionForm.elements.nomor_urut.value = question.nomor_urut;
+			questionForm.elements.pertanyaan.value = question.pertanyaan;
+			questionForm.elements.soal_type.value = question.soal_type;
+			questionForm.elements.pilihan_a.value = question.pilihan_a || "";
+			questionForm.elements.pilihan_b.value = question.pilihan_b || "";
+			questionForm.elements.pilihan_c.value = question.pilihan_c || "";
+			questionForm.elements.pilihan_d.value = question.pilihan_d || "";
+			setQuestionType(question.soal_type);
+			if (question.soal_type === "pg") {
+				const { data: key, error: keyError } = await client.from("kunci_pg")
+					.select("jawaban_benar").eq("soal_id", question.id).maybeSingle();
+				if (keyError) throw keyError;
+				questionForm.elements.jawaban_benar.value = key?.jawaban_benar || "";
+			} else {
+				const { data: answers, error: answerError } = await client.from("jawaban_acuan_essay")
+					.select("jawaban").eq("soal_id", question.id).order("id");
+				if (answerError) throw answerError;
+				questionForm.elements.jawaban_acuan.value = (answers || []).map((answer) => answer.jawaban).join("\n");
+			}
+			$("#questionModal").modal("show");
+		}
+
+		async function saveExam(event) {
+			event.preventDefault();
+			const form = event.currentTarget;
+			const errorBox = document.getElementById("examFormError");
+			const button = document.getElementById("saveExamButton");
+			errorBox.classList.add("d-none");
+			const openedAt = new Date(form.elements.dibuka_at.value);
+			const closedAt = new Date(form.elements.ditutup_at.value);
+			if (!(openedAt < closedAt)) {
+				errorBox.textContent = "Waktu tutup harus setelah waktu buka.";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+			button.disabled = true;
+			const values = {
+				nama_ujian: form.elements.nama_ujian.value.trim(),
+				pelajaran_id: Number(form.elements.pelajaran_id.value),
+				waktu_menit: Number(form.elements.waktu_menit.value),
+				dibuka_at: openedAt.toISOString(),
+				ditutup_at: closedAt.toISOString(),
+				acak_soal: form.elements.acak_soal.checked,
+				acak_jawaban: form.elements.acak_jawaban.checked,
+				aktif: form.elements.aktif.checked,
+			};
+			try {
+				const query = editingExamId
+					? client.from("ujian").update(values).eq("id", editingExamId)
+					: client.from("ujian").insert(values);
+				const { error } = await query;
+				if (error) throw error;
+				$("#examModal").modal("hide");
+				showMessage(editingExamId ? "Pengaturan ujian diperbarui." : "Ujian berhasil dibuat.");
+				await loadExams();
+			} catch (error) {
+				errorBox.textContent = error.message;
+				errorBox.classList.remove("d-none");
+			} finally {
+				button.disabled = false;
+			}
+		}
+
+		async function saveQuestion(event) {
+			event.preventDefault();
+			const form = event.currentTarget;
+			const errorBox = document.getElementById("questionFormError");
+			const button = document.getElementById("saveQuestionButton");
+			errorBox.classList.add("d-none");
+			button.disabled = true;
+			const type = form.elements.soal_type.value;
+			const values = {
+				ujian_id: selectedExam.id,
+				nomor_urut: Number(form.elements.nomor_urut.value),
+				soal_type: type,
+				pertanyaan: form.elements.pertanyaan.value.trim(),
+				pilihan_a: type === "pg" ? form.elements.pilihan_a.value.trim() : null,
+				pilihan_b: type === "pg" ? form.elements.pilihan_b.value.trim() : null,
+				pilihan_c: type === "pg" ? form.elements.pilihan_c.value.trim() : null,
+				pilihan_d: type === "pg" ? form.elements.pilihan_d.value.trim() : null,
+			};
+			const essayAnswers = type === "essay"
+				? form.elements.jawaban_acuan.value.split(/\r?\n/).map((answer) => answer.trim()).filter(Boolean)
+				: [];
+			if (type === "essay" && !essayAnswers.length) {
+				errorBox.textContent = "Masukkan setidaknya satu jawaban acuan essay.";
+				errorBox.classList.remove("d-none");
+				button.disabled = false;
+				return;
+			}
+			try {
+				const questionQuery = editingQuestion
+					? client.from("soal_ujian").update(values).eq("id", editingQuestion.id).select("id").single()
+					: client.from("soal_ujian").insert(values).select("id").single();
+				const { data, error } = await questionQuery;
+				if (error) throw error;
+				const questionId = data.id;
+
+				if (type === "pg") {
+					const { error: keyError } = await client.from("kunci_pg").upsert({
+						soal_id: questionId,
+						jawaban_benar: form.elements.jawaban_benar.value,
+					});
+					if (keyError) throw keyError;
+					const { error: answersError } = await client.from("jawaban_acuan_essay").delete().eq("soal_id", questionId);
+					if (answersError) throw answersError;
+				} else {
+					const { error: keyError } = await client.from("kunci_pg").delete().eq("soal_id", questionId);
+					if (keyError) throw keyError;
+					const { error: clearError } = await client.from("jawaban_acuan_essay").delete().eq("soal_id", questionId);
+					if (clearError) throw clearError;
+					const { error: insertError } = await client.from("jawaban_acuan_essay")
+						.insert(essayAnswers.map((jawaban) => ({ soal_id: questionId, jawaban })));
+					if (insertError) throw insertError;
+				}
+
+				$("#questionModal").modal("hide");
+				showMessage(editingQuestion ? "Soal diperbarui." : "Soal berhasil ditambahkan.");
+				await loadQuestions();
+			} catch (error) {
+				errorBox.textContent = error.message;
+				errorBox.classList.remove("d-none");
+			} finally {
+				button.disabled = false;
+			}
+		}
+
+		function downloadQuestionTemplate() {
+			const rows = [
+				["nomor_urut", "soal_type", "pertanyaan", "pilihan_a", "pilihan_b", "pilihan_c", "pilihan_d", "jawaban_benar", "jawaban_acuan"],
+				[1, "pg", "Contoh pertanyaan pilihan ganda", "Pilihan A", "Pilihan B", "Pilihan C", "Pilihan D", "A", ""],
+				[2, "essay", "Contoh pertanyaan essay", "", "", "", "", "", "jawaban acuan pertama | variasi jawaban lain"],
+			];
+			const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\r\n");
+			const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = "template-soal-ujian.csv";
+			link.click();
+			URL.revokeObjectURL(url);
+		}
+
+		function prepareImportedQuestions(rows) {
+			const dataRows = rows.filter((row) => Object.values(row).some((value) => String(value ?? "").trim()));
+			if (!dataRows.length) throw new Error("File tidak berisi baris soal.");
+			if (dataRows.length > 500) throw new Error("Maksimal 500 soal dapat diimpor sekaligus.");
+
+			const usedNumbers = new Set(examQuestions.map((question) => Number(question.nomor_urut)));
+			let nextNumber = Math.max(0, ...usedNumbers) + 1;
+			return dataRows.map((row, index) => {
+				const values = Object.fromEntries(Object.entries(row).map(([key, value]) => [
+					String(key).trim().toLocaleLowerCase(), String(value ?? "").trim(),
+				]));
+				const rowNumber = index + 2;
+				const typeValue = (values.soal_type || "").toLocaleLowerCase();
+				const type = ["pg", "pilihan ganda"].includes(typeValue) ? "pg" : typeValue === "essay" ? "essay" : null;
+				if (!type) throw new Error(`Baris ${rowNumber}: soal_type harus pg atau essay.`);
+
+			const order = values.nomor_urut ? Number(values.nomor_urut) : nextNumber;
+				if (!Number.isInteger(order) || order < 1) throw new Error(`Baris ${rowNumber}: nomor_urut harus bilangan bulat positif.`);
+				if (usedNumbers.has(order)) throw new Error(`Baris ${rowNumber}: nomor urut ${order} sudah digunakan pada ujian ini.`);
+				usedNumbers.add(order);
+				nextNumber = Math.max(nextNumber, order + 1);
+
+				const questionText = values.pertanyaan || "";
+				if (!questionText) throw new Error(`Baris ${rowNumber}: pertanyaan wajib diisi.`);
+				const question = {
+					ujian_id: selectedExam.id,
+					nomor_urut: order,
+					soal_type: type,
+					pertanyaan: questionText,
+					pilihan_a: type === "pg" ? values.pilihan_a : null,
+					pilihan_b: type === "pg" ? values.pilihan_b : null,
+					pilihan_c: type === "pg" ? values.pilihan_c : null,
+					pilihan_d: type === "pg" ? values.pilihan_d : null,
+				};
+				let correctAnswer = null;
+				let references = [];
+				if (type === "pg") {
+					if (["pilihan_a", "pilihan_b", "pilihan_c", "pilihan_d"].some((key) => !values[key])) {
+						throw new Error(`Baris ${rowNumber}: semua pilihan A-D wajib diisi untuk soal PG.`);
+					}
+					correctAnswer = (values.jawaban_benar || "").toLocaleUpperCase();
+					if (!["A", "B", "C", "D"].includes(correctAnswer)) throw new Error(`Baris ${rowNumber}: jawaban_benar harus A, B, C, atau D.`);
+				} else {
+					references = [...new Set((values.jawaban_acuan || "").split(/\s*\|\s*|\r?\n/).map((answer) => answer.trim()).filter(Boolean))];
+					if (!references.length) throw new Error(`Baris ${rowNumber}: isi jawaban_acuan untuk soal essay.`);
+				}
+				return { question, correctAnswer, references };
+			});
+		}
+
+		async function importQuestions(file) {
+			if (!window.XLSX) throw new Error("Parser Excel gagal dimuat. Periksa koneksi internet lalu coba lagi.");
+			const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+			const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+			if (!firstSheet) throw new Error("Sheet pertama tidak ditemukan.");
+			const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: "", raw: false });
+			const prepared = prepareImportedQuestions(rows);
+
+			const { data: insertedQuestions, error } = await client.from("soal_ujian")
+				.insert(prepared.map((item) => item.question)).select("id, nomor_urut");
+			if (error) throw error;
+			const idByOrder = new Map(insertedQuestions.map((question) => [Number(question.nomor_urut), question.id]));
+			const keys = [];
+			const references = [];
+			prepared.forEach((item) => {
+				const questionId = idByOrder.get(item.question.nomor_urut);
+				if (item.correctAnswer) keys.push({ soal_id: questionId, jawaban_benar: item.correctAnswer });
+				item.references.forEach((jawaban) => references.push({ soal_id: questionId, jawaban }));
+			});
+			try {
+				if (keys.length) {
+					const { error: keyError } = await client.from("kunci_pg").insert(keys);
+					if (keyError) throw keyError;
+				}
+				if (references.length) {
+					const { error: referenceError } = await client.from("jawaban_acuan_essay").insert(references);
+					if (referenceError) throw referenceError;
+				}
+			} catch (error) {
+				const { error: cleanupError } = await client.from("soal_ujian")
+					.delete().in("id", insertedQuestions.map((question) => question.id));
+				if (cleanupError) throw new Error(`${error.message} Gagal membersihkan soal impor yang belum lengkap: ${cleanupError.message}`);
+				throw new Error(`${error.message} Soal impor yang belum lengkap sudah dibersihkan.`);
+			}
+			showMessage(`${prepared.length} soal berhasil diimpor.`);
+			await loadQuestions();
+		}
+
+		document.getElementById("newExamButton").addEventListener("click", openNewExam);
+		document.getElementById("refreshExamsButton").addEventListener("click", () => loadExams().catch((error) => showMessage(error.message, "danger")));
+		document.getElementById("newQuestionButton").addEventListener("click", openNewQuestion);
+		document.getElementById("downloadQuestionTemplate").addEventListener("click", downloadQuestionTemplate);
+		document.getElementById("importQuestionsButton").addEventListener("click", () => document.getElementById("importQuestionsFile").click());
+		document.getElementById("importQuestionsFile").addEventListener("change", async (event) => {
+			const file = event.target.files[0];
+			if (!file) return;
+			const button = document.getElementById("importQuestionsButton");
+			button.disabled = true;
+			try {
+				await importQuestions(file);
+			} catch (error) {
+				showMessage(error.message, "danger");
+			} finally {
+				button.disabled = false;
+				event.target.value = "";
+			}
+		});
+		examRows.addEventListener("change", async (event) => {
+			const toggle = event.target.closest("input[data-exam-active]");
+			if (!toggle) return;
+			const exam = exams.find((item) => String(item.id) === toggle.dataset.examActive);
+			if (!exam) return;
+			toggle.disabled = true;
+			try {
+				const { error } = await client.from("ujian").update({ aktif: toggle.checked }).eq("id", exam.id);
+				if (error) throw error;
+				showMessage(toggle.checked ? "Ujian diaktifkan." : "Ujian dinonaktifkan.");
+				await loadExams();
+			} catch (error) {
+				showMessage(error.message, "danger");
+				await loadExams().catch(() => {});
+			}
+		});
+		document.getElementById("questionsBackButton").addEventListener("click", () => {
+			questionsSection.classList.add("d-none");
+			examListView.classList.remove("d-none");
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		});
+		document.getElementById("questionType").addEventListener("change", (event) => setQuestionType(event.target.value));
+		examForm.addEventListener("submit", saveExam);
+		questionForm.addEventListener("submit", saveQuestion);
+
+		document.getElementById("examTable").addEventListener("click", async (event) => {
+			const button = event.target.closest("button[data-action]");
+			if (!button) return;
+			const exam = exams.find((item) => String(item.id) === button.dataset.id);
+			if (!exam) return;
+			try {
+				if (button.dataset.action === "edit-exam") openEditExam(exam);
+				if (button.dataset.action === "questions") {
+					selectedExam = exam;
+					examListView.classList.add("d-none");
+					questionsSection.classList.remove("d-none");
+					await loadQuestions();
+					questionsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+				}
+				if (button.dataset.action === "delete-exam" && window.confirm(`Hapus ujian "${exam.nama_ujian}" beserta soal-soalnya?`)) {
+					const { error } = await client.from("ujian").delete().eq("id", exam.id);
+					if (error) throw error;
+					if (selectedExam?.id === exam.id) {
+						selectedExam = null;
+						questionsSection.classList.add("d-none");
+					}
+					showMessage("Ujian dan soal terkait berhasil dihapus.");
+					await loadExams();
+				}
+			} catch (error) {
+				showMessage(error.message, "danger");
+			}
+		});
+
+		document.getElementById("questionTable").addEventListener("click", async (event) => {
+			const button = event.target.closest("button[data-question-action]");
+			if (!button) return;
+			try {
+				if (button.dataset.questionAction === "edit") await openEditQuestion(button.dataset.id);
+				if (button.dataset.questionAction === "delete" && window.confirm("Hapus soal ini?")) {
+					const { error } = await client.from("soal_ujian").delete().eq("id", button.dataset.id);
+					if (error) throw error;
+					showMessage("Soal berhasil dihapus.");
+					await loadQuestions();
+				}
+			} catch (error) {
+				showMessage(error.message, "danger");
+			}
+		});
+
+		document.addEventListener("DOMContentLoaded", async () => {
+			if (!await window.adminSessionReady) return;
+			try {
+				await loadSubjects();
+				await loadExams();
+			} catch (error) {
+				showMessage(error.message, "danger");
+				examRows.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data. Pastikan schema ujian sudah dijalankan dan akun memiliki role admin.</td></tr>';
+			}
+		});
+	</script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Login Siswa</title>
+    <link href="../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:300,400,600,700,800" rel="stylesheet">
+    <link href="../assets/css/sb-admin-2.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-gradient-primary">
+    <main class="container">
+        <div class="row justify-content-center">
+            <div class="col-xl-5 col-lg-6 col-md-8">
+                <div class="card border-0 shadow-lg my-5">
+                    <div class="card-body p-5">
+                        <div class="text-center">
+                            <h1 class="h4 text-gray-900 mb-4">Login Siswa</h1>
+                        </div>
+                        <form id="studentLoginForm" novalidate>
+                            <div class="form-group">
+                                <label for="studentNis">NIS</label>
+                                <input id="studentNis" name="nis" type="text" inputmode="text"
+                                    class="form-control" autocomplete="username" maxlength="50"
+                                    pattern="[A-Za-z0-9._-]{1,50}" required autofocus>
+                            </div>
+                            <button id="studentLoginButton" type="submit" class="btn btn-primary btn-block">
+                                Masuk
+                            </button>
+                            <div id="studentLoginError" class="text-danger small mt-3" role="alert" aria-live="polite"></div>
+                        </form>
+                        <div class="text-center mt-3">
+                            <a class="small" href="../index.html">Login admin</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById("studentLoginForm").addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const errorBox = document.getElementById("studentLoginError");
+            const submitButton = document.getElementById("studentLoginButton");
+            const nis = form.elements.nis.value.trim();
+            errorBox.textContent = "";
+            submitButton.disabled = true;
+
+            try {
+                if (!/^[A-Za-z0-9._-]{1,50}$/.test(nis)) {
+                    throw new Error("NIS hanya boleh berisi huruf, angka, titik, garis bawah, atau tanda hubung.");
+                }
+                sessionStorage.setItem("ypn_student_nis", nis);
+                window.location.replace("./");
+            } catch (error) {
+                errorBox.textContent = error.message;
+                submitButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>
