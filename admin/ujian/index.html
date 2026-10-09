@@ -11,14 +11,54 @@
 </head>
 <body id="page-top" data-login-path="../../index.html">
 	<div id="wrapper">
-		<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion">
+		<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
 			<a class="sidebar-brand d-flex align-items-center justify-content-center" href="../dashboard/">
-				<span class="sidebar-brand-text mx-3">Website</span>
+				<div class="sidebar-brand-icon rotate-n-15"></div>
+				<div class="sidebar-brand-text mx-3">Website</div>
 			</a>
 			<hr class="sidebar-divider my-0">
 			<li class="nav-item"><a class="nav-link" href="../dashboard/"><i class="fas fa-fw fa-tachometer-alt"></i><span>Dashboard</span></a></li>
 			<li class="nav-item active"><a class="nav-link" href="./"><i class="fas fa-fw fa-clipboard-list"></i><span>Pengaturan Ujian</span></a></li>
-			<li class="nav-item"><a class="nav-link" href="../pelajaran/data-pelajaran/"><i class="fas fa-fw fa-book"></i><span>Data Pelajaran</span></a></li>
+			<hr class="sidebar-divider">
+			<div class="sidebar-heading">Interface</div>
+			<li class="nav-item">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+					<i class="fas fa-fw fa-database"></i><span>Data</span>
+				</a>
+				<div id="collapseTwo" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" href="../guru/data-guru/">Data Guru</a>
+						<a class="collapse-item" href="../kelas/data-kelas/">Data Kelas</a>
+						<a class="collapse-item" href="../pelajaran/data-pelajaran/">Data Pelajaran</a>
+						<a class="collapse-item" href="../tahun/data-tahun/">Data Tahun Ajaran</a>
+					</div>
+				</div>
+			</li>
+			<li class="nav-item" id="studentNavigation">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseStudentNavigation" aria-expanded="false" aria-controls="collapseStudentNavigation">
+					<i class="fas fa-fw fa-user-graduate"></i><span>Data Siswa</span>
+				</a>
+				<div id="collapseStudentNavigation" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAllStudentsLink" href="../siswa/data-siswa/">Semua Siswa</a>
+						<h6 class="collapse-header">Siswa per Kelas:</h6>
+						<div id="sidebarClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
+			<li class="nav-item">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities" aria-expanded="false" aria-controls="collapseUtilities">
+					<i class="fas fa-fw fa-wrench"></i><span>Absensi</span>
+				</a>
+				<div id="collapseUtilities" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAttendanceLink" href="../absensi/?mode=scan#scanner">Scan Absensi</a>
+						<a class="collapse-item" href="../absensi/#rekap">Rekap Absensi</a>
+						<h6 class="collapse-header">Rekap per Kelas:</h6>
+						<div id="sidebarAttendanceClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
 			<hr class="sidebar-divider d-none d-md-block">
 			<div class="text-center d-none d-md-inline"><button class="rounded-circle border-0" id="sidebarToggle"></button></div>
 		</ul>
@@ -156,6 +196,7 @@
 	<script src="../../supabase-config.js"></script>
 	<script src="../../api.js"></script>
 	<script src="../../admin-session.js"></script>
+	<script src="../../class-navigation.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 	<script>
 		const client = getSupabaseClient();
