@@ -17,6 +17,7 @@
 
     <!-- Custom styles for this template-->
     <link href="../assets/css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../assets/css/theme-green.css" rel="stylesheet">
     <link href="../assets/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
 
 </head>
@@ -209,14 +210,8 @@
                             <h6 class="m-0 font-weight-bold text-primary">Ujian</h6>
                         </div>
                         <div class="card-body">
-                            <!-- Content  Ujian -->
-                            <!-- tempat buat ujian if else statement jika ingin pilih ujian
-                             atau .html baru  -->
-                             <div class="">
-                                <a href="">lllllllllllllllllllllllllllllllllllll</a> 
-                             </div>
-                             <hr>
-                             <a href="">lllllllllllllllllllllllllllllllllllll</a>
+                            <div id="availableExamStatus" class="small text-muted mb-3" role="status">Memuat ujian...</div>
+                            <div id="availableExamList"></div>
                         </div>
                     </div>
                 </div>
@@ -281,5 +276,79 @@
     <!-- Page level custom scripts -->
     <script src="../assets/js/demo/datatables-demo.js"></script>
     <script src="student-session.js"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        async function loadAvailableExams() {
+            const status = document.getElementById("availableExamStatus");
+            const list = document.getElementById("availableExamList");
+            const nis = sessionStorage.getItem("ypn_student_nis");
+
+            if (!nis) return;
+
+            try {
+                if (!window.SUPABASE_CONFIG?.url || !window.SUPABASE_CONFIG?.anonKey || !window.supabase?.createClient) {
+                    throw new Error("Konfigurasi atau library Supabase belum tersedia.");
+                }
+
+                const client = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+                const { data: nisExists, error: nisError } = await client
+                    .rpc("student_nis_exists", { p_nis: nis });
+
+                if (nisError) throw nisError;
+                if (nisExists !== true) {
+                    sessionStorage.removeItem("ypn_student_nis");
+                    window.location.replace("login.html");
+                    return;
+                }
+
+                const now = new Date().toISOString();
+                const { data: exams, error } = await client
+                    .from("ujian")
+                    .select("id, nama_ujian, waktu_menit, dibuka_at, ditutup_at, data_pelajaran(nama_pelajaran)")
+                    .eq("aktif", true)
+                    .lte("dibuka_at", now)
+                    .gte("ditutup_at", now)
+                    .order("dibuka_at", { ascending: true });
+
+                if (error) throw error;
+
+                list.replaceChildren();
+                if (!exams?.length) {
+                    status.textContent = "Belum ada ujian yang sedang dibuka.";
+                    return;
+                }
+
+                status.textContent = `${exams.length} ujian tersedia saat ini.`;
+                exams.forEach((exam) => {
+                    const row = document.createElement("div");
+                    row.className = "d-flex flex-column flex-md-row justify-content-between align-items-md-center border-bottom py-3";
+
+                    const details = document.createElement("div");
+                    const title = document.createElement("h6");
+                    title.className = "font-weight-bold mb-1";
+                    title.textContent = exam.nama_ujian;
+                    const meta = document.createElement("div");
+                    meta.className = "small text-muted";
+                    meta.textContent = `${exam.data_pelajaran?.nama_pelajaran || "Mata pelajaran tidak tersedia"} · ${exam.waktu_menit} menit`;
+                    details.append(title, meta);
+
+                    const link = document.createElement("a");
+                    link.className = "btn btn-primary btn-sm mt-2 mt-md-0 ml-md-3";
+                    link.href = `ujian/index.html?id=${encodeURIComponent(exam.id)}`;
+                    link.innerHTML = '<i class="fas fa-arrow-right mr-1" aria-hidden="true"></i> Pilih ujian';
+
+                    row.append(details, link);
+                    list.append(row);
+                });
+            } catch (error) {
+                console.error(error);
+                status.textContent = error.message || "Gagal memuat daftar ujian.";
+                status.classList.add("text-danger");
+            }
+        }
+
+        loadAvailableExams();
+    </script>
 </body>
 </html>

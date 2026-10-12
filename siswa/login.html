@@ -9,6 +9,7 @@
     <link href="../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
     <link href="https://fonts.googleapis.com/css?family=Nunito:300,400,600,700,800" rel="stylesheet">
     <link href="../assets/css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../assets/css/theme-green.css" rel="stylesheet">
 </head>
 
 <body class="bg-gradient-primary">
@@ -41,6 +42,8 @@
         </div>
     </main>
 
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         document.getElementById("studentLoginForm").addEventListener("submit", async (event) => {
             event.preventDefault();
@@ -55,6 +58,31 @@
                 if (!/^[A-Za-z0-9._-]{1,50}$/.test(nis)) {
                     throw new Error("NIS hanya boleh berisi huruf, angka, titik, garis bawah, atau tanda hubung.");
                 }
+
+                const config = window.SUPABASE_CONFIG;
+                if (!config?.url || !config?.anonKey) {
+                    throw new Error("Konfigurasi Supabase belum siap.");
+                }
+
+                if (!window.supabase?.createClient) {
+                    throw new Error("Library Supabase belum dimuat.");
+                }
+
+                const client = window.supabase.createClient(config.url, config.anonKey);
+                const { data: nisExists, error } = await client
+                    .rpc("student_nis_exists", { p_nis: nis });
+
+                if (error) {
+                    if (error.code === "PGRST202" || error.code === "42883") {
+                        throw new Error("Fungsi pengecekan NIS belum tersedia. Jalankan SQL pada supabase-student-exam-policy.sql terlebih dahulu.");
+                    }
+                    throw new Error(error.message || "Gagal mengecek NIS siswa.");
+                }
+
+                if (nisExists !== true) {
+                    throw new Error("NIS tidak ditemukan. Silakan cek kembali NIS Anda.");
+                }
+
                 sessionStorage.setItem("ypn_student_nis", nis);
                 window.location.replace("./");
             } catch (error) {

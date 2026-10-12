@@ -17,6 +17,7 @@
 
     <!-- Custom styles for this template-->
     <link href="../../../assets/css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../../../assets/css/theme-green.css" rel="stylesheet">
     <link href="../../../assets/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
 
 </head>
@@ -396,6 +397,10 @@
                                             <td>1</td>
                                             <td>n</td>
                                             <td>
+                                                <button type="button" class="btn btn-sm btn-success"
+                                                    data-toggle="modal" data-target="#waliKelasModal"
+                                                    data-id="1" data-nama_kelas="n"
+                                                    onclick="setWaliKelas(this)">Wali Kelas</button>
                                                 <button type="button" class="btn btn-sm btn-warning"
                                                     data-toggle="modal" data-target="#editKelasModal"
                                                     data-id="1" data-nama_kelas="n"
@@ -475,6 +480,42 @@
                     </div>
                 </div>
 
+                <div class="modal fade" id="waliKelasModal" tabindex="-1" role="dialog" aria-labelledby="waliKelasTitle" aria-hidden="true">
+                    <div class="modal-dialog" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="waliKelasTitle">Wali Kelas</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Tutup">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="waliKelasStatus" class="small text-muted mb-3" role="status" aria-live="polite"></div>
+                                <form id="waliKelasForm">
+                                    <input type="hidden" id="waliKelasKelasId" name="kelas_id">
+                                    <div class="form-group">
+                                        <label for="waliKelasKelasNama">Kelas</label>
+                                        <input type="text" id="waliKelasKelasNama" class="form-control" readonly>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="waliKelasGuru">Guru</label>
+                                        <select id="waliKelasGuru" name="guru_id" class="form-control" required></select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="waliKelasTahun">Tahun Ajaran</label>
+                                        <select id="waliKelasTahun" name="tahun_ajaran_id" class="form-control" required></select>
+                                    </div>
+                                    <div class="form-group mb-0">
+                                        <label>Guru yang saat ini terhubung</label>
+                                        <ul id="waliKelasList" class="list-group small"></ul>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary mt-3">Simpan Relasi</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="modal fade" id="lihatSiswaKelasModal" tabindex="-1" role="dialog" aria-labelledby="lihatSiswaKelasTitle" aria-hidden="true">
                     <div class="modal-dialog modal-lg" role="document">
                         <div class="modal-content">
@@ -512,6 +553,173 @@
                         document.getElementById('hapusKelasForm').action = '/admin/kelas/data-kelas/' + id;
                         document.getElementById('hapusKelasForm').querySelector('p').textContent = 'Apakah Anda yakin ingin menghapus data kelas "' + nama_kelas + '"?';
                     }
+
+                    async function loadWaliKelasOptions() {
+                        const guruSelect = document.getElementById('waliKelasGuru');
+                        const tahunSelect = document.getElementById('waliKelasTahun');
+                        if (!guruSelect || !tahunSelect) return;
+
+                        try {
+                            const client = getSupabaseClient();
+
+                            const [{ data: guruData, error: guruError }, { data: tahunData, error: tahunError }] = await Promise.all([
+                                client.from('data_guru').select('id, nama').order('nama', { ascending: true }),
+                                client.from('tahun_ajaran').select('id, tahun_ajaran').order('tahun_ajaran', { ascending: true })
+                            ]);
+
+                            if (guruError) throw guruError;
+                            if (tahunError) throw tahunError;
+
+                            guruSelect.innerHTML = '<option value="">-- Pilih Guru --</option>' +
+                                (guruData || []).map((guru) => `<option value="${guru.id}">${guru.nama}</option>`).join('');
+                            tahunSelect.innerHTML = '<option value="">-- Pilih Tahun Ajaran --</option>' +
+                                (tahunData || []).map((tahun) => `<option value="${tahun.id}">${tahun.tahun_ajaran}</option>`).join('');
+                        } catch (error) {
+                            const status = document.getElementById('waliKelasStatus');
+                            if (status) {
+                                status.textContent = error.message || 'Gagal memuat data guru dan tahun ajaran.';
+                                status.className = 'small text-danger mb-3';
+                            }
+                        }
+                    }
+
+                    async function loadWaliKelasByClass(classId) {
+                        const list = document.getElementById('waliKelasList');
+                        const status = document.getElementById('waliKelasStatus');
+                        if (!list) return;
+
+                        if (!classId) {
+                            list.innerHTML = '<li class="list-group-item text-muted">Pilih kelas terlebih dahulu.</li>';
+                            return;
+                        }
+
+                        try {
+                            const client = getSupabaseClient();
+                            const { data, error } = await client
+                                .from('wali_kelas')
+                                .select('id, guru_id, tahun_ajaran_id, data_guru(nama), tahun_ajaran(tahun_ajaran)')
+                                .eq('kelas_id', classId)
+                                .order('id', { ascending: true });
+
+                            if (error) throw error;
+
+                            if (!data || !data.length) {
+                                list.innerHTML = '<li class="list-group-item text-muted">Belum ada wali kelas yang ditetapkan.</li>';
+                                if (status) {
+                                    status.textContent = 'Belum ada relasi wali kelas untuk kelas ini.';
+                                    status.className = 'small text-muted mb-3';
+                                }
+                                return;
+                            }
+
+                            list.innerHTML = data.map((row) => {
+                                const guruNama = row.data_guru?.nama || 'Guru tidak ditemukan';
+                                const tahun = row.tahun_ajaran?.tahun_ajaran || 'Tahun ajaran tidak ditemukan';
+                                return `
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <span>${guruNama}</span>
+                                        <div class="d-flex align-items-center">
+                                            <span class="badge badge-light text-dark mr-2">${tahun}</span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-delete-wali-id="${row.id}">Hapus</button>
+                                        </div>
+                                    </li>
+                                `;
+                            }).join('');
+
+                            if (status) {
+                                status.textContent = 'Relasi wali kelas saat ini.';
+                                status.className = 'small text-muted mb-3';
+                            }
+                        } catch (error) {
+                            list.innerHTML = '<li class="list-group-item text-danger">Gagal memuat relasi wali kelas.</li>';
+                            if (status) {
+                                status.textContent = error.message || 'Gagal memuat relasi wali kelas.';
+                                status.className = 'small text-danger mb-3';
+                            }
+                        }
+                    }
+
+                    function setWaliKelas(button) {
+                        const id = button.getAttribute('data-id');
+                        const namaKelas = button.getAttribute('data-nama_kelas');
+                        document.getElementById('waliKelasKelasId').value = id;
+                        document.getElementById('waliKelasKelasNama').value = namaKelas;
+                        document.getElementById('waliKelasGuru').value = '';
+                        document.getElementById('waliKelasTahun').value = '';
+                        loadWaliKelasOptions();
+                        loadWaliKelasByClass(id);
+                    }
+
+                    document.getElementById('waliKelasForm')?.addEventListener('submit', async function (event) {
+                        event.preventDefault();
+                        const client = getSupabaseClient();
+                        const kelasId = document.getElementById('waliKelasKelasId').value;
+                        const guruId = document.getElementById('waliKelasGuru').value;
+                        const tahunId = document.getElementById('waliKelasTahun').value;
+                        const status = document.getElementById('waliKelasStatus');
+
+                        if (!kelasId || !guruId || !tahunId) {
+                            if (status) {
+                                status.textContent = 'Pilih guru dan tahun ajaran terlebih dahulu.';
+                                status.className = 'small text-danger mb-3';
+                            }
+                            return;
+                        }
+
+                        try {
+                            const { error } = await client.from('wali_kelas').upsert({
+                                kelas_id: Number(kelasId),
+                                guru_id: Number(guruId),
+                                tahun_ajaran_id: Number(tahunId)
+                            }, { onConflict: 'guru_id,kelas_id,tahun_ajaran_id' });
+
+                            if (error) throw error;
+
+                            if (status) {
+                                status.textContent = 'Relasi wali kelas berhasil disimpan.';
+                                status.className = 'small text-success mb-3';
+                            }
+
+                            loadWaliKelasByClass(kelasId);
+                        } catch (error) {
+                            if (status) {
+                                status.textContent = error.message || 'Gagal menyimpan relasi wali kelas.';
+                                status.className = 'small text-danger mb-3';
+                            }
+                        }
+                    });
+
+                    document.getElementById('waliKelasList')?.addEventListener('click', async function (event) {
+                        const deleteButton = event.target.closest('[data-delete-wali-id]');
+                        if (!deleteButton) return;
+
+                        const relasiId = deleteButton.getAttribute('data-delete-wali-id');
+                        const kelasId = document.getElementById('waliKelasKelasId')?.value;
+                        const status = document.getElementById('waliKelasStatus');
+
+                        if (!relasiId || !kelasId) return;
+
+                        try {
+                            const { error } = await getSupabaseClient()
+                                .from('wali_kelas')
+                                .delete()
+                                .eq('id', Number(relasiId));
+
+                            if (error) throw error;
+
+                            if (status) {
+                                status.textContent = 'Relasi wali kelas berhasil dihapus.';
+                                status.className = 'small text-success mb-3';
+                            }
+
+                            loadWaliKelasByClass(kelasId);
+                        } catch (error) {
+                            if (status) {
+                                status.textContent = error.message || 'Gagal menghapus relasi wali kelas.';
+                                status.className = 'small text-danger mb-3';
+                            }
+                        }
+                    });
                 </script>
                     <!-- Main Page "Main Container"  -->
                     

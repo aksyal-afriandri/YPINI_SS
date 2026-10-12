@@ -126,6 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const actions = document.createElement("td");
       [
+        { action: "wali-kelas", label: "Wali Kelas", style: "success", target: "waliKelasModal" },
         { action: "edit", label: "Edit", style: "warning", target: config.editModal },
         { action: "delete", label: "Hapus", style: "danger", target: config.deleteModal },
       ].forEach(({ action, label, style, target }) => {
@@ -209,6 +210,24 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (error) {
         studentStatus.textContent = error.message;
       }
+    } else if (button.dataset.recordAction === "wali-kelas") {
+      const kelasId = record.id;
+      const namaKelas = record.nama_kelas ?? "";
+      const kelasIdInput = document.getElementById("waliKelasKelasId");
+      const kelasNamaInput = document.getElementById("waliKelasKelasNama");
+      const guruSelect = document.getElementById("waliKelasGuru");
+      const tahunSelect = document.getElementById("waliKelasTahun");
+      if (kelasIdInput) kelasIdInput.value = String(kelasId);
+      if (kelasNamaInput) kelasNamaInput.value = namaKelas;
+      if (guruSelect) guruSelect.value = "";
+      if (tahunSelect) tahunSelect.value = "";
+      if (typeof loadWaliKelasOptions === "function") {
+        loadWaliKelasOptions();
+      }
+      if (typeof loadWaliKelasByClass === "function") {
+        loadWaliKelasByClass(kelasId);
+      }
+      window.jQuery("#waliKelasModal").modal("show");
     } else if (button.dataset.recordAction === "edit") {
       editForm.dataset.recordId = record.id;
       config.fields.forEach(({ key }) => {
