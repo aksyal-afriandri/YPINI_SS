@@ -50,7 +50,7 @@
             <div class="sidebar-heading">Interface</div>
             <li class="nav-item">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseData" aria-expanded="false" aria-controls="collapseData">
-                    <i class="fas fa-fw fa-database"></i><span>Data</span>
+                    <i class="fas fa-fw fa-database"></i><span>Data Admin</span>
                 </a>
                 <div id="collapseData" class="collapse" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
@@ -58,6 +58,21 @@
                         <a class="collapse-item" href="../../kelas/data-kelas/">Data Kelas</a>
                         <a class="collapse-item" href="../../pelajaran/data-pelajaran/">Data Pelajaran</a>
                         <a class="collapse-item" href="../../tahun/data-tahun/">Data Tahun Ajaran</a>
+                    </div>
+                </div>
+            </li>
+            <li class="nav-item" id="activityNavigation">
+                <a class="nav-link collapsed" id="headingActivity" href="#" data-toggle="collapse" data-target="#collapseActivity"
+                    aria-expanded="false" aria-controls="collapseActivity">
+                    <i class="fas fa-fw fa-database"></i>
+                    <span>Data Aktifitas</span>
+                </a>
+                <div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="">Data</a>
+                        <a class="collapse-item" href="../aktifitas/data-fieldtrip/index.html">Data Field Trip</a>
+                        <a class="collapse-item" href="">Data </a>
+                        <a class="collapse-item" href="">Data Umnni</a>
                     </div>
                 </div>
             </li>
@@ -304,7 +319,7 @@
             classCodeGrid.replaceChildren();
             selectedClassStudents = [];
             document.getElementById("classCodeHeading").textContent = selectedClass
-                ? `QR / Barcode - ${selectedClass.nama_kelas}`
+                ? `QR / Barcode - ${[selectedClass.jenjang, selectedClass.nama_kelas].filter(Boolean).join(" - ")}`
                 : "Pilih kelas";
 
             if (!selectedClass) {
@@ -317,7 +332,7 @@
             }
 
             const memberIds = new Set(classMemberships
-                .filter((membership) => String(membership.kelas_id) === String(selectedClass.id))
+                .filter((membership) => String(membership.kelas_tahun_ajaran_id) === String(selectedClass.id))
                 .map((membership) => String(membership.siswa_id)));
             const classStudents = students.filter((student) => memberIds.has(String(student.id)));
             const studentsWithNis = classStudents.filter((student) => String(student.nis || "").trim());
@@ -543,10 +558,13 @@
             }
             try {
                 const client = getSupabaseClient();
+                const yearId = await getActiveAcademicYearId();
                 const [studentResult, classResult, membershipResult] = await Promise.all([
                     apiGet("/data/siswa"),
                     apiGet("/data/kelas"),
-                    client.from("siswa_kelas").select("kelas_id, siswa_id"),
+                    client.from("siswa_kelas_tahun_ajaran")
+                        .select("kelas_tahun_ajaran_id, siswa_id")
+                        .eq("tahun_ajaran_id", yearId),
                 ]);
                 if (membershipResult.error) throw membershipResult.error;
                 students = (studentResult.data || []).sort((left, right) =>
@@ -566,7 +584,10 @@
                     classes.length ? "Pilih kelas..." : "Belum ada data kelas",
                     "",
                 ));
-                classes.forEach((record) => classSelect.add(new Option(record.nama_kelas, String(record.id))));
+                classes.forEach((record) => classSelect.add(new Option(
+                    [record.jenjang, record.nama_kelas].filter(Boolean).join(" - "),
+                    String(record.id),
+                )));
                 classSelect.disabled = classes.length === 0;
             } catch (error) {
                 status.textContent = error.message || "Data siswa gagal dimuat.";

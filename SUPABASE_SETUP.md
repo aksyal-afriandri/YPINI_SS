@@ -23,8 +23,9 @@ Frontend statis berada di folder ini. Saat berjalan, aplikasi memakai Supabase A
 1. Buat project baru di Supabase dan simpan password database project di password manager. Password itu tidak digunakan oleh frontend.
 2. Buka **SQL Editor > New query**, salin seluruh isi `supabase-schema.sql`, lalu pilih **Run**.
   Untuk project lama yang masih memakai kolom `data_siswa.nisn`, jalankan ulang schema terbaru ini. Bagian migrasinya mengganti nama kolom menjadi `nis` tanpa menghapus data siswa.
-3. Di **Authentication > Users**, buat user admin dengan email dan password yang kuat.
-4. Di SQL Editor, jalankan query berikut dan ganti alamat email dengan email admin tadi:
+3. Jalankan seluruh isi `supabase-academic-year-settings.sql` di SQL Editor. Ini membuat penyimpanan tahun ajaran aktif bersama untuk semua halaman admin.
+4. Di **Authentication > Users**, buat user admin dengan email dan password yang kuat.
+5. Di SQL Editor, jalankan query berikut dan ganti alamat email dengan email admin tadi:
 
    ```sql
    update public.profiles
@@ -36,8 +37,8 @@ Frontend statis berada di folder ini. Saat berjalan, aplikasi memakai Supabase A
 
    Trigger dari schema membuat profile baru dengan role `siswa`; query di atas menaikkan hanya akun yang dipilih menjadi admin. Jangan memberi role admin ke akun publik.
 
-5. Nonaktifkan pendaftaran publik di **Authentication > Settings/Sign In**, kecuali aplikasi memang akan dikembangkan untuk pendaftaran pengguna.
-6. Buka **Project Settings > API**. Salin Project URL dan publishable/anon key ke `supabase-config.js`:
+6. Nonaktifkan pendaftaran publik di **Authentication > Settings/Sign In**, kecuali aplikasi memang akan dikembangkan untuk pendaftaran pengguna.
+7. Buka **Project Settings > API**. Salin Project URL dan publishable/anon key ke `supabase-config.js`:
 
    ```js
    window.SUPABASE_CONFIG = {
@@ -73,8 +74,11 @@ Frontend statis berada di folder ini. Saat berjalan, aplikasi memakai Supabase A
    end $$;
    ```
 
-5. Foto lama tidak otomatis berpindah. Upload file dari `storage/app/public/siswa` ke bucket privat `student-photos`, kemudian isi `data_siswa.photo_path` dengan path object baru di Storage. Kolom Laravel `photo` bukan path object Supabase.
-6. Akun/password Laravel tidak dapat dipakai otomatis sebagai akun Supabase Auth. Buat akun Auth baru dan berikan role melalui `profiles`.
+5. Login sebagai admin. Jika belum ada tahun ajaran, buat satu di **Data Tahun Ajaran**, lalu pilih tahun berjalan dari dropdown **Tahun ajaran** di topbar.
+6. Jalankan seluruh isi `supabase-academic-year-relations.sql` di SQL Editor. Migrasi ini membuat relasi kelas-per-tahun dan penempatan siswa, menyalin kelas/siswa-kelas lama ke tahun aktif, serta menghubungkan wali kelas yang tahun dan kelasnya sudah diketahui. Aman dijalankan ulang. Jenjang kelas lama akan bernilai `Belum ditentukan`; periksa dan lengkapi melalui Data Kelas.
+7. Absensi lama tetap tersimpan, tetapi tidak diberi tahun secara otomatis karena tanggal periode tahun ajaran dan kelas saat absensi belum diketahui. Absensi baru akan terhubung ke penempatan kelas-tahun siswa saat scan.
+8. Foto lama tidak otomatis berpindah. Upload file dari `storage/app/public/siswa` ke bucket privat `student-photos`, kemudian isi `data_siswa.photo_path` dengan path object baru di Storage. Kolom Laravel `photo` bukan path object Supabase.
+9. Akun/password Laravel tidak dapat dipakai otomatis sebagai akun Supabase Auth. Buat akun Auth baru dan berikan role melalui `profiles`.
 
 ## 4. Deploy ke GitHub Pages
 
@@ -93,6 +97,7 @@ Gunakan akun admin baru dan lakukan tes berikut di URL GitHub Pages:
 4. Coba akses halaman admin dalam jendela privat tanpa login; halaman harus kembali ke login dan data tidak boleh terbaca.
 5. Jika memakai foto, upload foto uji, buka preview, ganti foto, lalu hapus record uji.
 6. Jika memakai Excel, uji file kecil dengan header di baris kedua seperti yang diharapkan import Laravel, lalu cocokkan jumlah imported dan skipped.
+7. Uji pergantian tahun: pilih tahun aktif, pastikan kelas dan roster sesuai; pilih tahun lain, buat penempatan siswa di kelas baru; kembali ke tahun pertama dan pastikan penempatan lamanya tetap ada. Scan absensi uji dan pastikan rekap hanya muncul pada tahun/kelas penempatan saat scan.
 
 Baru setelah tes berhasil dan pengguna menyetujui perpindahan, arahkan pemakaian harian ke GitHub Pages + Supabase. Pada masa transisi, buat database Laravel read-only atau jangan gunakan kedua aplikasi untuk mengedit data bersamaan.
 
@@ -104,4 +109,4 @@ Baru setelah tes berhasil dan pengguna menyetujui perpindahan, arahkan pemakaian
 - Jika sudah ada perubahan data setelah cutover, jangan langsung kembali memakai Laravel sebagai aplikasi tulis. Data baru di Supabase perlu diekspor dan diselaraskan lebih dulu agar perubahan tidak hilang.
 - Penghapusan project Supabase hanya boleh dipertimbangkan untuk project uji yang dipastikan kosong, setelah memeriksa Project URL dan backup. Tidak ada langkah penghapusan seperti itu dalam prosedur integrasi ini.
 
-Schema mencakup tabel siswa, absensi harian, guru, kelas, pelajaran, tahun ajaran, semester, wali kelas, dan relasi siswa-kelas. Jalankan ulang seluruh `supabase-schema.sql` pada project Supabase untuk membuat tabel absensi; kehadiran dibatasi satu catatan per siswa per tanggal WIB. UI saat ini menyediakan CRUD untuk siswa, guru, kelas, pelajaran, dan tahun ajaran; tabel relasi lain sudah disiapkan untuk halaman lanjutan.
+Schema mencakup data induk sekolah. Jalankan `supabase-academic-year-settings.sql` dan `supabase-academic-year-relations.sql` sesudah schema utama untuk mengaktifkan tahun aktif, kelas per tahun, penempatan siswa, serta relasi absensi dan wali kelas. Setiap tabel operasional baru yang riwayatnya berubah tiap tahun sebaiknya menyimpan foreign key `tahun_ajaran_id` atau foreign key ke relasi kelas-tahun yang sesuai; jangan menambahkan tahun ke identitas siswa/guru yang tetap lintas tahun.

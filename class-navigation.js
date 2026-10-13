@@ -57,13 +57,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     classes.forEach((record) => {
+      const classLabel = [record.jenjang, record.nama_kelas].filter(Boolean).join(" - ");
       if (classLinks) {
         const link = document.createElement("a");
         const target = new URL(studentPageUrl);
         target.searchParams.set("kelas", record.id);
         link.className = "collapse-item";
         link.href = target.href;
-        link.textContent = record.nama_kelas;
+        link.textContent = classLabel;
         if (isStudentPage && String(record.id) === selectedClassId) link.classList.add("active");
         classLinks.append(link);
       }
@@ -81,17 +82,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         target.hash = "rekap";
         link.className = "collapse-item";
         link.href = target.href;
-        link.textContent = record.nama_kelas;
+        link.textContent = classLabel;
         if (isAttendancePage && String(record.id) === selectedClassId) {
           link.classList.add("active");
           const heading = document.getElementById("attendanceClassHeading");
           if (heading) {
-            heading.dataset.className = record.nama_kelas;
+            heading.dataset.className = classLabel;
             if (window.updateAttendanceHeading) window.updateAttendanceHeading();
           }
           const monthlyHeading = document.getElementById("monthlyAttendanceHeading");
           if (monthlyHeading) {
-            monthlyHeading.dataset.className = record.nama_kelas;
+            monthlyHeading.dataset.className = classLabel;
             if (window.updateMonthlyAttendanceHeading) window.updateMonthlyAttendanceHeading();
           }
         }

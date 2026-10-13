@@ -63,7 +63,7 @@
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
                     aria-expanded="true" aria-controls="collapseTwo">
                     <i class="fas fa-fw fa-database"></i>
-                    <span>Data</span>
+                    <span>Data Admin</span>
                 </a>
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
@@ -75,7 +75,23 @@
                     </div>
                 </div>
             </li>
-
+            
+            <li class="nav-item" id="activityNavigation">
+                <a class="nav-link collapsed" id="headingActivity" href="#" data-toggle="collapse" data-target="#collapseActivity"
+                    aria-expanded="false" aria-controls="collapseActivity">
+                    <i class="fas fa-fw fa-database"></i>
+                    <span>Data Aktifitas</span>
+                </a>
+                <div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="">Data</a>
+                        <a class="collapse-item" href="../aktifitas/data-fieldtrip/index.html">Data Field Trip</a>
+                        <a class="collapse-item" href="">Data </a>
+                        <a class="collapse-item" href="">Data Umnni</a>
+                    </div>
+                </div>
+            </li>
+            
             <li class="nav-item" id="studentNavigation">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseStudentNavigation" aria-expanded="false" aria-controls="collapseStudentNavigation">
                     <i class="fas fa-fw fa-user-graduate"></i>
@@ -1154,6 +1170,8 @@
                 <script src="../../../api.js"></script>
                 <script>
                     const siswaBody = document.querySelector('#siswaTable tbody');
+                    const siswaTableHead = document.querySelector('#siswaTable thead');
+                    const siswaSelectAllHeader = document.getElementById('pilihSemuaSiswa').closest('th');
                     const siswaStatus = document.getElementById('siswaApiStatus');
                     const siswaPhotoUrls = new Set();
                     const selectedSiswaIds = new Set();
@@ -1182,6 +1200,20 @@
                         cell.textContent = value ?? '';
                         row.appendChild(cell);
                         return cell;
+                    }
+
+                    function configureStudentTableHeaders() {
+                        const row = document.createElement('tr');
+                        row.appendChild(siswaSelectAllHeader);
+                        const columns = ['No', 'NIS', 'Nama', 'Jenjang'];
+                        if (!currentClassId) columns.push('Kelas');
+                        columns.push('Photo', 'Action');
+                        columns.forEach((label) => {
+                            const header = document.createElement('th');
+                            header.textContent = label;
+                            row.appendChild(header);
+                        });
+                        siswaTableHead.replaceChildren(row);
                     }
 
                     function syncSiswaSelectionUi() {
@@ -1267,11 +1299,12 @@
                             return;
                         }
                         setSiswaStatus('Memuat data siswa...', false, true);
+                        configureStudentTableHeaders();
 
                         try {
                             const result = currentClassId
                                 ? await apiGetClassStudents(currentClassId)
-                                : await apiGet('/data/siswa');
+                                : await apiGetStudentsWithActiveClass();
                             const students = result.data || [];
                             document.getElementById('siswaPageTitle').textContent = result.className
                                 ? `Siswa Kelas ${result.className}`
@@ -1300,6 +1333,10 @@
                                 addSiswaCell(row, index + 1);
                                 addSiswaCell(row, student.nis);
                                 addSiswaCell(row, student.nama);
+                                addSiswaCell(row, student.jenjang || '-');
+                                if (!currentClassId) {
+                                    addSiswaCell(row, student.nama_kelas || 'Belum ditempatkan');
+                                }
 
                                 const photoCell = document.createElement('td');
                                 let editButton;
@@ -1352,7 +1389,13 @@
                             siswaDataTable = $('#siswaTable').DataTable({
                                 pageLength: 10,
                                 lengthMenu: [10, 25, 50, 100],
-                                columnDefs: [{ targets: [0, 5], orderable: false }],
+                                columnDefs: [{ targets: [0, currentClassId ? 6 : 7], orderable: false }],
+                                drawCallback: function () {
+                                    const page = this.api().page.info();
+                                    this.api().column(1, { page: 'current' }).nodes().each((cell, index) => {
+                                        cell.textContent = String(page.start + index + 1);
+                                    });
+                                },
                                 language: {
                                     search: 'Cari:',
                                     lengthMenu: 'Tampilkan _MENU_ entri',

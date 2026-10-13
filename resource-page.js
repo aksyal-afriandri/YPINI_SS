@@ -10,7 +10,7 @@ const RESOURCE_PAGE_CONFIG = {
   kelas: {
     resource: "kelas",
     title: "Data Kelas",
-    fields: [{ key: "nama_kelas", label: "Nama Kelas" }],
+    fields: [{ key: "jenjang", label: "Jenjang" }, { key: "nama_kelas", label: "Nama Kelas" }],
     addModal: "tambahKelasModal",
     editModal: "editKelasModal",
     deleteModal: "hapusKelasModal",
@@ -125,11 +125,14 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
       const actions = document.createElement("td");
-      [
-        { action: "wali-kelas", label: "Wali Kelas", style: "success", target: "waliKelasModal" },
+      const rowActions = [
         { action: "edit", label: "Edit", style: "warning", target: config.editModal },
         { action: "delete", label: "Hapus", style: "danger", target: config.deleteModal },
-      ].forEach(({ action, label, style, target }) => {
+      ];
+      if (config.resource === "kelas") {
+        rowActions.unshift({ action: "wali-kelas", label: "Wali Kelas", style: "success", target: "waliKelasModal" });
+      }
+      rowActions.forEach(({ action, label, style, target }) => {
         const button = document.createElement("button");
         button.type = "button";
         button.className = `btn btn-sm btn-${style} mr-1`;
@@ -156,6 +159,12 @@ document.addEventListener("DOMContentLoaded", () => {
           infoEmpty: "Tidak ada data untuk ditampilkan",
           zeroRecords: "Data tidak ditemukan",
           paginate: { first: "Awal", last: "Akhir", next: "Berikutnya", previous: "Sebelumnya" },
+        },
+        drawCallback: function () {
+          const page = this.api().page.info();
+          this.api().column(0, { page: "current" }).nodes().each((cell, index) => {
+            cell.textContent = String(page.start + index + 1);
+          });
         },
       });
     }
@@ -189,7 +198,8 @@ document.addEventListener("DOMContentLoaded", () => {
       const studentStatus = document.getElementById("siswaKelasStatus");
       if (!modal || !studentBody || !studentStatus) return;
 
-      document.getElementById("lihatSiswaKelasTitle").textContent = `Siswa Kelas ${record.nama_kelas}`;
+      const classLabel = [record.jenjang, record.nama_kelas].filter(Boolean).join(" - ");
+      document.getElementById("lihatSiswaKelasTitle").textContent = `Siswa Kelas ${classLabel}`;
       studentBody.replaceChildren();
       studentStatus.textContent = "Memuat daftar siswa...";
       window.jQuery("#lihatSiswaKelasModal").modal("show");
@@ -211,16 +221,18 @@ document.addEventListener("DOMContentLoaded", () => {
         studentStatus.textContent = error.message;
       }
     } else if (button.dataset.recordAction === "wali-kelas") {
-      const kelasId = record.id;
+      const kelasId = record.kelas_id ?? record.id;
       const namaKelas = record.nama_kelas ?? "";
       const kelasIdInput = document.getElementById("waliKelasKelasId");
+      const classYearIdInput = document.getElementById("waliKelasClassYearId");
       const kelasNamaInput = document.getElementById("waliKelasKelasNama");
       const guruSelect = document.getElementById("waliKelasGuru");
       const tahunSelect = document.getElementById("waliKelasTahun");
       if (kelasIdInput) kelasIdInput.value = String(kelasId);
+      if (classYearIdInput) classYearIdInput.value = String(record.id);
       if (kelasNamaInput) kelasNamaInput.value = namaKelas;
       if (guruSelect) guruSelect.value = "";
-      if (tahunSelect) tahunSelect.value = "";
+      if (tahunSelect) tahunSelect.value = String(window.activeAcademicYear?.id || "");
       if (typeof loadWaliKelasOptions === "function") {
         loadWaliKelasOptions();
       }

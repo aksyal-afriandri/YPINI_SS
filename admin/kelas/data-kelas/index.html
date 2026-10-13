@@ -63,7 +63,7 @@
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
                     aria-expanded="true" aria-controls="collapseTwo">
                     <i class="fas fa-fw fa-database"></i>
-                    <span>Data</span>
+                    <span>Data Admin</span>
                 </a>
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
@@ -72,6 +72,23 @@
                         <a class="collapse-item" href="../data-kelas/">Data Kelas</a>
                         <a class="collapse-item" href="../../pelajaran/data-pelajaran/">Data Pelajaran</a>
                         <a class="collapse-item" href="../../tahun/data-tahun/">Data Tahun Ajaran</a>
+                    </div>
+                </div>
+            </li>
+
+
+            <li class="nav-item" id="activityNavigation">
+                <a class="nav-link collapsed" id="headingActivity" href="#" data-toggle="collapse" data-target="#collapseActivity"
+                    aria-expanded="false" aria-controls="collapseActivity">
+                    <i class="fas fa-fw fa-database"></i>
+                    <span>Data Aktifitas</span>
+                </a>
+                <div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="">Data</a>
+                        <a class="collapse-item" href="../aktifitas/data-fieldtrip/index.html">Data Field Trip</a>
+                        <a class="collapse-item" href="">Data </a>
+                        <a class="collapse-item" href="">Data Umnni</a>
                     </div>
                 </div>
             </li>
@@ -381,30 +398,12 @@
                                     <thead>
                                         <tr>
                                             <th>No</th>
+                                            <th>Jenjang</th>
                                             <th>Nama Kelas</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                                                                <tr>
-                                            <td>1</td>
-                                            <td>n</td>
-                                            <td>
-                                                <button type="button" class="btn btn-sm btn-success"
-                                                    data-toggle="modal" data-target="#waliKelasModal"
-                                                    data-id="1" data-nama_kelas="n"
-                                                    onclick="setWaliKelas(this)">Wali Kelas</button>
-                                                <button type="button" class="btn btn-sm btn-warning"
-                                                    data-toggle="modal" data-target="#editKelasModal"
-                                                    data-id="1" data-nama_kelas="n"
-                                                    onclick="editKelas(this)">Edit</button>
-                                                <button type="button" class="btn btn-sm btn-danger"
-                                                    data-toggle="modal" data-target="#hapusKelasModal"
-                                                    data-id="1" data-nama_kelas="n"
-                                                    onclick="hapusKelas(this)">Hapus</button>
-                                            </td>
-                                        </tr>
-                                                                            </tbody>
+                                    <tbody></tbody>
                                 </table>
                             </div>
                         </div>
@@ -422,6 +421,14 @@
                             <div class="modal-body">
                                 <form method="POST" action="#">
                                     <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                    <div class="form-group">
+                                        <label for="jenjang_kelas">Jenjang</label>
+                                        <select name="jenjang" class="form-control" id="jenjang_kelas" required>
+                                            <option value="" disabled selected>Pilih jenjang</option>
+                                            <option value="SD">SD</option>
+                                            <option value="SMP">SMP</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
                                         <label for="nama_kelas">Nama Kelas</label>
                                         <input type="text" name="nama_kelas" class="form-control" id="nama_kelas" required>
                                     </div>
@@ -444,6 +451,14 @@
                             <div class="modal-body">
                                 <form method="POST" action="" id="editKelasForm">
                                     <input type="hidden" name="_token" value="9zfUNlANg59nRoJaNZDcdwAv9HqEeHlThe73wRFO" autocomplete="off">                                    <input type="hidden" name="_method" value="PUT">                                    <div class="form-group">
+                                        <label for="edit_jenjang_kelas">Jenjang</label>
+                                        <select name="jenjang" class="form-control" id="edit_jenjang_kelas" required>
+                                            <option value="" disabled>Pilih jenjang</option>
+                                            <option value="SD">SD</option>
+                                            <option value="SMP">SMP</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
                                         <label for="edit_nama_kelas">Nama Kelas</label>
                                         <input type="text" name="nama_kelas" class="form-control" id="edit_nama_kelas" required>
                                     </div>
@@ -486,6 +501,7 @@
                                 <div id="waliKelasStatus" class="small text-muted mb-3" role="status" aria-live="polite"></div>
                                 <form id="waliKelasForm">
                                     <input type="hidden" id="waliKelasKelasId" name="kelas_id">
+                                    <input type="hidden" id="waliKelasClassYearId" name="kelas_tahun_ajaran_id">
                                     <div class="form-group">
                                         <label for="waliKelasKelasNama">Kelas</label>
                                         <input type="text" id="waliKelasKelasNama" class="form-control" readonly>
@@ -537,6 +553,7 @@
                     function editKelas(button) {
                         var id = button.getAttribute('data-id');
                         var nama_kelas = button.getAttribute('data-nama_kelas');
+                        document.getElementById('edit_jenjang_kelas').value = button.getAttribute('data-jenjang') || '';
                         document.getElementById('edit_nama_kelas').value = nama_kelas;
                         document.getElementById('editKelasForm').action = '/admin/kelas/data-kelas/' + id;
                     }
@@ -567,6 +584,8 @@
                                 (guruData || []).map((guru) => `<option value="${guru.id}">${guru.nama}</option>`).join('');
                             tahunSelect.innerHTML = '<option value="">-- Pilih Tahun Ajaran --</option>' +
                                 (tahunData || []).map((tahun) => `<option value="${tahun.id}">${tahun.tahun_ajaran}</option>`).join('');
+                            tahunSelect.value = String(window.activeAcademicYear?.id || '');
+                            tahunSelect.disabled = true;
                         } catch (error) {
                             const status = document.getElementById('waliKelasStatus');
                             if (status) {
@@ -647,11 +666,12 @@
                         event.preventDefault();
                         const client = getSupabaseClient();
                         const kelasId = document.getElementById('waliKelasKelasId').value;
+                        const classYearId = document.getElementById('waliKelasClassYearId').value;
                         const guruId = document.getElementById('waliKelasGuru').value;
                         const tahunId = document.getElementById('waliKelasTahun').value;
                         const status = document.getElementById('waliKelasStatus');
 
-                        if (!kelasId || !guruId || !tahunId) {
+                        if (!kelasId || !classYearId || !guruId || !tahunId) {
                             if (status) {
                                 status.textContent = 'Pilih guru dan tahun ajaran terlebih dahulu.';
                                 status.className = 'small text-danger mb-3';
@@ -663,7 +683,8 @@
                             const { error } = await client.from('wali_kelas').upsert({
                                 kelas_id: Number(kelasId),
                                 guru_id: Number(guruId),
-                                tahun_ajaran_id: Number(tahunId)
+                                tahun_ajaran_id: Number(tahunId),
+                                kelas_tahun_ajaran_id: Number(classYearId)
                             }, { onConflict: 'guru_id,kelas_id,tahun_ajaran_id' });
 
                             if (error) throw error;

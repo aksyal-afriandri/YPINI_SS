@@ -2,7 +2,7 @@ const SUPABASE_STORAGE_BUCKET = "student-photos";
 const RESOURCE_FIELDS = {
   siswa: ["nis", "nama"],
   guru: ["nip", "nama"],
-  kelas: ["nama_kelas"],
+  kelas: ["jenjang", "nama_kelas"],
   pelajaran: ["nama_pelajaran"],
   tahun: ["tahun_ajaran"],
 };
@@ -29,6 +29,9 @@ function throwSupabaseError(error) {
   }
   if (error?.code === "42501") {
     throw new Error("Akses ditolak. Pastikan akun memiliki peran admin.");
+  }
+  if (["42P01", "PGRST204", "PGRST205"].includes(error?.code)) {
+    throw new Error("Skema tahun ajaran belum lengkap. Jalankan supabase-academic-year-settings.sql dan supabase-academic-year-relations.sql di Supabase SQL Editor.");
   }
   throw new Error(error?.message || "Permintaan ke Supabase gagal.");
 }
@@ -179,6 +182,16 @@ async function apiLogout() {
 
 async function apiGet(path) {
   const { resource } = parseDataPath(path);
+  if (resource === "kelas") {
+    const yearId = await getActiveAcademicYearId();
+    const { data, error } = await getSupabaseClient().from("kelas_tahun_ajaran")
+      .select("id, kelas_id, jenjang, nama_kelas")
+      .eq("tahun_ajaran_id", yearId)
+      .order("nama_kelas", { ascending: true });
+    if (error) throwSupabaseError(error);
+    return { data };
+  }
+
   const { data, error } = await getSupabaseClient()
     .from(resourceTable(resource))
     .select("*")
@@ -189,6 +202,58 @@ async function apiGet(path) {
     ? data.map((record) => ({ ...record, photo_endpoint: record.photo_path }))
     : data;
   return { data: records };
+}
+
+async function getActiveAcademicYearId() {
+  if (window.activeAcademicYear?.id) return String(window.activeAcademicYear.id);
+
+  const { data, error } = await getSupabaseClient().from("pengaturan_tahun_ajaran")
+    .select("tahun_ajaran_id").eq("id", 1).maybeSingle();
+  if (error) throwSupabaseError(error);
+  if (!data?.tahun_ajaran_id) {
+    throw new Error("Pilih tahun ajaran aktif terlebih dahulu.");
+  }
+  return String(data.tahun_ajaran_id);
+}
+
+async function getAcademicYearPlacements({ classYearId = null, attendanceDate = null } = {}) {
+  const yearId = await getActiveAcademicYearId();
+  let query = getSupabaseClient().from("siswa_kelas_tahun_ajaran")
+    .select("id, siswa_id, kelas_tahun_ajaran_id, tanggal_mulai")
+    .eq("tahun_ajaran_id", yearId);
+  if (classYearId) query = query.eq("kelas_tahun_ajaran_id", classYearId);
+  if (attendanceDate) {
+    query = query.lte("tanggal_mulai", attendanceDate)
+      .or(`tanggal_selesai.is.null,tanggal_selesai.gte.${attendanceDate}`);
+  }
+  const { data, error } = await query;
+  if (error) throwSupabaseError(error);
+  return data;
+}
+
+async function apiGetAcademicYearSettings() {
+  const client = getSupabaseClient();
+  const [{ data: years, error: yearsError }, { data: setting, error: settingError }] = await Promise.all([
+    client.from("tahun_ajaran").select("id, tahun_ajaran").order("id", { ascending: false }),
+    client.from("pengaturan_tahun_ajaran").select("tahun_ajaran_id").eq("id", 1).maybeSingle(),
+  ]);
+  if (yearsError) throwSupabaseError(yearsError);
+  if (settingError) throwSupabaseError(settingError);
+  return { years, activeYearId: setting?.tahun_ajaran_id ?? "" };
+}
+
+async function apiSetActiveAcademicYear(yearId) {
+  const client = getSupabaseClient();
+  const { data: year, error: yearError } = await client.from("tahun_ajaran")
+    .select("id").eq("id", yearId).maybeSingle();
+  if (yearError) throwSupabaseError(yearError);
+  if (!year) throw new Error("Tahun ajaran tidak ditemukan.");
+
+  const { error } = await client.from("pengaturan_tahun_ajaran").upsert({
+    id: 1,
+    tahun_ajaran_id: year.id,
+  }, { onConflict: "id" });
+  if (error) throwSupabaseError(error);
 }
 
 function attendanceDateInJakarta(date = new Date()) {
@@ -231,10 +296,20 @@ async function apiRecordAttendance(rawCode) {
   if (!student) throw new Error(`NIS ${nis} tidak ditemukan di data siswa.`);
 
   const attendanceDate = attendanceDateInJakarta();
+  const placements = await getAcademicYearPlacements({ attendanceDate });
+  const studentPlacements = placements.filter((placement) => String(placement.siswa_id) === String(student.id));
+  if (!studentPlacements.length) {
+    throw new Error("Siswa belum ditempatkan di kelas pada tahun ajaran aktif.");
+  }
+  if (studentPlacements.length > 1) {
+    throw new Error("Siswa memiliki lebih dari satu kelas aktif. Periksa riwayat penempatannya.");
+  }
+
   const markedAt = new Date().toISOString();
   const { data: attendance, error: attendanceError } = await client.from("absensi")
     .insert({
       siswa_id: student.id,
+      siswa_kelas_tahun_ajaran_id: studentPlacements[0].id,
       tanggal: attendanceDate,
       waktu_scan: markedAt,
       status: "Hadir",
@@ -273,21 +348,15 @@ async function apiRecordAttendance(rawCode) {
 
 async function apiGetTodayAttendance(classId = null, attendanceDate = attendanceDateInJakarta()) {
   const client = getSupabaseClient();
-  let studentIds = null;
-
-  if (classId) {
-    const { data: classStudents, error: classStudentsError } = await client
-      .from("siswa_kelas").select("siswa_id").eq("kelas_id", classId);
-    if (classStudentsError) throwSupabaseError(classStudentsError);
-    studentIds = [...new Set(classStudents.map((record) => record.siswa_id))];
-    if (!studentIds.length) return { data: [] };
-  }
+  const placements = await getAcademicYearPlacements({ classYearId: classId, attendanceDate });
+  const placementIds = [...new Set(placements.map((placement) => placement.id))];
+  if (!placementIds.length) return { data: [] };
 
   let query = client.from("absensi")
     .select("id, tanggal, waktu_scan, status, data_siswa(nis, nama)")
     .eq("tanggal", attendanceDate)
+    .in("siswa_kelas_tahun_ajaran_id", placementIds)
     .order("waktu_scan", { ascending: false });
-  if (studentIds) query = query.in("siswa_id", studentIds);
 
   const { data, error } = await query;
   if (error) throwSupabaseError(error);
@@ -303,14 +372,10 @@ async function apiGetMonthlyAttendance(classId, year, month) {
   }
 
   const client = getSupabaseClient();
-  let studentIds = null;
-  if (classId) {
-    const { data: classStudents, error: classStudentsError } = await client
-      .from("siswa_kelas").select("siswa_id").eq("kelas_id", classId);
-    if (classStudentsError) throwSupabaseError(classStudentsError);
-    studentIds = [...new Set(classStudents.map((record) => record.siswa_id))];
-    if (!studentIds.length) return { students: [], records: [] };
-  }
+  const placements = await getAcademicYearPlacements({ classYearId: classId });
+  const placementIds = [...new Set(placements.map((placement) => placement.id))];
+  const studentIds = [...new Set(placements.map((placement) => placement.siswa_id))];
+  if (!placementIds.length) return { students: [], records: [] };
 
   const students = [];
   const studentPageSize = 1000;
@@ -318,7 +383,7 @@ async function apiGetMonthlyAttendance(classId, year, month) {
     let studentsQuery = client.from("data_siswa").select("id, nis, nama")
       .order("nama").order("id", { ascending: true })
       .range(offset, offset + studentPageSize - 1);
-    if (studentIds) studentsQuery = studentsQuery.in("id", studentIds);
+    studentsQuery = studentsQuery.in("id", studentIds);
     const { data: page, error: studentsError } = await studentsQuery;
     if (studentsError) throwSupabaseError(studentsError);
     students.push(...page);
@@ -339,7 +404,7 @@ async function apiGetMonthlyAttendance(classId, year, month) {
       .order("tanggal", { ascending: true })
       .order("id", { ascending: true })
       .range(offset, offset + pageSize - 1);
-    if (studentIds) recordsQuery = recordsQuery.in("siswa_id", studentIds);
+    recordsQuery = recordsQuery.in("siswa_kelas_tahun_ajaran_id", placementIds);
 
     const { data: page, error: recordsError } = await recordsQuery;
     if (recordsError) throwSupabaseError(recordsError);
@@ -354,6 +419,34 @@ async function saveRecord(path, input, isUpdate) {
   const { resource, id } = parseDataPath(path, isUpdate);
   const client = getSupabaseClient();
   const payload = formPayload(resource, input);
+  if (resource === "kelas") {
+    const yearId = await getActiveAcademicYearId();
+    if (isUpdate) {
+      const { data, error } = await client.from("kelas_tahun_ajaran")
+        .update({ jenjang: payload.jenjang, nama_kelas: payload.nama_kelas })
+        .eq("id", id).eq("tahun_ajaran_id", yearId)
+        .select("id, kelas_id, jenjang, nama_kelas").single();
+      if (error) throwSupabaseError(error);
+      return { data };
+    }
+
+    const { data: baseClass, error: classError } = await client.from("data_kelas")
+      .insert({ nama_kelas: payload.nama_kelas }).select("id").single();
+    if (classError) throwSupabaseError(classError);
+
+    const { data, error } = await client.from("kelas_tahun_ajaran").insert({
+      kelas_id: baseClass.id,
+      tahun_ajaran_id: yearId,
+      jenjang: payload.jenjang,
+      nama_kelas: payload.nama_kelas,
+    }).select("id, kelas_id, jenjang, nama_kelas").single();
+    if (error) {
+      await client.from("data_kelas").delete().eq("id", baseClass.id);
+      throwSupabaseError(error);
+    }
+    return { data };
+  }
+
   let uploadedPath = null;
   let previousPhotoPath = null;
 
@@ -390,8 +483,10 @@ function apiPost(path, payload) {
 
 async function apiPostStudentToClass(classId, input) {
   const client = getSupabaseClient();
-  const { data: classRecord, error: classError } = await client.from("data_kelas")
-    .select("id").eq("id", classId).maybeSingle();
+  const yearId = await getActiveAcademicYearId();
+  const { data: classRecord, error: classError } = await client.from("kelas_tahun_ajaran")
+    .select("id, kelas_id, tahun_ajaran_id, jenjang, nama_kelas")
+    .eq("id", classId).eq("tahun_ajaran_id", yearId).maybeSingle();
   if (classError) throwSupabaseError(classError);
   if (!classRecord) throw new Error("Kelas tidak ditemukan. Tambahkan kelas dulu.");
 
@@ -400,10 +495,19 @@ async function apiPostStudentToClass(classId, input) {
     .select("id, nis, nama").eq("nis", values.nis).maybeSingle();
   if (studentError) throwSupabaseError(studentError);
 
-  const { data: existingLink, error: linkLookupError } = await client.from("siswa_kelas")
-    .select("id").eq("kelas_id", classId).eq("siswa_id", existingStudent?.id || -1).maybeSingle();
-  if (linkLookupError) throwSupabaseError(linkLookupError);
-  if (existingLink) return { created: false, linked: false, student: existingStudent };
+  const today = attendanceDateInJakarta();
+  const currentPlacements = existingStudent
+    ? (await getAcademicYearPlacements({ attendanceDate: today }))
+      .filter((placement) => String(placement.siswa_id) === String(existingStudent.id))
+    : [];
+  const currentPlacement = currentPlacements[0];
+  if (currentPlacements.length > 1) {
+    throw new Error("Siswa memiliki lebih dari satu kelas aktif pada tahun ajaran ini.");
+  }
+  if (currentPlacement && String(currentPlacement.kelas_tahun_ajaran_id) !== String(classId)) {
+    throw new Error("Siswa sudah terdaftar di kelas lain pada tahun ajaran ini.");
+  }
+  if (currentPlacement) return { created: false, linked: false, student: existingStudent };
 
   let student = existingStudent;
   let created = false;
@@ -413,23 +517,32 @@ async function apiPostStudentToClass(classId, input) {
     created = true;
   }
 
-  const { error: linkError } = await client.from("siswa_kelas").insert({
-    kelas_id: classId,
+  const { error: linkError } = await client.from("siswa_kelas_tahun_ajaran").insert({
     siswa_id: student.id,
+    kelas_tahun_ajaran_id: classRecord.id,
+    tahun_ajaran_id: classRecord.tahun_ajaran_id,
+    tanggal_mulai: today,
   });
   if (linkError) {
     if (created) await apiDelete(`/data/siswa/${encodeURIComponent(student.id)}`);
     throwSupabaseError(linkError);
   }
-  return { created, linked: true, student };
+  return {
+    created,
+    linked: true,
+    student,
+    className: [classRecord.jenjang, classRecord.nama_kelas].filter(Boolean).join(" - "),
+  };
 }
 
 async function apiImportStudentsToClass(classId, rows) {
   if (!Array.isArray(rows)) throw new Error("Format data Excel tidak valid.");
 
   const client = getSupabaseClient();
-  const { data: classRecord, error: classError } = await client.from("data_kelas")
-    .select("id, nama_kelas").eq("id", classId).maybeSingle();
+  const yearId = await getActiveAcademicYearId();
+  const { data: classRecord, error: classError } = await client.from("kelas_tahun_ajaran")
+    .select("id, tahun_ajaran_id, jenjang, nama_kelas")
+    .eq("id", classId).eq("tahun_ajaran_id", yearId).maybeSingle();
   if (classError) throwSupabaseError(classError);
   if (!classRecord) throw new Error("Kelas tidak ditemukan. Tambahkan kelas dulu.");
 
@@ -472,22 +585,31 @@ async function apiImportStudentsToClass(classId, rows) {
   }
 
   const students = [...rowsByNis.keys()].map((nis) => studentsByNis.get(nis));
-  const { data: existingLinks, error: linksLookupError } = await client.from("siswa_kelas")
-    .select("siswa_id").eq("kelas_id", classId)
-    .in("siswa_id", students.map((student) => student.id));
-  if (linksLookupError) {
+  const today = attendanceDateInJakarta();
+  const existingPlacements = await getAcademicYearPlacements({ attendanceDate: today });
+  const requestedStudentIds = new Set(students.map((student) => String(student.id)));
+  const conflictingPlacement = existingPlacements.find((placement) =>
+    requestedStudentIds.has(String(placement.siswa_id))
+      && String(placement.kelas_tahun_ajaran_id) !== String(classId));
+  if (conflictingPlacement) {
     const newStudentIds = newStudents.map((row) => studentsByNis.get(row.nis).id);
     if (newStudentIds.length) await client.from("data_siswa").delete().in("id", newStudentIds);
-    throwSupabaseError(linksLookupError);
+    throw new Error("File berisi siswa yang sudah ditempatkan di kelas lain pada tahun ajaran ini.");
   }
-
-  const existingIds = new Set(existingLinks.map((link) => String(link.siswa_id)));
+  const existingIds = new Set(existingPlacements
+    .filter((placement) => String(placement.kelas_tahun_ajaran_id) === String(classId))
+    .map((placement) => String(placement.siswa_id)));
   const newLinks = students
     .filter((student) => !existingIds.has(String(student.id)))
-    .map((student) => ({ kelas_id: classId, siswa_id: student.id }));
+    .map((student) => ({
+      siswa_id: student.id,
+      kelas_tahun_ajaran_id: classRecord.id,
+      tahun_ajaran_id: classRecord.tahun_ajaran_id,
+      tanggal_mulai: today,
+    }));
 
   if (newLinks.length) {
-    const { error } = await client.from("siswa_kelas").insert(newLinks);
+    const { error } = await client.from("siswa_kelas_tahun_ajaran").insert(newLinks);
     if (error) {
       const newStudentIds = newStudents.map((row) => studentsByNis.get(row.nis).id);
       if (newStudentIds.length) await client.from("data_siswa").delete().in("id", newStudentIds);
@@ -496,7 +618,7 @@ async function apiImportStudentsToClass(classId, rows) {
   }
 
   return {
-    className: classRecord.nama_kelas,
+    className: [classRecord.jenjang, classRecord.nama_kelas].filter(Boolean).join(" - "),
     studentsAdded: newStudents.length,
     linksAdded: newLinks.length,
     linksExisting: students.length - newLinks.length,
@@ -526,6 +648,14 @@ async function apiDeleteStudentPhoto(id) {
 async function apiDelete(path) {
   const { resource, id } = parseDataPath(path, true);
   const client = getSupabaseClient();
+  if (resource === "kelas") {
+    const yearId = await getActiveAcademicYearId();
+    const { error } = await client.from("kelas_tahun_ajaran")
+      .delete().eq("id", id).eq("tahun_ajaran_id", yearId);
+    if (error) throwSupabaseError(error);
+    return { message: "Data kelas tahun ajaran ini berhasil dihapus." };
+  }
+
   let photoPath = null;
 
   if (resource === "siswa") {
@@ -614,22 +744,65 @@ async function apiImport(resource, rows) {
 
 async function apiGetClassStudents(classId) {
   const client = getSupabaseClient();
-  const { data: classRecord, error: classError } = await client.from("data_kelas")
-    .select("nama_kelas").eq("id", classId).single();
+  const yearId = await getActiveAcademicYearId();
+  const { data: classRecord, error: classError } = await client.from("kelas_tahun_ajaran")
+    .select("jenjang, nama_kelas").eq("id", classId).eq("tahun_ajaran_id", yearId).single();
   if (classError) throwSupabaseError(classError);
 
-  const { data: links, error } = await client.from("siswa_kelas")
-    .select("siswa_id").eq("kelas_id", classId);
+  const { data: links, error } = await client.from("siswa_kelas_tahun_ajaran")
+    .select("siswa_id").eq("kelas_tahun_ajaran_id", classId)
+    .eq("tahun_ajaran_id", yearId);
   if (error) throwSupabaseError(error);
-  if (!links.length) return { data: [], className: classRecord.nama_kelas };
+  const className = [classRecord.jenjang, classRecord.nama_kelas].filter(Boolean).join(" - ");
+  if (!links.length) return { data: [], className };
 
   const studentIds = [...new Set(links.map((link) => link.siswa_id))];
   const { data, error: studentsError } = await client.from("data_siswa")
     .select("id, nis, nama, photo_path").in("id", studentIds).order("nama", { ascending: true });
   if (studentsError) throwSupabaseError(studentsError);
   return {
-    data: data.map((student) => ({ ...student, photo_endpoint: student.photo_path })),
-    className: classRecord.nama_kelas,
+    data: data.map((student) => ({
+      ...student,
+      jenjang: classRecord.jenjang,
+      photo_endpoint: student.photo_path,
+    })),
+    className,
+  };
+}
+
+async function apiGetStudentsWithActiveClass() {
+  const [studentResult, placements] = await Promise.all([
+    apiGet("/data/siswa"),
+    getAcademicYearPlacements(),
+  ]);
+  const classYearIds = [...new Set(placements.map((placement) => placement.kelas_tahun_ajaran_id))];
+  const classesById = new Map();
+  if (classYearIds.length) {
+    const { data, error } = await getSupabaseClient().from("kelas_tahun_ajaran")
+      .select("id, jenjang, nama_kelas").in("id", classYearIds);
+    if (error) throwSupabaseError(error);
+    data.forEach((classYear) => classesById.set(String(classYear.id), classYear));
+  }
+
+  const placementsByStudent = new Map();
+  placements.forEach((placement) => {
+    const studentKey = String(placement.siswa_id);
+    placementsByStudent.set(studentKey, [...(placementsByStudent.get(studentKey) || []), placement]);
+  });
+
+  return {
+    data: studentResult.data.map((student) => {
+      const studentPlacements = (placementsByStudent.get(String(student.id)) || [])
+        .sort((left, right) => right.tanggal_mulai.localeCompare(left.tanggal_mulai));
+      const classYear = studentPlacements.length
+        ? classesById.get(String(studentPlacements[0].kelas_tahun_ajaran_id))
+        : null;
+      return {
+        ...student,
+        jenjang: classYear?.jenjang || "",
+        nama_kelas: classYear?.nama_kelas || "",
+      };
+    }),
   };
 }
 
