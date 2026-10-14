@@ -7,7 +7,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Website</title>
+    <title>YPINI - Data Field Trip</title>
 
     <!-- Custom fonts for this template-->
     <link href="../../../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
@@ -15,13 +15,15 @@
         href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i"
         rel="stylesheet">
 
+    <link href="../../../assets/img/logo.png" rel="icon">
+
     <!-- Custom styles for this template-->
     <link href="../../../assets/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="../../../assets/css/theme-green.css" rel="stylesheet">
     <link href="../../../assets/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
 
 </head>
-<body id="page-top" data-login-path="../../../index.html">
+<body id="page-top" data-login-path="../../../index.html" data-activity-type="fieldtrip">
     <!-- Page Wrapper -->
     <div id="wrapper">
         <!-- Sidebar -->
@@ -29,10 +31,9 @@
 
             <!-- Sidebar - Brand -->
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="./">
-                <div class="sidebar-brand-icon rotate-n-15">
-
+                <div class="sidebar-brand-icon">
+                     <img src="../../../assets/img/logo.png" class="img-fluid" style="max-height: 40px; max-width: 100px; object-fit: contain;" alt="Logo">
                 </div>
-                <div class="sidebar-brand-text mx-3">Website</div>
             </a>
 
             <!-- Divider -->
@@ -85,10 +86,10 @@
                 </a>
                 <div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <a class="collapse-item" href="">Data</a>
-                        <a class="collapse-item" href="./">Data Field Trip</a>
+                        <a class="collapse-item active" href="./">Data Field Trip</a>
                         <a class="collapse-item" href="../data-akhwah/">Data Akhwah</a>
-                        <a class="collapse-item" href="../data-ummi">Data Umnni</a>
+                        <a class="collapse-item" href="../data-ummi/">Data Ummi</a>
+                        <a class="collapse-item" href="../data-pembelajaran/">Data Pembelajaran</a>
                     </div>
                 </div>
             </li>
@@ -382,19 +383,135 @@
                 <!-- End of Topbar -->
             <!-- Begin Page Content -->
                 <div class="container-fluid">
-                    <!-- main Content "Template" -->
-                    <!-- <div class="card shadow mb-4">
-                        <div class="card-header py-3">
-                            test
-                            <div class="card-body">
-                                <div class="">
+                    <div id="supabaseStatus" class="small text-danger mb-3" role="status"></div>
 
-                                </div>
+                    <!-- Card Tabel Kegiatan -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">Data Kegiatan Field Trip</h6>
+                                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#tambahKegiatanModal">
+                                    <i class="fas fa-plus fa-sm mr-1"></i> Tambah Kegiatan
+                                </button>
                             </div>
                         </div>
-                    </div>   -->
-                    <!-- Main Page "Main Container"  -->
-                    
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                                    <thead class="thead">
+                                        <tr>
+                                            <th style="width: 45px;" class="text-center">No</th>
+                                            <th style="width: 140px;">Tanggal</th>
+                                            <th>Nama Kegiatan</th>
+                                            <th>Deskripsi</th>
+                                            <th style="width: 160px;">Galeri Foto</th>
+                                            <th style="width: 220px;" class="text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Diisi secara dinamis oleh activity-page.js -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Tambah Kegiatan -->
+                    <div class="modal fade" id="tambahKegiatanModal" tabindex="-1" role="dialog" aria-labelledby="tambahKegiatanModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title font-weight-bold" id="tambahKegiatanModalLabel">Tambah Kegiatan Baru</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <form id="formTambahKegiatan">
+                                    <div class="modal-body">
+                                        <div class="form-group">
+                                            <label for="tambahNamaKegiatan" class="font-weight-bold">Nama Kegiatan <span class="text-danger">*</span></label>
+                                            <input type="text" name="nama_kegiatan" class="form-control" id="tambahNamaKegiatan" placeholder="Contoh: Kunjungan Museum Nasional" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="tambahTanggalKegiatan" class="font-weight-bold">Tanggal Kegiatan <span class="text-danger">*</span></label>
+                                            <input type="date" name="tanggal_kegiatan" class="form-control" id="tambahTanggalKegiatan" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="tambahDeskripsiKegiatan" class="font-weight-bold">Deskripsi Kegiatan</label>
+                                            <textarea name="deskripsi" class="form-control" id="tambahDeskripsiKegiatan" rows="3" placeholder="Tuliskan keterangan / rincian tentang kegiatan ini..."></textarea>
+                                        </div>
+                                        <div id="tambahKegiatanError" class="small text-danger mt-2"></div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                        <button type="submit" class="btn btn-primary">Simpan Kegiatan</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Edit Kegiatan -->
+                    <div class="modal fade" id="editKegiatanModal" tabindex="-1" role="dialog" aria-labelledby="editKegiatanModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-lg" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title font-weight-bold" id="editKegiatanModalLabel">Edit Kegiatan</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <form id="formEditKegiatan">
+                                    <input type="hidden" name="id">
+                                    <div class="modal-body">
+                                        <div class="form-group">
+                                            <label for="editNamaKegiatan" class="font-weight-bold">Nama Kegiatan <span class="text-danger">*</span></label>
+                                            <input type="text" name="nama_kegiatan" class="form-control" id="editNamaKegiatan" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="editTanggalKegiatan" class="font-weight-bold">Tanggal Kegiatan <span class="text-danger">*</span></label>
+                                            <input type="date" name="tanggal_kegiatan" class="form-control" id="editTanggalKegiatan" required>
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="editDeskripsiKegiatan" class="font-weight-bold">Deskripsi Kegiatan</label>
+                                            <textarea name="deskripsi" class="form-control" id="editDeskripsiKegiatan" rows="4"></textarea>
+                                        </div>
+                                        <div id="editKegiatanError" class="small text-danger mt-2"></div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                        <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Hapus Kegiatan -->
+                    <div class="modal fade" id="hapusKegiatanModal" tabindex="-1" role="dialog" aria-labelledby="hapusKegiatanModalLabel" aria-hidden="true">
+                        <div class="modal-dialog" role="document">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title font-weight-bold" id="hapusKegiatanModalLabel">Konfirmasi Hapus Kegiatan</h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                        <span aria-hidden="true">&times;</span>
+                                    </button>
+                                </div>
+                                <form id="formHapusKegiatan">
+                                    <input type="hidden" name="id">
+                                    <div class="modal-body">
+                                        <p>Apakah Anda yakin ingin menghapus kegiatan <span class="activity-name-target font-weight-bold text-danger"></span>?</p>
+                                        <p class="small text-muted mb-0">Semua foto yang terhubung dengan kegiatan ini juga akan ikut terhapus.</p>
+                                        <div id="hapusKegiatanError" class="small text-danger mt-2"></div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                                        <button type="submit" class="btn btn-danger">Hapus</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <!-- /.container-fluid -->
 
@@ -463,6 +580,7 @@
     <script src="../../../admin-session.js"></script>
     <script src="../../../dashboard.js"></script>
     <script src="../../../class-navigation.js"></script>
+    <script src="../../../activity-page.js"></script>
 </body>
 
 </html>

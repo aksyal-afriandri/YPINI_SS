@@ -1,5 +1,12 @@
 const SUPABASE_STORAGE_BUCKET = "student-photos";
 const RESOURCE_FIELDS = {
+  siswa: ["nis", "nama", "no_wa"],
+  guru: ["nip", "nama"],
+  kelas: ["jenjang", "nama_kelas"],
+  pelajaran: ["nama_pelajaran"],
+  tahun: ["tahun_ajaran"],
+};
+const REQUIRED_FIELDS = {
   siswa: ["nis", "nama"],
   guru: ["nip", "nama"],
   kelas: ["jenjang", "nama_kelas"],
@@ -291,7 +298,7 @@ async function apiRecordAttendance(rawCode) {
   const client = getSupabaseClient();
   const nis = parseAttendanceNis(rawCode);
   const { data: student, error: studentError } = await client.from("data_siswa")
-    .select("id, nis, nama, photo_path").eq("nis", nis).maybeSingle();
+    .select("id, nis, nama, no_wa, photo_path").eq("nis", nis).maybeSingle();
   if (studentError) throwSupabaseError(studentError);
   if (!student) throw new Error(`NIS ${nis} tidak ditemukan di data siswa.`);
 
@@ -332,6 +339,15 @@ async function apiRecordAttendance(rawCode) {
     throwSupabaseError(attendanceError);
   }
 
+  // Trigger Edge Function wasender-send langsung (jaminan jika database webhook belum disetup)
+  if (!alreadyRecorded && record?.id) {
+    client.functions.invoke("wasender-send", {
+      body: { attendance_id: record.id }
+    }).catch((funcError) => {
+      console.warn("Pemberitahuan Edge Function wasender-send:", funcError);
+    });
+  }
+
   let photoUrl = null;
   if (student.photo_path) {
     const { data: photo, error: photoError } = await client.storage
@@ -340,7 +356,7 @@ async function apiRecordAttendance(rawCode) {
   }
 
   return {
-    student: { id: student.id, nis: student.nis, nama: student.nama, photoUrl },
+    student: { id: student.id, nis: student.nis, nama: student.nama, no_wa: student.no_wa, photoUrl },
     attendance: record,
     alreadyRecorded,
   };
@@ -549,9 +565,19 @@ async function apiImportStudentsToClass(classId, rows) {
   const normalizedRows = rows.map((row, index) => {
     const normalized = {};
     Object.entries(row).forEach(([key, value]) => {
-      normalized[key.trim().toLowerCase()] = String(value ?? "").trim();
+      const cleanKey = key.trim().toLowerCase();
+      if (["wa", "no wa", "nomor wa", "no_wa", "telepon", "no hp", "no_hp", "whatsapp"].includes(cleanKey)) {
+        normalized["no_wa"] = String(value ?? "").trim();
+      } else {
+        normalized[cleanKey] = String(value ?? "").trim();
+      }
     });
-    return { nis: normalized.nis || "", nama: normalized.nama || "", rowNumber: index + 3 };
+    return {
+      nis: normalized.nis || "",
+      nama: normalized.nama || "",
+      no_wa: normalized.no_wa || "",
+      rowNumber: index + 3,
+    };
   }).filter((row) => row.nis || row.nama);
 
   const rowsByNis = new Map();
@@ -575,7 +601,7 @@ async function apiImportStudentsToClass(classId, rows) {
   const studentsByNis = new Map(existingStudents.map((student) => [student.nis, student]));
   const newStudents = [...rowsByNis.values()]
     .filter((row) => !studentsByNis.has(row.nis))
-    .map(({ nis, nama }) => ({ nis, nama }));
+    .map(({ nis, nama, no_wa }) => ({ nis, nama, no_wa: no_wa || null }));
 
   if (newStudents.length) {
     const { data, error } = await client.from("data_siswa")
@@ -704,18 +730,24 @@ async function apiImport(resource, rows) {
   }
 
   const fields = RESOURCE_FIELDS[resource];
+  const requiredFields = REQUIRED_FIELDS[resource] || fields;
   const uniqueField = { siswa: "nis", guru: "nip" }[resource];
   const client = getSupabaseClient();
   const normalizedRows = rows.map((row) => {
     const normalized = {};
     Object.entries(row).forEach(([key, value]) => {
-      normalized[key.trim().toLowerCase()] = String(value ?? "").trim();
+      const cleanKey = key.trim().toLowerCase();
+      if (["wa", "no wa", "nomor wa", "no_wa", "telepon", "no hp", "no_hp", "whatsapp"].includes(cleanKey)) {
+        normalized["no_wa"] = String(value ?? "").trim();
+      } else {
+        normalized[cleanKey] = String(value ?? "").trim();
+      }
     });
     return Object.fromEntries(fields.map((field) => [field, normalized[field] || ""]));
-  }).filter((record) => fields.some((field) => record[field]));
+  }).filter((record) => requiredFields.some((field) => record[field]));
   const records = normalizedRows.map((record, index) => {
-    if (fields.some((field) => !record[field] || record[field].length > 255)) {
-      throw new Error(`Baris Excel ${index + 3}: kolom wajib kosong atau melebihi 255 karakter.`);
+    if (requiredFields.some((field) => !record[field] || record[field].length > 255)) {
+      throw new Error(`Baris Excel ${index + 3}: kolom wajib (${requiredFields.join(", ")}) kosong atau melebihi 255 karakter.`);
     }
     return record;
   });

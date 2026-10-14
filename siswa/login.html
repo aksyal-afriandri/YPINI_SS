@@ -15,24 +15,40 @@
 <body class="bg-gradient-primary">
     <main class="container">
         <div class="row justify-content-center">
-            <div class="col-xl-5 col-lg-6 col-md-8">
-                <div class="card border-0 shadow-lg my-5">
-                    <div class="card-body p-5">
-                        <div class="text-center">
-                            <h1 class="h4 text-gray-900 mb-4">Login Siswa</h1>
-                        </div>
-                        <form id="studentLoginForm" novalidate>
-                            <div class="form-group">
-                                <label for="studentNis">NIS</label>
-                                <input id="studentNis" name="nis" type="text" inputmode="text"
-                                    class="form-control" autocomplete="username" maxlength="50"
-                                    pattern="[A-Za-z0-9._-]{1,50}" required autofocus>
+            <div class="col-xl-6 col-lg-12 col-md-9">
+                <div class="card o-hidden border-0 shadow-lg my-5">
+                    <div class="card-body p-0">
+                        <div class="p-5">
+                            <div class="text-center mb-4">
+                                <!-- TEMPAT LOGO: Anda dapat mengganti file di 'assets/img/logo.png' atau mengubah path src di bawah ini -->
+                                <div class="login-logo-wrapper mb-3">
+                                    <img src="../assets/img/logo.png" alt="Logo" class="img-fluid" style="max-height: 80px; max-width: 220px; object-fit: contain;">
+                                </div>
+                                <h1 class="h4 text-gray-900 font-weight-bold">YPINI School System</h1>
+                                <h1 class="h4 text-gray-900 font-weight-bold">Login Siswa</h1>
                             </div>
-                            <button id="studentLoginButton" type="submit" class="btn btn-primary btn-block">
-                                Masuk
-                            </button>
-                            <div id="studentLoginError" class="text-danger small mt-3" role="alert" aria-live="polite"></div>
-                        </form>
+                            <form class="user" id="studentLoginForm" novalidate>
+                                <div class="form-group">
+                                    <input id="studentNis" name="nis" type="text" inputmode="text"
+                                        class="form-control form-control-user" autocomplete="username" maxlength="50"
+                                        pattern="[A-Za-z0-9._-]{1,50}" placeholder="NIS" required autofocus>
+                                </div>
+                                <div class="form-group">
+                                    <div class="custom-control custom-checkbox small">
+                                        <input type="checkbox" name="remember" class="custom-control-input" id="customCheck">
+                                        <label class="custom-control-label" for="customCheck">Remember
+                                            Me</label>
+                                    </div>
+                                </div>
+                                <button id="studentLoginButton" type="submit" class="btn btn-primary btn-user btn-block">
+                                    Masuk
+                                </button>
+                                <div id="studentLoginError" class="text-danger small mt-3" role="alert" aria-live="polite"></div>
+                            </form>
+                            <div class="text-center mt-3">
+                                <a class="small" href="../index.html">Login Admin / Guru</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Kelola Foto - Data Ummi</title>
+
+    <link href="../../../assets/img/logo.png" rel="icon">
+
+    <!-- Custom fonts -->
+    <link href="../../../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+
+    <!-- Custom styles -->
+    <link href="../../../assets/css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../../../assets/css/theme-green.css" rel="stylesheet">
+
+    <style>
+        .photo-card {
+            transition: all 0.25s ease-in-out;
+        }
+        .photo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+        }
+        .photo-zoom-trigger {
+            transition: transform 0.25s ease;
+        }
+        .photo-zoom-trigger:hover {
+            opacity: 0.92;
+        }
+    </style>
+</head>
+
+<body id="page-top" data-login-path="../../../index.html" data-activity-type="ummi" data-page-type="manage-photos">
+    <!-- Page Wrapper -->
+    <div id="wrapper">
+        <!-- Sidebar -->
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+            <!-- Sidebar - Brand -->
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="../../dashboard/">
+                <div class="sidebar-brand-icon">
+                     <img src="../../../assets/img/logo.png" class="img-fluid" style="max-height: 40px; max-width: 100px; object-fit: contain;" alt="Logo">
+                </div>
+            </a>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider my-0">
+
+            <!-- Nav Item - Dashboard -->
+            <li class="nav-item">
+                <a class="nav-link" href="../../dashboard">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>Dashboard</span></a>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link" href="../../ujian/">
+                    <i class="fas fa-fw fa-clipboard-list"></i>
+                    <span>Pengaturan Ujian</span></a>
+            </li>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider">
+
+            <!-- Heading -->
+            <div class="sidebar-heading">Interface</div>
+
+            <!-- Nav Item - Data Admin -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
+                    aria-expanded="false" aria-controls="collapseTwo">
+                    <i class="fas fa-fw fa-database"></i>
+                    <span>Data Admin</span>
+                </a>
+                <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="../../guru/data-guru/">Data Guru</a>
+                        <a class="collapse-item" href="../../kelas/data-kelas/">Data Kelas</a>
+                        <a class="collapse-item" href="../../pelajaran/data-pelajaran/">Data Pelajaran</a>
+                        <a class="collapse-item" href="../../tahun/data-tahun/">Data Tahun Ajaran</a>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Nav Item - Data Aktifitas -->
+            <li class="nav-item active" id="activityNavigation">
+                <a class="nav-link" id="headingActivity" href="#" data-toggle="collapse" data-target="#collapseActivity"
+                    aria-expanded="true" aria-controls="collapseActivity">
+                    <i class="fas fa-fw fa-images"></i>
+                    <span>Data Aktifitas</span>
+                </a>
+                <div id="collapseActivity" class="collapse show" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="../data-fieldtrip/">Data Field Trip</a>
+                        <a class="collapse-item" href="../data-akhwah/">Data Akhwah</a>
+                        <a class="collapse-item active" href="./">Data Ummi</a>
+                        <a class="collapse-item" href="../data-pembelajaran/">Data Pembelajaran</a>
+                    </div>
+                </div>
+            </li>
+
+            <li class="nav-item" id="studentNavigation">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseStudentNavigation"
+                    aria-expanded="false" aria-controls="collapseStudentNavigation">
+                    <i class="fas fa-fw fa-user-graduate"></i>
+                    <span>Data Siswa</span>
+                </a>
+                <div id="collapseStudentNavigation" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="../../siswa/data-siswa/">Data Siswa</a>
+                        <a class="collapse-item" href="../../siswa/qr-siswa/">QR Siswa</a>
+                    </div>
+                </div>
+            </li>
+
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAttendanceNavigation"
+                    aria-expanded="false" aria-controls="collapseAttendanceNavigation">
+                    <i class="fas fa-fw fa-calendar-check"></i>
+                    <span>Data Absensi</span>
+                </a>
+                <div id="collapseAttendanceNavigation" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="../../absensi/?mode=scan#scanner">Scan Absensi</a>
+                        <a class="collapse-item" href="../../absensi/#rekap">Rekap Absensi</a>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider d-none d-md-block">
+
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+        </ul>
+        <!-- End of Sidebar -->
+
+        <!-- Content Wrapper -->
+        <div id="content-wrapper" class="d-flex flex-column">
+            <!-- Main Content -->
+            <div id="content">
+                <!-- Topbar -->
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                        <i class="fa fa-bars"></i>
+                    </button>
+
+                    <ul class="navbar-nav ml-auto">
+                        <div class="topbar-divider d-none d-sm-block"></div>
+                        <li class="nav-item dropdown no-arrow">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">Admin</span>
+                                <i class="fas fa-user-circle fa-lg text-gray-400"></i>
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="userDropdown">
+                                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Logout
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- End of Topbar -->
+
+                <!-- Begin Page Content -->
+                <div class="container-fluid">
+
+                    <!-- Header & Tombol Kembali -->
+                    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+                        <div>
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb bg-transparent p-0 mb-1">
+                                    <li class="breadcrumb-item"><a href="../../dashboard/">Dashboard</a></li>
+                                    <li class="breadcrumb-item"><a href="./">Data Ummi</a></li>
+                                    <li class="breadcrumb-item active" aria-current="page">Kelola Foto</li>
+                                </ol>
+                            </nav>
+                            <h1 class="h3 mb-0 text-gray-800 font-weight-bold activity-name-heading">Memuat kegiatan...</h1>
+                        </div>
+                        <a href="./" class="btn btn-secondary btn-sm shadow-sm mt-3 mt-sm-0">
+                            <i class="fas fa-arrow-left fa-sm mr-1"></i> Kembali ke Daftar Kegiatan
+                        </a>
+                    </div>
+
+                    <!-- Card Informasi Kegiatan -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 bg-white">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-info-circle mr-1"></i> Informasi Kegiatan
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h4 class="font-weight-bold text-dark activity-display-name mb-2">-</h4>
+                                    <div class="text-muted small mb-3">
+                                        <i class="far fa-calendar-alt text-primary mr-1"></i>
+                                        <span class="activity-display-date font-weight-bold mr-3">-</span>
+                                        <i class="fas fa-images text-success mr-1"></i>
+                                        <span class="activity-display-count font-weight-bold">0 Foto</span>
+                                    </div>
+                                    <div class="p-3 bg-light rounded">
+                                        <div class="text-xs font-weight-bold text-uppercase text-secondary mb-1">Deskripsi Kegiatan</div>
+                                        <p class="mb-0 text-gray-800 activity-display-desc" style="white-space: pre-wrap;">-</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center mt-3 mt-md-0 border-left">
+                                    <div class="p-3">
+                                        <i class="fas fa-camera-retro fa-3x text-gray-300 mb-2"></i>
+                                        <p class="small text-muted mb-3">Dokumentasikan kegiatan ini dengan mengunggah foto.</p>
+                                        <button type="button" class="btn btn-success btn-sm btn-block shadow-sm" data-toggle="modal" data-target="#modalTambahFoto">
+                                            <i class="fas fa-plus-circle mr-1"></i> Tambah Foto Sekarang
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Galeri Foto -->
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-images mr-1"></i> Galeri Dokumentasi Foto
+                            </h6>
+                            <span class="badge badge-success px-3 py-2" id="galleryCountBadge">0 Foto Tersimpan</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="galleryLoading" class="text-center py-4 text-muted">
+                                <i class="fas fa-spinner fa-spin fa-2x mb-2"></i>
+                                <p class="small mb-0">Memuat galeri foto...</p>
+                            </div>
+                            <div class="row" id="photoGalleryGrid">
+                                <!-- Foto-foto dirender dinamis di sini -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <!-- /.container-fluid -->
+            </div>
+            <!-- End of Main Content -->
+
+            <!-- Footer -->
+            <footer class="sticky-footer bg-white">
+                <div class="container my-auto">
+                    <div class="copyright text-center my-auto">
+                        <span>Your Website</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+        <!-- End of Content Wrapper -->
+    </div>
+    <!-- End of Page Wrapper -->
+
+    <!-- Scroll to Top Button-->
+    <a class="scroll-to-top rounded" href="#page-top">
+        <i class="fas fa-angle-up"></i>
+    </a>
+
+    <!-- Modal Tambah Foto Baru -->
+    <div class="modal fade" id="modalTambahFoto" tabindex="-1" role="dialog" aria-labelledby="modalTambahFotoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold text-primary" id="modalTambahFotoLabel">
+                        <i class="fas fa-cloud-upload-alt mr-1"></i> Tambah Foto Kegiatan
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="formUploadFotoPage">
+                    <div class="modal-body">
+                        <div class="alert alert-info small mb-3">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Anda dapat memilih <strong>lebih dari satu foto sekaligus</strong>. Tekan tombol <kbd>Ctrl</kbd> atau <kbd>Shift</kbd> pada keyboard saat memilih file foto.
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold">Pilih File Foto (Bisa Banyak File):</label>
+                            <input type="file" id="inputFotoPageFiles" class="form-control-file" multiple accept="image/*" required>
+                        </div>
+                        <div id="fileSelectionPreview" class="small text-muted mt-2"></div>
+                        <div id="uploadPageProgress" class="small text-info font-weight-bold mt-2"></div>
+                        <div id="uploadPageError" class="small text-danger mt-1"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary" id="btnSubmitUploadPage">
+                            <i class="fas fa-upload mr-1"></i> Mulai Unggah Foto
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lihat Foto (Lightbox Preview) -->
+    <div class="modal fade" id="modalLihatFoto" tabindex="-1" role="dialog" aria-labelledby="modalLihatFotoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl" role="document">
+            <div class="modal-content">
+                <div class="modal-header py-2 bg-dark text-white">
+                    <h6 class="modal-title font-weight-bold" id="modalLihatFotoLabel">Lihat Foto Kegiatan</h6>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body text-center p-2 bg-light">
+                    <img id="modalLihatFotoImg" src="" alt="Foto Kegiatan" class="img-fluid rounded shadow" style="max-height: 80vh; object-fit: contain;">
+                </div>
+                <div class="modal-footer py-2 justify-content-between">
+                    <a id="btnDownloadFoto" href="#" target="_blank" download class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-external-link-alt mr-1"></i> Buka Foto Asli
+                    </a>
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Tutup</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout Modal-->
+    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Yakin ingin keluar?</h5>
+                    <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">×</span>
+                    </button>
+                </div>
+                <div class="modal-body">Pilih "Logout" di bawah untuk mengakhiri sesi.</div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+                    <form id="logoutForm" action="#" method="post">
+                        <button class="btn btn-primary" type="submit">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript-->
+    <script src="../../../assets/vendor/jquery/jquery.min.js"></script>
+    <script src="../../../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="../../../assets/vendor/jquery-easing/jquery.easing.min.js"></script>
+    <script src="../../../assets/js/sb-admin-2.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../../supabase-config.js"></script>
+    <script src="../../../api.js"></script>
+    <script src="../../../admin-session.js"></script>
+    <script src="../../../dashboard.js"></script>
+    <script src="../../../class-navigation.js"></script>
+    <script src="../../../activity-page.js"></script>
+</body>
+</html>

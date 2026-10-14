@@ -7,7 +7,7 @@
     <meta name="description" content="">
     <meta name="author" content="">
 
-    <title>Absensi Siswa</title>
+    <title>YPINI - Absensi Siswa</title>
 
     <!-- Custom fonts for this template-->
     <link href="../../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
@@ -15,6 +15,7 @@
         href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i"
         rel="stylesheet">
 
+    <link href="../../assets/img/logo.png" rel="icon">    
     <!-- Custom styles for this template-->
     <link href="../../assets/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="../../assets/css/theme-green.css" rel="stylesheet">
@@ -55,10 +56,9 @@
 
             <!-- Sidebar - Brand -->
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="../dashboard/">
-                <div class="sidebar-brand-icon rotate-n-15">
-
+                <div class="sidebar-brand-icon">
+                     <img src="../../assets/img/logo.png" class="img-fluid" style="max-height: 40px; max-width: 100px; object-fit: contain;" alt="Logo">
                 </div>
-                <div class="sidebar-brand-text mx-3">Website</div>
             </a>
 
             <!-- Divider -->
@@ -111,10 +111,10 @@
                 </a>
                 <div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <a class="collapse-item" href="">Data</a>
                         <a class="collapse-item" href="../../aktifitas/data-fieldtrip/">Data Field Trip</a>
                         <a class="collapse-item" href="../../aktifitas/data-akhwah/">Data Akhwah</a>
                         <a class="collapse-item" href="../../aktifitas/data-ummi/">Data Ummi</a>
+                        <a class="collapse-item" href="../../aktifitas/data-pembelajaran/">Data Pembelajaran</a>
                     </div>
                 </div>
             </li>
@@ -989,9 +989,14 @@
                     }
                     const result = await apiRecordAttendance(scannedValue);
                     showScannedStudent(result);
-                    const successMessage = result.alreadyRecorded
+                    let successMessage = result.alreadyRecorded
                         ? `${result.student.nama} sudah tercatat hadir hari ini.`
                         : `${result.student.nama} berhasil dicatat hadir.`;
+                    if (!result.alreadyRecorded) {
+                        successMessage += result.student.no_wa
+                            ? ' (Notifikasi WA dikirim ke orang tua).'
+                            : ' (Nomor WA orang tua belum didaftarkan).';
+                    }
                     setAttendanceStatus(successMessage, false, !result.alreadyRecorded);
                     try {
                         await refreshTodayAttendance();
