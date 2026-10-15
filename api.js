@@ -343,6 +343,14 @@ async function apiRecordAttendance(rawCode) {
   if (!alreadyRecorded && record?.id) {
     client.functions.invoke("wasender-send", {
       body: { attendance_id: record.id }
+    }).then(({ data, error }) => {
+      if (error) {
+        console.warn("Pemberitahuan WA:", error.message);
+      } else if (data && !data.success) {
+        console.warn("Pemberitahuan WA:", data.error || data.detail);
+      } else if (data?.success) {
+        console.log("Pemberitahuan WA:", data.message);
+      }
     }).catch((funcError) => {
       console.warn("Pemberitahuan Edge Function wasender-send:", funcError);
     });

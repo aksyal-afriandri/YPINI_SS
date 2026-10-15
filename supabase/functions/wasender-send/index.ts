@@ -1,9 +1,9 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 function formatPhoneNumber(raw: string): string {
@@ -16,7 +16,7 @@ function formatPhoneNumber(raw: string): string {
   return cleaned;
 }
 
-serve(async (req: Request) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -25,7 +25,16 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const wasenderApiKey = Deno.env.get("WASENDER_API_KEY") ?? "";
-    const wasenderApiUrl = Deno.env.get("WASENDER_API_URL") || "https://www.wasenderapi.com/api/send-message";
+    let wasenderApiUrl = Deno.env.get("WASENDER_API_URL") || "";
+
+    if (!wasenderApiUrl) {
+      // Auto-detect: if token starts with wsk_ (WASender.dev token), use api.wasender.dev
+      if (wasenderApiKey.startsWith("wsk_")) {
+        wasenderApiUrl = "https://api.wasender.dev/messages/text";
+      } else {
+        wasenderApiUrl = "https://api.wasender.dev/messages/text"; // Default to wasender.dev
+      }
+    }
 
     if (!wasenderApiKey) {
       console.error("WASENDER_API_KEY is not configured in Supabase Secrets.");
@@ -160,6 +169,7 @@ Terima kasih atas perhatian dan kerja sama Bapak/Ibu.
 Wassalamu'alaikum Warahmatullahi Wabarakatuh.`;
 
     // Send HTTP POST to WASender API
+    // Kirim field "body" (wasender.dev) dan "text" (wasenderapi.com) agar kompatibel dengan keduanya
     const waResponse = await fetch(wasenderApiUrl, {
       method: "POST",
       headers: {
@@ -168,6 +178,7 @@ Wassalamu'alaikum Warahmatullahi Wabarakatuh.`;
       },
       body: JSON.stringify({
         to: targetPhone,
+        body: messageText,
         text: messageText,
       }),
     });
@@ -201,14 +212,21 @@ Wassalamu'alaikum Warahmatullahi Wabarakatuh.`;
         .update({ wa_status: "failed" })
         .eq("id", attendance.id);
 
+      const errorMessage =
+        waResult?.message ||
+        (waResponse.status === 401
+          ? "API Key WASender tidak valid (Unauthorized). Periksa WASENDER_API_KEY di Supabase Secrets."
+          : `Gagal mengirim ke WASender (HTTP ${waResponse.status}).`);
+
       return new Response(
         JSON.stringify({
           success: false,
-          error: "WASender API mengembalikan status gagal.",
+          wasender_status: waResponse.status,
+          error: errorMessage,
           detail: waResult,
         }),
         {
-          status: waResponse.status || 500,
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
@@ -217,10 +235,11 @@ Wassalamu'alaikum Warahmatullahi Wabarakatuh.`;
     console.error("Server Error:", error);
     return new Response(
       JSON.stringify({
+        success: false,
         error: error instanceof Error ? error.message : "Terjadi kesalahan internal.",
       }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
