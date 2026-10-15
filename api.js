@@ -377,7 +377,7 @@ async function apiGetTodayAttendance(classId = null, attendanceDate = attendance
   if (!placementIds.length) return { data: [] };
 
   let query = client.from("absensi")
-    .select("id, tanggal, waktu_scan, status, data_siswa(nis, nama)")
+    .select("id, tanggal, waktu_scan, status, data_siswa(id, nis, nama, no_wa)")
     .eq("tanggal", attendanceDate)
     .in("siswa_kelas_tahun_ajaran_id", placementIds)
     .order("waktu_scan", { ascending: false });
@@ -404,7 +404,7 @@ async function apiGetMonthlyAttendance(classId, year, month) {
   const students = [];
   const studentPageSize = 1000;
   for (let offset = 0; ; offset += studentPageSize) {
-    let studentsQuery = client.from("data_siswa").select("id, nis, nama")
+    let studentsQuery = client.from("data_siswa").select("id, nis, nama, no_wa")
       .order("nama").order("id", { ascending: true })
       .range(offset, offset + studentPageSize - 1);
     studentsQuery = studentsQuery.in("id", studentIds);

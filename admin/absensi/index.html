@@ -470,6 +470,12 @@
                                             <span class="badge badge-secondary" id="attendanceStatusBadge">Menunggu</span>
                                             <div class="small text-muted mt-2 mt-sm-0" id="attendanceMarkedAt">Waktu scan akan tampil di sini.</div>
                                         </div>
+                                        <div class="mt-2 pt-2 border-top d-flex align-items-center justify-content-between flex-wrap" id="attendanceWaActionWrap">
+                                            <span class="small text-muted" id="attendanceWaInfoText"><i class="fab fa-whatsapp mr-1 text-success"></i>WA Ortu: <strong id="attendanceStudentWa">-</strong></span>
+                                            <a id="attendanceDirectWaLink" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-success d-none">
+                                                <i class="fab fa-whatsapp mr-1"></i>Chat WA Ortu
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -501,10 +507,10 @@
                                         <div class="table-responsive">
                                             <table class="table table-bordered table-hover" id="attendanceTable" width="100%" cellspacing="0">
                                                 <thead>
-                                                    <tr><th>No.</th><th>Waktu</th><th>NIS</th><th>Nama Siswa</th><th>Status</th></tr>
+                                                    <tr><th>No.</th><th>Waktu</th><th>NIS</th><th>Nama Siswa</th><th>Status</th><th class="text-center">Kirim WA</th></tr>
                                                 </thead>
                                                 <tbody id="attendanceTableBody">
-                                                    <tr><td colspan="5" class="text-center text-muted">Memuat data...</td></tr>
+                                                    <tr><td colspan="6" class="text-center text-muted">Memuat data...</td></tr>
                                                 </tbody>
                                             </table>
                                         </div>
@@ -705,6 +711,35 @@
             }).format(new Date(value));
         }
 
+        function formatWaNumber(phone) {
+            if (!phone) return null;
+            let cleaned = String(phone).replace(/[^0-9]/g, "");
+            if (cleaned.startsWith("0")) {
+                cleaned = "62" + cleaned.slice(1);
+            } else if (cleaned.startsWith("8")) {
+                cleaned = "62" + cleaned;
+            }
+            return cleaned.length >= 9 ? cleaned : null;
+        }
+
+        function generateAttendanceWaLink(studentName, nis, dateStr, timeStr, phone) {
+            const formattedPhone = formatWaNumber(phone);
+            if (!formattedPhone) return "#";
+
+            const message = 
+                `*PEMBERITAHUAN KEHADIRAN SISWA*
+
+                *Nama*: ${studentName}
+                *NIS*: ${nis}
+                *Hari/Tanggal*: ${dateStr}
+                *Waktu*: ${timeStr} WIB
+                *Status*: Hadir
+                `
+                ;
+
+            return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`;
+        }
+
         function setAttendanceStatus(message, isError = false, isSuccess = false) {
             const status = document.getElementById("attendanceStatus");
             if (!status) return;
@@ -731,22 +766,58 @@
 
             data.forEach((record, index) => {
                 const row = body.insertRow();
-                [index + 1, formatAttendanceTime(record.waktu_scan), record.data_siswa?.nis || "-", record.data_siswa?.nama || "-", record.status]
+                const student = record.data_siswa || {};
+                const timeFormatted = formatAttendanceTime(record.waktu_scan);
+                const scanDateObj = record.waktu_scan ? new Date(record.waktu_scan) : new Date(`${record.tanggal}T12:00:00+07:00`);
+                const dateFormatted = new Intl.DateTimeFormat("id-ID", {
+                    timeZone: "Asia/Jakarta",
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                }).format(scanDateObj);
+
+                [index + 1, timeFormatted, student.nis || "-", student.nama || "-", record.status]
                     .forEach((value) => {
                         const cell = row.insertCell();
                         cell.textContent = value;
                     });
+
                 const badge = document.createElement("span");
                 badge.className = "badge badge-success";
                 badge.textContent = record.status;
                 row.cells[4].replaceChildren(badge);
+
+                const waCell = row.insertCell();
+                waCell.className = "text-center";
+                const phone = student.no_wa;
+                if (phone && formatWaNumber(phone)) {
+                    const waLink = generateAttendanceWaLink(student.nama || "Siswa", student.nis || "-", dateFormatted, timeFormatted, phone);
+                    const waBtn = document.createElement("a");
+                    waBtn.href = waLink;
+                    waBtn.target = "_blank";
+                    waBtn.rel = "noopener noreferrer";
+                    waBtn.className = "btn btn-sm btn-success text-nowrap";
+                    waBtn.innerHTML = `<i class="fab fa-whatsapp mr-1"></i>Kirim WA`;
+                    waBtn.title = `Kirim notifikasi WhatsApp ke ${phone}`;
+                    waCell.appendChild(waBtn);
+                } else {
+                    const noWaBadge = document.createElement("span");
+                    noWaBadge.className = "badge badge-light text-muted border py-1 px-2";
+                    noWaBadge.innerHTML = `<i class="fab fa-whatsapp mr-1 text-secondary"></i>Belum ada WA`;
+                    noWaBadge.title = "Nomor WhatsApp belum didaftarkan di Data Siswa";
+                    waCell.appendChild(noWaBadge);
+                }
             });
 
             attendanceDataTable = $("#attendanceTable").DataTable({
                 pageLength: 10,
                 lengthMenu: [10, 25, 50, 100],
                 order: [[1, "desc"]],
-                columnDefs: [{ targets: 0, orderable: false }],
+                columnDefs: [
+                    { targets: 0, orderable: false },
+                    { targets: 5, orderable: false }
+                ],
                 language: {
                     search: "Cari nama / NIS:",
                     lengthMenu: "Tampilkan _MENU_ entri",
@@ -898,7 +969,7 @@
             body.replaceChildren();
             const row = body.insertRow();
             const cell = row.insertCell();
-            cell.colSpan = 5;
+            cell.colSpan = 6;
             cell.className = "text-center text-danger";
             cell.textContent = `Gagal memuat rekap: ${error.message}`;
         }
@@ -926,6 +997,29 @@
             document.getElementById("attendanceStatusBadge").textContent = alreadyRecorded ? "Sudah hadir" : "Hadir";
             document.getElementById("attendanceStatusBadge").className = `badge ${alreadyRecorded ? "badge-warning" : "badge-success"}`;
             document.getElementById("attendanceMarkedAt").textContent = `${formatAttendanceTime(attendance.waktu_scan)} WIB`;
+
+            const waNumberElement = document.getElementById("attendanceStudentWa");
+            const waButton = document.getElementById("attendanceDirectWaLink");
+            if (waNumberElement) {
+                waNumberElement.textContent = student.no_wa || "Belum didaftarkan";
+            }
+            if (waButton) {
+                if (student.no_wa && formatWaNumber(student.no_wa)) {
+                    const timeFormatted = formatAttendanceTime(attendance.waktu_scan);
+                    const scanDateObj = attendance.waktu_scan ? new Date(attendance.waktu_scan) : new Date();
+                    const dateFormatted = new Intl.DateTimeFormat("id-ID", {
+                        timeZone: "Asia/Jakarta",
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                    }).format(scanDateObj);
+                    waButton.href = generateAttendanceWaLink(student.nama, student.nis, dateFormatted, timeFormatted, student.no_wa);
+                    waButton.classList.remove("d-none");
+                } else {
+                    waButton.classList.add("d-none");
+                }
+            }
 
             const photo = document.getElementById("attendancePhoto");
             const placeholder = document.getElementById("attendancePhotoPlaceholder");
