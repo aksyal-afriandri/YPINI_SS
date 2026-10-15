@@ -406,6 +406,7 @@
                                             <th>No</th>
                                             <th>NIS</th>
                                             <th>Nama</th>
+                                            <th>No. WA</th>
                                             <th>Photo</th>
                                             <th>Action</th>
                                         </tr>
@@ -486,7 +487,7 @@
                                             <div class="form-group">
                                                 <label for="importSiswaFile">Pilih file Excel siswa</label>
                                                 <input type="file" name="file" class="form-control-file" id="importSiswaFile" accept=".xlsx,.xls,.csv" required>
-                                                <small id="importSiswaHelp" class="form-text text-muted">Data diambil dari sheet pertama. Baris pertama dilewati; header NIS dan Nama harus ada di baris kedua.</small>
+                                                <small id="importSiswaHelp" class="form-text text-muted">Data diambil dari sheet pertama. Baris pertama dilewati; header kolom wajib "NIS" dan "Nama" (serta opsional "No WA") di baris kedua. Jika No WA kosong, akan dikosongkan.</small>
                                             </div>
                                             <button type="submit" class="btn btn-success">Import</button>
                                             <div class="api-error text-danger small mt-2" role="alert"></div>
@@ -618,7 +619,7 @@
                         row.appendChild(siswaSelectAllHeader);
                         const columns = ['No', 'NIS', 'Nama', 'Jenjang'];
                         if (!currentClassId) columns.push('Kelas');
-                        columns.push('Photo', 'Action');
+                        columns.push('No. WA', 'Photo', 'Action');
                         columns.forEach((label) => {
                             const header = document.createElement('th');
                             header.textContent = label;
@@ -724,7 +725,7 @@
                                 : 'Data Siswa';
                             if (result.className) {
                                 document.getElementById('importSiswaHelp').textContent =
-                                    `Sheet pertama akan diimpor ke kelas ${result.className}. Nama sheet tidak digunakan; header NIS dan Nama harus ada di baris kedua.`;
+                                    `Sheet pertama akan diimpor ke kelas ${result.className}. Nama sheet tidak digunakan; header kolom wajib "NIS" dan "Nama" (serta opsional "No WA") di baris kedua. Jika No WA kosong, akan dikosongkan.`;
                             }
                             allSiswaIds = students.map((student) => String(student.id));
 
@@ -750,6 +751,14 @@
                                 if (!currentClassId) {
                                     addSiswaCell(row, student.nama_kelas || 'Belum ditempatkan');
                                 }
+
+                                const waCell = document.createElement('td');
+                                if (student.no_wa) {
+                                    waCell.innerHTML = `<span class="text-nowrap"><i class="fab fa-whatsapp text-success mr-1"></i>${student.no_wa}</span>`;
+                                } else {
+                                    waCell.innerHTML = `<span class="text-muted small">-</span>`;
+                                }
+                                row.appendChild(waCell);
 
                                 const photoCell = document.createElement('td');
                                 let editButton;
@@ -802,7 +811,7 @@
                             siswaDataTable = $('#siswaTable').DataTable({
                                 pageLength: 10,
                                 lengthMenu: [10, 25, 50, 100],
-                                columnDefs: [{ targets: [0, currentClassId ? 6 : 7], orderable: false }],
+                                columnDefs: [{ targets: [0, currentClassId ? 6 : 7, currentClassId ? 7 : 8], orderable: false }],
                                 drawCallback: function () {
                                     const page = this.api().page.info();
                                     this.api().column(1, { page: 'current' }).nodes().each((cell, index) => {

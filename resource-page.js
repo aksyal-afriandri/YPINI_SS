@@ -2,7 +2,11 @@ const RESOURCE_PAGE_CONFIG = {
   guru: {
     resource: "guru",
     title: "Data Guru",
-    fields: [{ key: "nip", label: "NIP" }, { key: "nama", label: "Nama" }],
+    fields: [
+      { key: "nip", label: "NIP" },
+      { key: "nama", label: "Nama" },
+      { key: "nama_pelajaran", label: "Mata Pelajaran" },
+    ],
     addModal: "tambahGuruModal",
     editModal: "editGuruModal",
     deleteModal: "hapusGuruModal",
@@ -82,10 +86,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function formValues(form) {
-    return Object.fromEntries(config.fields.map(({ key }) => [
-      key,
-      form.querySelector(`[name="${key}"]`)?.value.trim() || "",
-    ]));
+    const data = {};
+    const elements = form.querySelectorAll("input[name], select[name], textarea[name]");
+    elements.forEach((el) => {
+      data[el.name] = el.value.trim();
+    });
+    return data;
   }
 
   function hideModal(modalId) {
@@ -170,6 +176,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  async function loadResourceSelectOptions() {
+    if (config.resource === "guru") {
+      const selects = document.querySelectorAll('select[name="pelajaran_id"]');
+      if (!selects.length) return;
+      try {
+        const result = await apiGet("/data/pelajaran");
+        const optionsHtml = '<option value="">-- Pilih Mata Pelajaran (Opsional) --</option>' +
+          (result.data || []).map((p) => `<option value="${p.id}">${p.nama_pelajaran}</option>`).join("");
+        selects.forEach((select) => {
+          const currentVal = select.value;
+          select.innerHTML = optionsHtml;
+          if (currentVal) select.value = currentVal;
+        });
+      } catch (err) {
+        console.warn("Gagal memuat opsi pelajaran:", err);
+      }
+    }
+  }
+
   async function loadRecords() {
     if (!(await window.adminSessionReady)) {
       setStatus(window.adminSessionError || "Sesi admin diperlukan.", true);
@@ -177,6 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     setStatus("Memuat data dari Supabase...", false, true);
     try {
+      await loadResourceSelectOptions();
       const result = await apiGet(`/data/${config.resource}`);
       records = result.data || [];
       renderRows();
@@ -242,9 +268,13 @@ document.addEventListener("DOMContentLoaded", () => {
       window.jQuery("#waliKelasModal").modal("show");
     } else if (button.dataset.recordAction === "edit") {
       editForm.dataset.recordId = record.id;
-      config.fields.forEach(({ key }) => {
-        const input = editForm.querySelector(`[name="${key}"]`);
-        if (input) input.value = record[key] ?? "";
+      const elements = editForm.querySelectorAll("input[name], select[name], textarea[name]");
+      elements.forEach((el) => {
+        if (record[el.name] !== undefined && record[el.name] !== null) {
+          el.value = record[el.name];
+        } else {
+          el.value = "";
+        }
       });
     } else {
       deleteForm.dataset.recordId = record.id;

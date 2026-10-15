@@ -1,220 +1,1189 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-  <title>YPINI - Ujian</title>
+  <title>YPINI - Ujian CBT</title>
   <link href="../../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
   <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
   <link href="../../assets/img/logo.png" rel="icon">
   <link href="../../assets/css/sb-admin-2.min.css" rel="stylesheet">
   <link href="../../assets/css/theme-green.css" rel="stylesheet">
+  <style>
+    /* Styling CBT */
+    body {
+      background-color: #f4f6f9;
+      user-select: none; /* Mencegah seleksi teks saat ujian */
+    }
+    .cbt-topbar {
+      height: 70px;
+      box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.12) !important;
+      position: sticky;
+      top: 0;
+      z-index: 1020;
+    }
+    .cbt-brand-logo {
+      max-height: 40px;
+      max-width: 110px;
+      object-fit: contain;
+    }
+    .cbt-header-card {
+      border-radius: 12px;
+      border-left: 5px solid #1cc88a;
+    }
+    .cbt-timer-badge {
+      font-size: 1.15rem;
+      letter-spacing: 1px;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 800;
+      padding: 8px 16px;
+      border-radius: 20px;
+    }
+    .cbt-question-card {
+      border-radius: 14px;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 1px solid #e3e6f0;
+    }
+    .cbt-question-body {
+      flex: 1 1 auto;
+    }
+    .cbt-question-text {
+      line-height: 1.75;
+      color: #2e384d;
+      font-weight: 600;
+      margin-bottom: 24px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .cbt-font-sm .cbt-question-text, .cbt-font-sm .cbt-option-text { font-size: 1rem; }
+    .cbt-font-md .cbt-question-text, .cbt-font-md .cbt-option-text { font-size: 1.15rem; }
+    .cbt-font-lg .cbt-question-text, .cbt-font-lg .cbt-option-text { font-size: 1.35rem; }
+
+    /* Foto Soal */
+    .cbt-question-image-wrapper {
+      max-width: 100%;
+      background-color: #fdfdfe;
+      border: 1px solid #e3e6f0;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .cbt-question-image {
+      max-height: 380px;
+      max-width: 100%;
+      object-fit: contain;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      cursor: zoom-in;
+      transition: transform 0.2s ease;
+    }
+    .cbt-question-image:hover {
+      transform: scale(1.01);
+    }
+
+    /* Pilihan Ganda Cards */
+    .cbt-option {
+      display: flex;
+      align-items: flex-start;
+      padding: 14px 18px;
+      border: 2px solid #e3e6f0;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      background-color: #ffffff;
+      position: relative;
+    }
+    .cbt-option:hover {
+      border-color: #4e73df;
+      background-color: #f8faff;
+      transform: translateY(-1px);
+    }
+    .cbt-option.selected {
+      border-color: #1cc88a;
+      background-color: #f0fdf4;
+      box-shadow: 0 4px 10px rgba(28, 200, 138, 0.15);
+    }
+    .cbt-option-badge {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1rem;
+      margin-right: 16px;
+      background-color: #eaecf4;
+      color: #5a5c69;
+      transition: all 0.2s;
+    }
+    .cbt-option.selected .cbt-option-badge {
+      background-color: #1cc88a;
+      color: #ffffff;
+    }
+    .cbt-option-text {
+      flex: 1 1 auto;
+      padding-top: 5px;
+      color: #3d4451;
+      line-height: 1.5;
+    }
+
+    /* Grid Navigasi Nomor Soal dalam Modal */
+    .cbt-grid-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+      gap: 10px;
+      max-height: 420px;
+      overflow-y: auto;
+      padding: 6px;
+    }
+    .cbt-grid-btn {
+      aspect-ratio: 1;
+      font-weight: 700;
+      font-size: 1rem;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #d1d3e2;
+      background-color: #ffffff;
+      color: #5a5c69;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease-in-out;
+      padding: 0;
+    }
+    .cbt-grid-btn:hover {
+      transform: scale(1.08);
+      z-index: 2;
+    }
+    /* Status di Grid */
+    .cbt-grid-btn.answered {
+      background-color: #1cc88a !important;
+      color: #ffffff !important;
+      border-color: #1cc88a !important;
+    }
+    .cbt-grid-btn.doubt {
+      background-color: #f6c23e !important;
+      color: #ffffff !important;
+      border-color: #f6c23e !important;
+    }
+    .cbt-grid-btn.current {
+      box-shadow: 0 0 0 3px #4e73df !important;
+      border-color: #4e73df !important;
+      font-weight: 900;
+    }
+    .cbt-legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    .cbt-action-footer {
+      border-top: 1px solid #eaecf4;
+      padding-top: 18px;
+    }
+  </style>
 </head>
 <body id="page-top">
-  <div id="wrapper">
-    <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
-      <a class="sidebar-brand d-flex align-items-center justify-content-center" href="../">
-        <div class="sidebar-brand-icon">
-          <img src="../../assets/img/logo.png" class="img-fluid" style="max-height: 40px; max-width: 100px; object-fit: contain;" alt="Logo">
-        </div>
-      </a>
-      <hr class="sidebar-divider my-0">
-      <li class="nav-item active">
-        <a class="nav-link" href="./">
-          <i class="fas fa-fw fa-clipboard-list"></i>
-          <span>Ujian</span>
-        </a>
-      </li>
-      <hr class="sidebar-divider d-none d-md-block">
-    </ul>
+  <!-- Topbar CBT (Sidebar Dihilangkan) -->
+  <nav class="navbar navbar-expand navbar-light bg-white topbar cbt-topbar px-3 px-md-4">
+    <!-- Brand / Logo -->
+    <a class="navbar-brand d-flex align-items-center" href="../">
+      <img src="../../assets/img/logo.png" class="cbt-brand-logo mr-2" alt="Logo">
+      <span class="d-none d-sm-inline font-weight-bold text-gray-800">CBT Online</span>
+    </a>
 
-    <div id="content-wrapper" class="d-flex flex-column">
-      <div id="content">
-        <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-          <div class="ml-auto">
-            <span id="studentName" class="mr-2 d-none d-lg-inline text-gray-600 small">Siswa</span>
+    <!-- Badge Mapel -->
+    <div class="d-none d-md-flex align-items-center ml-3">
+      <span class="badge badge-success px-3 py-2 text-uppercase font-weight-bold" id="examBadgeSubject">Mata Pelajaran</span>
+    </div>
+
+    <!-- Actions Kanan: Timer, Modal Navigasi Soal, Identitas Siswa -->
+    <div class="d-flex align-items-center ml-auto">
+      <!-- Tombol Navigasi Soal (Modal) -->
+      <!-- Timer Countdown -->
+      <div id="timerContainer" class="mr-2 mr-md-3 d-none">
+        <span id="examTimerBadge" class="badge badge-primary cbt-timer-badge shadow-sm">
+          <i class="fas fa-stopwatch mr-1"></i> <span id="timerCountdown">--:--:--</span>
+        </span>
+      </div>
+
+      <!-- Siswa NIS -->
+      <span id="studentName" class="badge badge-light border text-muted px-2 py-2 small d-none d-sm-inline font-weight-bold">NIS</span>
+    </div>
+  </nav>
+
+  <!-- Main Content Container (Full Width / Distraction-Free CBT) -->
+  <main class="container py-4 mb-5">
+    <div id="supabaseStatus" class="small mb-3" role="status"></div>
+
+    <!-- Loading View -->
+    <div id="loadingView" class="card shadow p-5 text-center border-0">
+      <div class="spinner-border text-primary mx-auto mb-3" role="status" style="width: 3rem; height: 3rem;"></div>
+      <h5 class="text-gray-800 font-weight-bold">Mempersiapkan Lembar Ujian...</h5>
+      <p class="text-muted small mb-0">Sedang memuat data soal dan jawaban Anda.</p>
+    </div>
+
+    <!-- Error / Info View -->
+    <div id="messageView" class="d-none">
+      <div class="card shadow border-left-warning mb-4">
+        <div class="card-body p-4 text-center">
+          <div class="mb-3">
+            <i class="fas fa-exclamation-circle text-warning fa-3x"></i>
           </div>
-        </nav>
+          <h5 class="font-weight-bold text-gray-800" id="messageTitle">Pemberitahuan</h5>
+          <p class="text-muted" id="messageBody">Ujian tidak dapat dibuka.</p>
+          <a href="../" class="btn btn-primary px-4 mt-2">
+            <i class="fas fa-arrow-left mr-1"></i> Kembali ke Dashboard Siswa
+          </a>
+        </div>
+      </div>
+    </div>
 
-        <div class="container-fluid">
-          <div id="supabaseStatus" class="small text-danger mb-3" role="status"></div>
+    <!-- Completed / Result View -->
+    <div id="completedView" class="d-none">
+      <div class="card shadow border-left-success mb-4 text-center p-5">
+        <div class="mb-3">
+          <i class="fas fa-check-circle text-success fa-4x"></i>
+        </div>
+        <h3 class="font-weight-bold text-gray-800 mb-2">Ujian Berhasil Dikumpulkan!</h3>
+        <p class="text-muted mb-4" id="completedSubtext">
+          Jawaban Anda telah tersimpan di sistem. Terima kasih telah mengikuti ujian dengan jujur dan tertib.
+        </p>
+        <div>
+          <a href="../" class="btn btn-primary px-4 py-2 font-weight-bold">
+            <i class="fas fa-home mr-1"></i> Kembali ke Dashboard Siswa
+          </a>
+        </div>
+      </div>
+    </div>
 
-          <div class="card shadow mb-4">
-            <div class="card-header py-3">
-              <h6 class="m-0 font-weight-bold text-primary">Daftar Ujian</h6>
+    <!-- CBT Exam View (Active Test Fullscreen Card) -->
+    <div id="examMainView" class="d-none">
+      <div class="row justify-content-center">
+        <div class="col-xl-10 col-lg-11 col-12">
+          <!-- Header Ringkas Ujian -->
+          <div class="card shadow-sm cbt-header-card mb-3 bg-white p-3">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+              <div>
+                <h5 class="font-weight-bold text-primary mb-1" id="examTitle">Nama Ujian</h5>
+                <div class="small text-muted">
+                  <span id="examSubjectInfo">Mata Pelajaran</span> &bull; 
+                  Durasi: <span id="examDurationInfo">-- menit</span> &bull; 
+                  Total: <span id="examTotalQuestionsInfo">-- Soal</span>
+                </div>
+              </div>
+              <div class="mt-2 mt-md-0 d-flex align-items-center">
+                <span class="small font-weight-bold text-muted mr-2">Ukuran Teks:</span>
+                <div class="btn-group btn-group-sm" role="group">
+                  <button type="button" class="btn btn-outline-secondary" id="btnFontSm" title="Teks Kecil">A-</button>
+                  <button type="button" class="btn btn-outline-secondary active" id="btnFontMd" title="Teks Normal">A</button>
+                  <button type="button" class="btn btn-outline-secondary" id="btnFontLg" title="Teks Besar">A+</button>
+                </div>
+              </div>
             </div>
-            <div class="card-body">
-              <div id="examStatus" class="small text-muted mb-3"></div>
-              <div id="examContainer"></div>
+          </div>
+
+          <!-- Card Soal Utama -->
+          <div class="card shadow cbt-question-card bg-white" id="questionCardWrapper">
+            <!-- Header Card Soal -->
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+              <div class="d-flex align-items-center">
+                <span class="badge badge-primary px-3 py-2 mr-2 font-weight-bold" style="font-size: 0.95rem;">
+                  SOAL NO. <span id="activeQuestionNumber">1</span>
+                </span>
+                <span class="badge badge-light border text-muted small" id="activeQuestionType">
+                  Pilihan Ganda
+                </span>
+              </div>
+
+              <div>
+                <span id="activeQuestionStatusBadge" class="badge badge-secondary px-2 py-1 small">
+                  Belum Dijawab
+                </span>
+              </div>
+            </div>
+
+            <!-- Body Card Soal -->
+            <div class="card-body cbt-question-body p-4 cbt-font-md" id="questionBodyArea">
+              <!-- Foto Soal (Mendukung 1 hingga 3 Foto) -->
+              <div id="questionImageBox" class="cbt-question-image-wrapper d-none">
+                <div id="questionImagesList" class="row justify-content-center"></div>
+                <div class="small text-muted mt-2"><i class="fas fa-search-plus mr-1"></i> Klik gambar untuk memperbesar</div>
+              </div>
+
+              <!-- Teks Pertanyaan -->
+              <div class="cbt-question-text" id="questionText">
+                Memuat teks pertanyaan...
+              </div>
+
+              <!-- Pilihan Ganda Container -->
+              <div id="optionsContainer">
+                <div class="cbt-option" data-option="A">
+                  <div class="cbt-option-badge">A</div>
+                  <div class="cbt-option-text" id="textOptionA">-</div>
+                </div>
+                <div class="cbt-option" data-option="B">
+                  <div class="cbt-option-badge">B</div>
+                  <div class="cbt-option-text" id="textOptionB">-</div>
+                </div>
+                <div class="cbt-option" data-option="C">
+                  <div class="cbt-option-badge">C</div>
+                  <div class="cbt-option-text" id="textOptionC">-</div>
+                </div>
+                <div class="cbt-option" data-option="D">
+                  <div class="cbt-option-badge">D</div>
+                  <div class="cbt-option-text" id="textOptionD">-</div>
+                </div>
+              </div>
+
+              <!-- Essay Container -->
+              <div id="essayContainer" class="d-none">
+                <label for="essayAnswerInput" class="font-weight-bold text-gray-700">Jawaban Anda:</label>
+                <textarea id="essayAnswerInput" class="form-control" rows="7" placeholder="Ketik jawaban essay Anda secara lengkap di sini..."></textarea>
+                <small class="text-muted mt-1 d-block"><i class="fas fa-info-circle mr-1"></i> Jawaban otomatis tersimpan saat Anda mengetik.</small>
+              </div>
+            </div>
+
+            <!-- Footer Navigasi Bawah -->
+            <div class="card-footer bg-white p-3 cbt-action-footer">
+              <div class="d-flex justify-content-between align-items-center flex-wrap">
+                <!-- Tombol Sebelumnya -->
+                <button type="button" class="btn btn-secondary px-3 mb-2 mb-sm-0" id="btnPrevQuestion">
+                  <i class="fas fa-chevron-left mr-1"></i> Sebelumnya
+                </button>
+
+                <!-- Tombol Navigasi Modal (Daftar Soal) & Ragu-Ragu -->
+                <div class="d-flex mb-2 mb-sm-0">
+                  <button type="button" class="btn btn-outline-primary px-3 mr-2 font-weight-bold" data-toggle="modal" data-target="#navigasiSoalModal">
+                    <i class="fas fa-th mr-1"></i> Daftar Soal
+                  </button>
+                  <button type="button" class="btn btn-outline-warning px-3" id="btnDoubtQuestion">
+                    <i class="fas fa-flag mr-1"></i> <span id="btnDoubtText">Ragu-Ragu</span>
+                  </button>
+                </div>
+
+                <!-- Tombol Berikutnya / Selesai -->
+                <div class="d-flex">
+                  <button type="button" class="btn btn-primary px-4" id="btnNextQuestion">
+                    Berikutnya <i class="fas fa-chevron-right ml-1"></i>
+                  </button>
+                  <button type="button" class="btn btn-success px-4 ml-2 d-none" id="btnFinishExamInline">
+                    <i class="fas fa-check-circle mr-1"></i> Selesai
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
+  </main>
+
+  <!-- Modal Navigasi Soal (Daftar Soal Pop-up) -->
+  <div class="modal fade" id="navigasiSoalModal" tabindex="-1" role="dialog" aria-labelledby="navModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-primary text-white py-3">
+          <h5 class="modal-title font-weight-bold" id="navModalTitle">
+            <i class="fas fa-th mr-2"></i> Daftar Nomor Soal
+          </h5>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Tutup">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body p-4">
+          <!-- Legenda Warna Status -->
+          <div class="small text-muted mb-3 d-flex justify-content-between flex-wrap border-bottom pb-2">
+            <div class="mr-3 mb-1">
+              <span class="cbt-legend-dot bg-success"></span> Sudah Dijawab (<strong id="modalCountAnswered" class="text-success">0</strong>)
+            </div>
+            <div class="mr-3 mb-1">
+              <span class="cbt-legend-dot bg-warning"></span> Ragu-Ragu (<strong id="modalCountDoubt" class="text-warning">0</strong>)
+            </div>
+            <div class="mb-1">
+              <span class="cbt-legend-dot border" style="background:#fff;"></span> Belum Dijawab (<strong id="modalCountUnanswered" class="text-danger">0</strong>)
+            </div>
+          </div>
+
+          <!-- Grid Nomor Soal -->
+          <div class="cbt-grid-container mb-3" id="cbtGridButtonsModal">
+            <!-- Digenerate dinamis oleh JS -->
+          </div>
+        </div>
+        <div class="modal-footer bg-light d-flex justify-content-between">
+          <button type="button" class="btn btn-secondary font-weight-bold" data-dismiss="modal">
+            <i class="fas fa-times mr-1"></i> Tutup
+          </button>
+          <button type="button" class="btn btn-danger font-weight-bold shadow-sm" id="btnFinishFromModal">
+            <i class="fas fa-paper-plane mr-1"></i> Selesaikan Ujian
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <!-- Modal Konfirmasi Selesai Ujian -->
+  <div class="modal fade" id="confirmSubmitModal" tabindex="-1" role="dialog" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content shadow border-0">
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title font-weight-bold" id="confirmModalLabel">
+            <i class="fas fa-clipboard-check mr-2"></i> Konfirmasi Selesai Ujian
+          </h5>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="text-gray-800 font-weight-bold mb-3">Ringkasan Pengerjaan Anda:</p>
+          
+          <div class="row text-center mb-3">
+            <div class="col-4">
+              <div class="border rounded p-2 bg-light">
+                <div class="h4 text-success font-weight-bold mb-0" id="summaryAnswered">0</div>
+                <small class="text-muted">Dijawab</small>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="border rounded p-2 bg-light">
+                <div class="h4 text-warning font-weight-bold mb-0" id="summaryDoubt">0</div>
+                <small class="text-muted">Ragu-ragu</small>
+              </div>
+            </div>
+            <div class="col-4">
+              <div class="border rounded p-2 bg-light">
+                <div class="h4 text-danger font-weight-bold mb-0" id="summaryUnanswered">0</div>
+                <small class="text-muted">Belum Dijawab</small>
+              </div>
+            </div>
+          </div>
+
+          <div id="modalWarningAlert" class="alert alert-warning d-none mb-3 small">
+            <i class="fas fa-exclamation-triangle mr-1"></i>
+            <strong>Perhatian:</strong> Masih ada soal yang belum dijawab atau bertanda ragu-ragu.
+          </div>
+
+          <p class="text-muted small mb-0">
+            Apakah Anda yakin ingin menyelesaikan dan mengumpulkan ujian ini sekarang? Setelah dikumpulkan, Anda tidak dapat mengubah jawaban lagi.
+          </p>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary font-weight-bold" data-dismiss="modal">
+            <i class="fas fa-undo mr-1"></i> Cek Lagi
+          </button>
+          <button type="button" class="btn btn-success font-weight-bold" id="btnSubmitFinal">
+            <i class="fas fa-check mr-1"></i> Ya, Kumpulkan Jawaban
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Lightbox / Zoom Gambar Soal -->
+  <div class="modal fade" id="imageLightboxModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+      <div class="modal-content shadow-lg border-0 bg-dark text-white">
+        <div class="modal-header border-0 py-2">
+          <h6 class="modal-title font-weight-bold" id="lightboxModalTitle"><i class="fas fa-image mr-2"></i>Foto Soal</h6>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Tutup">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body text-center p-2 bg-dark">
+          <img id="lightboxModalImage" src="" class="img-fluid rounded border" style="max-height: 75vh; object-fit: contain; background: #fff;" alt="Zoom Gambar">
+        </div>
+        <div class="modal-footer border-0 py-2 justify-content-between">
+          <a id="lightboxOriginalLink" href="#" target="_blank" class="btn btn-sm btn-outline-light"><i class="fas fa-external-link-alt mr-1"></i>Buka di Tab Baru</a>
+          <button type="button" class="btn btn-sm btn-light font-weight-bold" data-dismiss="modal">Tutup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Vendor Scripts -->
+  <script src="../../assets/vendor/jquery/jquery.min.js"></script>
+  <script src="../../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+  <script src="../../assets/vendor/jquery-easing/jquery.easing.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="../../supabase-config.js"></script>
+
+  <!-- CBT Application Script -->
   <script>
+    let client = null;
+    let activeExam = null;
+    let questionsList = [];
+    let currentIndex = 0;
+    let studentAnswers = {};
+    let examTimerInterval = null;
+    let currentStudentNis = "";
+
     function getSupabaseClient() {
       if (!window.SUPABASE_CONFIG?.url || !window.SUPABASE_CONFIG?.anonKey) {
-        throw new Error("Supabase config belum diisi.");
+        throw new Error("Supabase config belum diisi di supabase-config.js.");
       }
       if (!window.supabase?.createClient) {
-        throw new Error("Supabase library gagal dimuat.");
+        throw new Error("Library Supabase belum dimuat.");
       }
-      return window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+      if (!client) {
+        client = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+      }
+      return client;
     }
 
     function ensureStudentSession() {
-      const status = document.getElementById("supabaseStatus");
       const nis = sessionStorage.getItem("ypn_student_nis");
-
       if (!nis) {
-        status.textContent = "Sesi siswa belum aktif. Silakan login dengan NIS terlebih dahulu.";
-        status.classList.add("text-danger");
+        window.location.replace("../login.html");
         return null;
       }
-
-      const studentName = document.getElementById("studentName");
-      if (studentName) {
-        studentName.textContent = `NIS ${nis}`;
-        studentName.classList.remove("d-none");
+      currentStudentNis = nis;
+      const studentLabel = document.getElementById("studentName");
+      if (studentLabel) {
+        studentLabel.textContent = `NIS: ${nis}`;
       }
-
       return nis;
     }
 
-    async function loadActiveExam() {
-      const status = document.getElementById("examStatus");
-      const container = document.getElementById("examContainer");
-      const client = getSupabaseClient();
+    function getStorageKeyAnswers(examId) {
+      return `ypn_cbt_answers_${examId}_${currentStudentNis}`;
+    }
+
+    function getStorageKeyTimer(examId) {
+      return `ypn_cbt_timer_${examId}_${currentStudentNis}`;
+    }
+
+    function loadSavedAnswers(examId) {
+      try {
+        const raw = localStorage.getItem(getStorageKeyAnswers(examId));
+        return raw ? JSON.parse(raw) : {};
+      } catch (_) {
+        return {};
+      }
+    }
+
+    function persistAnswers() {
+      if (!activeExam) return;
+      try {
+        localStorage.setItem(getStorageKeyAnswers(activeExam.id), JSON.stringify(studentAnswers));
+      } catch (_) {}
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
+      })[character]);
+    }
+
+    function getQuestionImages(question) {
+      if (!question) return [];
+      if (Array.isArray(question.gambar_urls) && question.gambar_urls.length > 0) {
+        return question.gambar_urls.filter(Boolean);
+      }
+      if (typeof question.gambar_urls === "string" && question.gambar_urls.trim()) {
+        try {
+          const parsed = JSON.parse(question.gambar_urls);
+          if (Array.isArray(parsed)) return parsed.filter(Boolean);
+        } catch (_) {}
+        return question.gambar_urls.split(/[\r\n,]+/).map(s => s.trim()).filter(Boolean);
+      }
+      if (question.gambar_url) {
+        return question.gambar_url.split(/[\r\n,]+/).map(s => s.trim()).filter(Boolean);
+      }
+      return [];
+    }
+
+    function showView(viewId) {
+      ["loadingView", "messageView", "completedView", "examMainView"].forEach((id) => {
+        document.getElementById(id).classList.toggle("d-none", id !== viewId);
+      });
+    }
+
+    function showMessage(title, text) {
+      document.getElementById("messageTitle").textContent = title;
+      document.getElementById("messageBody").textContent = text;
+      showView("messageView");
+    }
+
+    function formatTime(totalSeconds) {
+      if (totalSeconds < 0) totalSeconds = 0;
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      return [
+        String(hours).padStart(2, "0"),
+        String(minutes).padStart(2, "0"),
+        String(seconds).padStart(2, "0"),
+      ].join(":");
+    }
+
+    function initExamTimer(exam) {
+      const timerBadge = document.getElementById("examTimerBadge");
+      const countdownText = document.getElementById("timerCountdown");
+      document.getElementById("timerContainer").classList.remove("d-none");
+
+      const totalDurationSec = (exam.waktu_menit || 60) * 60;
+      const timerKey = getStorageKeyTimer(exam.id);
+      let startTime = null;
 
       try {
-        const nis = ensureStudentSession();
-        if (!nis) {
-          container.innerHTML = '<div class="alert alert-warning mb-0">Login siswa belum aktif.</div>';
+        const savedStart = localStorage.getItem(timerKey);
+        if (savedStart) {
+          startTime = Number(savedStart);
+        } else {
+          startTime = Date.now();
+          localStorage.setItem(timerKey, String(startTime));
+        }
+      } catch (_) {
+        startTime = Date.now();
+      }
+
+      function updateTimer() {
+        const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+        const remainingSec = totalDurationSec - elapsedSec;
+
+        if (remainingSec <= 0) {
+          countdownText.textContent = "00:00:00";
+          timerBadge.className = "badge badge-danger cbt-timer-badge shadow-sm";
+          clearInterval(examTimerInterval);
+          alert("Waktu ujian telah habis! Jawaban Anda akan otomatis dikumpulkan.");
+          submitExamAction(true);
           return;
         }
 
-        const { data: nisExists, error: siswaError } = await client
+        countdownText.textContent = formatTime(remainingSec);
+
+        if (remainingSec <= 300) {
+          timerBadge.className = "badge badge-danger cbt-timer-badge shadow-sm";
+        } else if (remainingSec <= 600) {
+          timerBadge.className = "badge badge-warning cbt-timer-badge shadow-sm";
+        }
+      }
+
+      updateTimer();
+      examTimerInterval = setInterval(updateTimer, 1000);
+    }
+
+    // Render Grid Nomor Soal di dalam Modal
+    function renderGridButtons() {
+      const container = document.getElementById("cbtGridButtonsModal");
+      if (!container) return;
+      container.replaceChildren();
+
+      questionsList.forEach((question, index) => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "cbt-grid-btn";
+        btn.dataset.questionIndex = String(index);
+        btn.textContent = String(index + 1);
+
+        const ans = studentAnswers[question.id];
+        const hasAnswer = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
+        const isDoubt = ans && Boolean(ans.doubt);
+
+        if (isDoubt) {
+          btn.classList.add("doubt");
+        } else if (hasAnswer) {
+          btn.classList.add("answered");
+        }
+
+        if (index === currentIndex) {
+          btn.classList.add("current");
+        }
+
+        btn.addEventListener("click", () => {
+          goToQuestion(index);
+          $("#navigasiSoalModal").modal("hide");
+        });
+
+        container.appendChild(btn);
+      });
+
+      updateSummaryCounts();
+    }
+
+    // Update Counter Jawaban di Topbar dan Modal
+    function updateSummaryCounts() {
+      let answered = 0;
+      let doubt = 0;
+      let unanswered = 0;
+
+      questionsList.forEach((q) => {
+        const ans = studentAnswers[q.id];
+        const hasAns = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
+        const isDoubt = ans && Boolean(ans.doubt);
+
+        if (isDoubt) {
+          doubt++;
+        } else if (hasAns) {
+          answered++;
+        } else {
+          unanswered++;
+        }
+      });
+
+      const total = questionsList.length;
+      document.getElementById("topbarAnsweredBadge").textContent = `${answered + doubt}/${total}`;
+      document.getElementById("modalCountAnswered").textContent = String(answered);
+      document.getElementById("modalCountDoubt").textContent = String(doubt);
+      document.getElementById("modalCountUnanswered").textContent = String(unanswered);
+    }
+
+    // Tampilkan Soal Aktif (1 Soal per Halaman)
+    function renderCurrentQuestion() {
+      if (!questionsList.length) return;
+      const question = questionsList[currentIndex];
+      if (!question) return;
+
+      // Header Info Soal
+      document.getElementById("activeQuestionNumber").textContent = String(currentIndex + 1);
+      document.getElementById("activeQuestionType").textContent = question.soal_type === "pg" ? "Pilihan Ganda" : "Essay";
+
+      // Status Badge
+      const statusBadge = document.getElementById("activeQuestionStatusBadge");
+      const currentAns = studentAnswers[question.id] || { answer: "", doubt: false };
+      const hasAnswer = currentAns.answer && currentAns.answer.trim().length > 0;
+
+      if (currentAns.doubt) {
+        statusBadge.className = "badge badge-warning text-dark px-2 py-1 font-weight-bold";
+        statusBadge.textContent = "Ragu-Ragu";
+      } else if (hasAnswer) {
+        statusBadge.className = "badge badge-success px-2 py-1 font-weight-bold";
+        statusBadge.textContent = question.soal_type === "pg" ? `Dijawab: ${currentAns.answer}` : "Sudah Dijawab";
+      } else {
+        statusBadge.className = "badge badge-light border text-muted px-2 py-1";
+        statusBadge.textContent = "Belum Dijawab";
+      }
+
+      // Foto Soal (Mendukung 1 hingga 3 Foto sekaligus)
+      const imageBox = document.getElementById("questionImageBox");
+      const imagesList = document.getElementById("questionImagesList");
+      const urls = getQuestionImages(question);
+
+      if (urls.length > 0) {
+        imagesList.innerHTML = urls.map((url, idx) => {
+          const colClass = urls.length === 1 ? "col-12" : urls.length === 2 ? "col-md-6 mb-2" : "col-md-4 mb-2";
+          const labelHtml = urls.length > 1 ? `<span class="badge badge-primary position-absolute shadow-sm" style="top: 8px; left: 24px; z-index: 2;">Gambar ${idx + 1}</span>` : "";
+          return `
+            <div class="${colClass} position-relative text-center">
+              ${labelHtml}
+              <div class="p-2 border rounded bg-white shadow-sm h-100 d-flex align-items-center justify-content-center" style="min-height: 140px;">
+                <img src="${escapeHtml(url)}" 
+                     alt="Foto Soal ${idx + 1}" 
+                     class="cbt-question-image" 
+                     data-zoom-src="${escapeHtml(url)}" 
+                     data-zoom-title="Gambar ${idx + 1} - Soal No. ${currentIndex + 1}">
+              </div>
+            </div>
+          `;
+        }).join("");
+        imageBox.classList.remove("d-none");
+      } else {
+        imagesList.innerHTML = "";
+        imageBox.classList.add("d-none");
+      }
+
+      // Teks pertanyaan
+      document.getElementById("questionText").textContent = question.pertanyaan;
+
+      // Render Pilihan Ganda atau Essay
+      const optionsContainer = document.getElementById("optionsContainer");
+      const essayContainer = document.getElementById("essayContainer");
+
+      if (question.soal_type === "pg") {
+        optionsContainer.classList.remove("d-none");
+        essayContainer.classList.add("d-none");
+
+        document.getElementById("textOptionA").textContent = question.pilihan_a || "";
+        document.getElementById("textOptionB").textContent = question.pilihan_b || "";
+        document.getElementById("textOptionC").textContent = question.pilihan_c || "";
+        document.getElementById("textOptionD").textContent = question.pilihan_d || "";
+
+        document.querySelectorAll(".cbt-option").forEach((opt) => {
+          const optVal = opt.dataset.option;
+          opt.classList.toggle("selected", currentAns.answer === optVal);
+        });
+      } else {
+        optionsContainer.classList.add("d-none");
+        essayContainer.classList.remove("d-none");
+
+        const essayInput = document.getElementById("essayAnswerInput");
+        essayInput.value = currentAns.answer || "";
+      }
+
+      // Tombol Ragu-Ragu
+      const btnDoubt = document.getElementById("btnDoubtQuestion");
+      const doubtText = document.getElementById("btnDoubtText");
+      if (currentAns.doubt) {
+        btnDoubt.className = "btn btn-warning px-3 font-weight-bold";
+        doubtText.textContent = "Tandai Yakin";
+      } else {
+        btnDoubt.className = "btn btn-outline-warning px-3";
+        doubtText.textContent = "Ragu-Ragu";
+      }
+
+      // Tombol Sebelumnya
+      const btnPrev = document.getElementById("btnPrevQuestion");
+      btnPrev.disabled = currentIndex === 0;
+
+      // Tombol Berikutnya & Selesai
+      const btnNext = document.getElementById("btnNextQuestion");
+      const btnFinishInline = document.getElementById("btnFinishExamInline");
+      const isLastQuestion = currentIndex === questionsList.length - 1;
+
+      if (isLastQuestion) {
+        btnNext.classList.add("d-none");
+        btnFinishInline.classList.remove("d-none");
+      } else {
+        btnNext.classList.remove("d-none");
+        btnFinishInline.classList.add("d-none");
+      }
+
+      // Update highlight tombol aktif di modal
+      document.querySelectorAll(".cbt-grid-btn").forEach((btn, idx) => {
+        btn.classList.toggle("current", idx === currentIndex);
+      });
+    }
+
+    function goToQuestion(index) {
+      if (index < 0 || index >= questionsList.length) return;
+      currentIndex = index;
+      renderCurrentQuestion();
+    }
+
+    function selectOption(optionValue) {
+      const question = questionsList[currentIndex];
+      if (!question) return;
+
+      if (!studentAnswers[question.id]) {
+        studentAnswers[question.id] = { answer: "", doubt: false };
+      }
+
+      studentAnswers[question.id].answer = optionValue;
+      persistAnswers();
+      renderGridButtons();
+      renderCurrentQuestion();
+    }
+
+    function handleEssayInput(value) {
+      const question = questionsList[currentIndex];
+      if (!question) return;
+
+      if (!studentAnswers[question.id]) {
+        studentAnswers[question.id] = { answer: "", doubt: false };
+      }
+
+      studentAnswers[question.id].answer = value;
+      persistAnswers();
+      renderGridButtons();
+
+      const statusBadge = document.getElementById("activeQuestionStatusBadge");
+      if (value.trim().length > 0) {
+        if (!studentAnswers[question.id].doubt) {
+          statusBadge.className = "badge badge-success px-2 py-1 font-weight-bold";
+          statusBadge.textContent = "Sudah Dijawab";
+        }
+      } else if (!studentAnswers[question.id].doubt) {
+        statusBadge.className = "badge badge-light border text-muted px-2 py-1";
+        statusBadge.textContent = "Belum Dijawab";
+      }
+    }
+
+    function toggleDoubt() {
+      const question = questionsList[currentIndex];
+      if (!question) return;
+
+      if (!studentAnswers[question.id]) {
+        studentAnswers[question.id] = { answer: "", doubt: false };
+      }
+
+      studentAnswers[question.id].doubt = !studentAnswers[question.id].doubt;
+      persistAnswers();
+      renderGridButtons();
+      renderCurrentQuestion();
+    }
+
+    function openSubmitModal() {
+      $("#navigasiSoalModal").modal("hide");
+
+      let answered = 0;
+      let doubt = 0;
+      let unanswered = 0;
+
+      questionsList.forEach((q) => {
+        const ans = studentAnswers[q.id];
+        const hasAns = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
+        const isDoubt = ans && Boolean(ans.doubt);
+
+        if (isDoubt) {
+          doubt++;
+        } else if (hasAns) {
+          answered++;
+        } else {
+          unanswered++;
+        }
+      });
+
+      document.getElementById("summaryAnswered").textContent = String(answered);
+      document.getElementById("summaryDoubt").textContent = String(doubt);
+      document.getElementById("summaryUnanswered").textContent = String(unanswered);
+
+      const warningAlert = document.getElementById("modalWarningAlert");
+      if (unanswered > 0 || doubt > 0) {
+        warningAlert.classList.remove("d-none");
+      } else {
+        warningAlert.classList.add("d-none");
+      }
+
+      $("#confirmSubmitModal").modal("show");
+    }
+
+    async function submitExamAction(isAuto = false) {
+      $("#confirmSubmitModal").modal("hide");
+      clearInterval(examTimerInterval);
+
+      const submitBtn = document.getElementById("btnSubmitFinal");
+      if (submitBtn) submitBtn.disabled = true;
+
+      try {
+        const payload = questionsList.map((q) => ({
+          soal_id: q.id,
+          answer: studentAnswers[q.id]?.answer || "",
+        }));
+
+        let submissionResult = null;
+
+        try {
+          const { data, error } = await getSupabaseClient()
+            .rpc("submit_student_exam", {
+              p_nis: currentStudentNis,
+              p_ujian_id: activeExam.id,
+              p_answers: payload,
+            });
+
+          if (!error && data?.success) {
+            submissionResult = data;
+          }
+        } catch (rpcErr) {
+          console.warn("RPC submit_student_exam error/fallback:", rpcErr);
+        }
+
+        try {
+          localStorage.setItem(`ypn_cbt_completed_${activeExam.id}_${currentStudentNis}`, "true");
+          localStorage.removeItem(getStorageKeyTimer(activeExam.id));
+        } catch (_) {}
+
+        const scoreBox = document.getElementById("completedScoreBox");
+        if (submissionResult?.nilai_pg !== undefined && submissionResult.total_pg > 0) {
+          scoreBox.classList.remove("d-none");
+          document.getElementById("completedScoreText").textContent = `${submissionResult.nilai_pg} (Benar ${submissionResult.pg_benar} dari ${submissionResult.total_pg} soal PG)`;
+        } else {
+          scoreBox.classList.add("d-none");
+        }
+
+        showView("completedView");
+      } catch (err) {
+        console.error("Gagal submit:", err);
+        showView("completedView");
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    }
+
+    async function initExam() {
+      showView("loadingView");
+
+      try {
+        const nis = ensureStudentSession();
+        if (!nis) return;
+
+        const supabase = getSupabaseClient();
+
+        const { data: nisExists, error: nisErr } = await supabase
           .rpc("student_nis_exists", { p_nis: nis });
 
-        if (siswaError) throw siswaError;
-
+        if (nisErr) throw nisErr;
         if (nisExists !== true) {
-          container.innerHTML = '<div class="alert alert-danger mb-0">NIS tidak ditemukan di data siswa.</div>';
-          status.textContent = "NIS tidak valid.";
+          showMessage("Akses Ditolak", "NIS Anda tidak terdaftar dalam data siswa sekolah.");
           return;
         }
 
         const selectedExamId = new URLSearchParams(window.location.search).get("id");
         if (!selectedExamId) {
-          container.innerHTML = '<div class="alert alert-info mb-0">Pilih ujian terlebih dahulu dari halaman siswa.</div><a class="btn btn-primary mt-3" href="../">Kembali ke daftar ujian</a>';
-          status.textContent = "Belum ada ujian yang dipilih.";
+          showMessage("Ujian Belum Dipilih", "Silakan pilih salah satu ujian dari dashboard siswa terlebih dahulu.");
           return;
         }
 
-        status.textContent = "Memuat ujian yang aktif...";
-        const now = new Date().toISOString();
+        const alreadyCompleted = localStorage.getItem(`ypn_cbt_completed_${selectedExamId}_${nis}`);
+        if (alreadyCompleted === "true") {
+          document.getElementById("completedSubtext").textContent = "Anda sudah pernah menyelesaikan dan mengumpulkan ujian ini sebelumnya.";
+          showView("completedView");
+          return;
+        }
 
-        const { data: examData, error: examError } = await client
+        const now = new Date().toISOString();
+        const { data: examData, error: examError } = await supabase
           .from("ujian")
           .select("*, data_pelajaran(nama_pelajaran)")
+          .eq("id", selectedExamId)
           .eq("aktif", true)
           .lte("dibuka_at", now)
           .gte("ditutup_at", now)
-          .eq("id", selectedExamId)
-          .order("created_at", { ascending: false });
+          .maybeSingle();
 
         if (examError) throw examError;
-
-        if (!examData || examData.length === 0) {
-          container.innerHTML = '<div class="alert alert-info mb-0">Ujian yang dipilih sudah tidak dibuka atau tidak tersedia.</div><a class="btn btn-primary mt-3" href="../">Kembali ke daftar ujian</a>';
-          status.textContent = "Ujian tidak tersedia saat ini.";
+        if (!examData) {
+          showMessage("Ujian Tidak Tersedia", "Ujian yang dipilih tidak ditemukan, belum dibuka, atau sudah melewati batas waktu.");
           return;
         }
 
-        const exam = examData[0];
-        const pelajaranNama = exam.data_pelajaran?.nama_pelajaran || "-";
+        activeExam = examData;
 
-        const { data: soalData, error: soalError } = await client
-          .from("soal_ujian")
-          .select("*")
-          .eq("ujian_id", exam.id)
-          .order("nomor_urut", { ascending: true });
+        // Ambil Daftar Soal (termasuk gambar_url dan gambar_urls)
+        let soalData = null;
+        try {
+          const { data, error } = await supabase
+            .from("soal_ujian")
+            .select("id, ujian_id, nomor_urut, soal_type, pertanyaan, pilihan_a, pilihan_b, pilihan_c, pilihan_d, gambar_url, gambar_urls")
+            .eq("ujian_id", activeExam.id)
+            .order("nomor_urut", { ascending: true });
+          if (error) throw error;
+          soalData = data;
+        } catch (_) {
+          const { data, error } = await supabase
+            .from("soal_ujian")
+            .select("id, ujian_id, nomor_urut, soal_type, pertanyaan, pilihan_a, pilihan_b, pilihan_c, pilihan_d, gambar_url")
+            .eq("ujian_id", activeExam.id)
+            .order("nomor_urut", { ascending: true });
+          if (error) throw error;
+          soalData = data;
+        }
 
-        if (soalError) throw soalError;
-
-        const soal = soalData || [];
-
-        let html = `
-          <div class="border rounded p-3 mb-4 bg-light">
-            <h4 class="mb-1">${exam.nama_ujian}</h4>
-            <div class="text-muted small">
-              Mata pelajaran: ${pelajaranNama} | Durasi: ${exam.waktu_menit} menit
-            </div>
-          </div>
-        `;
-
-        if (!soal.length) {
-          html += '<div class="alert alert-warning mb-0">Ujian aktif ditemukan, tetapi belum ada soal.</div>';
-          container.innerHTML = html;
-          status.textContent = "Ujian aktif ada, tapi belum ada soal.";
+        if (!soalData || !soalData.length) {
+          showMessage("Belum Ada Soal", "Ujian ini sedang aktif, tetapi belum ada butir soal yang diunggah oleh guru.");
           return;
         }
 
-        for (const item of soal) {
-          if (item.soal_type === "pg") {
-            html += `
-              <div class="card border mb-4">
-                <div class="card-body">
-                  <div class="font-weight-bold mb-3">
-                    ${item.nomor_urut}. ${item.pertanyaan}
-                  </div>
+        questionsList = soalData;
 
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="soal_${item.id}" value="A" id="soal_${item.id}_A">
-                    <label class="form-check-label" for="soal_${item.id}_A">A. ${item.pilihan_a}</label>
-                  </div>
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="soal_${item.id}" value="B" id="soal_${item.id}_B">
-                    <label class="form-check-label" for="soal_${item.id}_B">B. ${item.pilihan_b}</label>
-                  </div>
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="soal_${item.id}" value="C" id="soal_${item.id}_C">
-                    <label class="form-check-label" for="soal_${item.id}_C">C. ${item.pilihan_c}</label>
-                  </div>
-                  <div class="form-check mb-2">
-                    <input class="form-check-input" type="radio" name="soal_${item.id}" value="D" id="soal_${item.id}_D">
-                    <label class="form-check-label" for="soal_${item.id}_D">D. ${item.pilihan_d}</label>
-                  </div>
-                </div>
-              </div>
-            `;
+        // Acak Soal jika setting acak_soal aktif
+        if (activeExam.acak_soal) {
+          const shuffleKey = `ypn_cbt_order_${activeExam.id}_${nis}`;
+          let savedOrder = null;
+          try {
+            const raw = localStorage.getItem(shuffleKey);
+            if (raw) savedOrder = JSON.parse(raw);
+          } catch (_) {}
+
+          if (savedOrder && Array.isArray(savedOrder) && savedOrder.length === questionsList.length) {
+            const mapById = new Map(questionsList.map((q) => [q.id, q]));
+            questionsList = savedOrder.map((id) => mapById.get(id)).filter(Boolean);
           } else {
-            html += `
-              <div class="card border mb-4">
-                <div class="card-body">
-                  <div class="font-weight-bold mb-3">${item.nomor_urut}. ${item.pertanyaan}</div>
-                  <textarea class="form-control" rows="5" placeholder="Jawaban essay ..."></textarea>
-                </div>
-              </div>
-            `;
+            for (let i = questionsList.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [questionsList[i], questionsList[j]] = [questionsList[j], questionsList[i]];
+            }
+            try {
+              localStorage.setItem(shuffleKey, JSON.stringify(questionsList.map((q) => q.id)));
+            } catch (_) {}
           }
         }
 
-        html += '<button class="btn btn-primary mt-3" type="button">Kumpulkan Jawaban</button>';
-        container.innerHTML = html;
-        status.textContent = "Ujian berhasil dimuat.";
-      } catch (error) {
-        console.error(error);
-        container.innerHTML = '<div class="alert alert-danger mb-0">' + (error.message || "Gagal memuat ujian.") + '</div>';
-        status.textContent = "Gagal memuat ujian.";
+        studentAnswers = loadSavedAnswers(activeExam.id);
+
+        const mapel = activeExam.data_pelajaran?.nama_pelajaran || "Umum";
+        document.getElementById("examBadgeSubject").textContent = mapel;
+        document.getElementById("examTitle").textContent = activeExam.nama_ujian;
+        document.getElementById("examSubjectInfo").textContent = mapel;
+        document.getElementById("examDurationInfo").textContent = `${activeExam.waktu_menit} Menit`;
+        document.getElementById("examTotalQuestionsInfo").textContent = `${questionsList.length} Soal`;
+
+        initExamTimer(activeExam);
+        renderGridButtons();
+        renderCurrentQuestion();
+
+        showView("examMainView");
+      } catch (err) {
+        console.error(err);
+        showMessage("Terjadi Kesalahan", err.message || "Gagal memuat ujian.");
       }
     }
 
-    loadActiveExam();
+    document.addEventListener("DOMContentLoaded", () => {
+      initExam();
+
+      document.querySelectorAll(".cbt-option").forEach((opt) => {
+        opt.addEventListener("click", () => {
+          selectOption(opt.dataset.option);
+        });
+      });
+
+      const essayInput = document.getElementById("essayAnswerInput");
+      essayInput.addEventListener("input", (e) => {
+        handleEssayInput(e.target.value);
+      });
+
+      document.getElementById("btnPrevQuestion").addEventListener("click", () => {
+        goToQuestion(currentIndex - 1);
+      });
+
+      document.getElementById("btnNextQuestion").addEventListener("click", () => {
+        goToQuestion(currentIndex + 1);
+      });
+
+      document.getElementById("btnDoubtQuestion").addEventListener("click", toggleDoubt);
+
+      document.getElementById("btnFinishExamInline").addEventListener("click", openSubmitModal);
+      document.getElementById("btnFinishFromModal").addEventListener("click", openSubmitModal);
+      document.getElementById("btnSubmitFinal").addEventListener("click", () => submitExamAction(false));
+
+      // Lightbox modal saat gambar soal diklik
+      document.getElementById("questionImagesList").addEventListener("click", (e) => {
+        const img = e.target.closest("img.cbt-question-image");
+        if (!img) return;
+        const src = img.dataset.zoomSrc || img.src;
+        const title = img.dataset.zoomTitle || "Foto Soal";
+        document.getElementById("lightboxModalTitle").textContent = title;
+        document.getElementById("lightboxModalImage").src = src;
+        document.getElementById("lightboxOriginalLink").href = src;
+        $("#imageLightboxModal").modal("show");
+      });
+
+      const questionArea = document.getElementById("questionBodyArea");
+      const btnFontSm = document.getElementById("btnFontSm");
+      const btnFontMd = document.getElementById("btnFontMd");
+      const btnFontLg = document.getElementById("btnFontLg");
+
+      btnFontSm.addEventListener("click", () => {
+        questionArea.className = "card-body cbt-question-body p-4 cbt-font-sm";
+        btnFontSm.classList.add("active");
+        btnFontMd.classList.remove("active");
+        btnFontLg.classList.remove("active");
+      });
+
+      btnFontMd.addEventListener("click", () => {
+        questionArea.className = "card-body cbt-question-body p-4 cbt-font-md";
+        btnFontSm.classList.remove("active");
+        btnFontMd.classList.add("active");
+        btnFontLg.classList.remove("active");
+      });
+
+      btnFontLg.addEventListener("click", () => {
+        questionArea.className = "card-body cbt-question-body p-4 cbt-font-lg";
+        btnFontSm.classList.remove("active");
+        btnFontMd.classList.remove("active");
+        btnFontLg.classList.add("active");
+      });
+    });
   </script>
 </body>
 </html>

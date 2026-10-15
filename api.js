@@ -1,7 +1,7 @@
 const SUPABASE_STORAGE_BUCKET = "student-photos";
 const RESOURCE_FIELDS = {
   siswa: ["nis", "nama", "no_wa"],
-  guru: ["nip", "nama"],
+  guru: ["nip", "nama", "pelajaran_id"],
   kelas: ["jenjang", "nama_kelas"],
   pelajaran: ["nama_pelajaran"],
   tahun: ["tahun_ajaran"],
@@ -69,6 +69,9 @@ function formPayload(resource, input) {
       values[field] = String(value).trim();
     }
   });
+  if (resource === "guru") {
+    values.pelajaran_id = values.pelajaran_id && !isNaN(values.pelajaran_id) ? Number(values.pelajaran_id) : null;
+  }
   return values;
 }
 
@@ -197,6 +200,26 @@ async function apiGet(path) {
       .order("nama_kelas", { ascending: true });
     if (error) throwSupabaseError(error);
     return { data };
+  }
+
+  if (resource === "guru") {
+    let { data, error } = await getSupabaseClient()
+      .from("data_guru")
+      .select("id, nip, nama, pelajaran_id, data_pelajaran(id, nama_pelajaran)")
+      .order("id", { ascending: true });
+    if (error) {
+      const fallback = await getSupabaseClient()
+        .from("data_guru")
+        .select("*")
+        .order("id", { ascending: true });
+      if (fallback.error) throwSupabaseError(fallback.error);
+      data = fallback.data;
+    }
+    const records = (data || []).map((guru) => ({
+      ...guru,
+      nama_pelajaran: guru.data_pelajaran?.nama_pelajaran || "-",
+    }));
+    return { data: records };
   }
 
   const { data, error } = await getSupabaseClient()
@@ -570,11 +593,12 @@ async function apiImportStudentsToClass(classId, rows) {
   if (classError) throwSupabaseError(classError);
   if (!classRecord) throw new Error("Kelas tidak ditemukan. Tambahkan kelas dulu.");
 
+  const waAliases = ["wa", "no wa", "nomor wa", "no. wa", "no.wa", "no_wa", "telepon", "no hp", "no. hp", "no.hp", "no_hp", "whatsapp", "wa_ortu", "no_wa_ortu", "nomor wa orang tua", "nomor whatsapp", "hp"];
   const normalizedRows = rows.map((row, index) => {
     const normalized = {};
     Object.entries(row).forEach(([key, value]) => {
       const cleanKey = key.trim().toLowerCase();
-      if (["wa", "no wa", "nomor wa", "no_wa", "telepon", "no hp", "no_hp", "whatsapp"].includes(cleanKey)) {
+      if (waAliases.includes(cleanKey)) {
         normalized["no_wa"] = String(value ?? "").trim();
       } else {
         normalized[cleanKey] = String(value ?? "").trim();
@@ -697,6 +721,11 @@ async function apiDelete(path) {
       .select("photo_path").eq("id", id).single();
     if (error) throwSupabaseError(error);
     photoPath = data.photo_path;
+
+    // Bersihkan relasi kelas tahun ajaran siswa jika ada
+    try {
+      await client.from("siswa_kelas_tahun_ajaran").delete().eq("siswa_id", id);
+    } catch (_) {}
   }
 
   const { error } = await client.from(resourceTable(resource)).delete().eq("id", id);
@@ -710,6 +739,10 @@ async function apiBulkDeleteStudents(ids) {
   if (!studentIds.length) throw new Error("Pilih setidaknya satu siswa.");
 
   const client = getSupabaseClient();
+  try {
+    await client.from("siswa_kelas_tahun_ajaran").delete().in("siswa_id", studentIds);
+  } catch (_) {}
+
   const { data, error } = await client.from("data_siswa")
     .delete().in("id", studentIds).select("id, photo_path");
   if (error) throwSupabaseError(error);
@@ -741,17 +774,40 @@ async function apiImport(resource, rows) {
   const requiredFields = REQUIRED_FIELDS[resource] || fields;
   const uniqueField = { siswa: "nis", guru: "nip" }[resource];
   const client = getSupabaseClient();
+  const waAliases = ["wa", "no wa", "nomor wa", "no. wa", "no.wa", "no_wa", "telepon", "no hp", "no. hp", "no.hp", "no_hp", "whatsapp", "wa_ortu", "no_wa_ortu", "nomor wa orang tua", "nomor whatsapp", "hp"];
+  const mapelAliases = ["mapel", "pelajaran", "mata pelajaran", "mata_pelajaran", "nama_pelajaran", "pelajaran_id"];
+
+  let pelajaranMap = new Map();
+  if (resource === "guru") {
+    try {
+      const { data: listPelajaran } = await client.from("data_pelajaran").select("id, nama_pelajaran");
+      (listPelajaran || []).forEach((p) => {
+        pelajaranMap.set(String(p.id), p.id);
+        pelajaranMap.set(p.nama_pelajaran.trim().toLowerCase(), p.id);
+      });
+    } catch (_) {}
+  }
+
   const normalizedRows = rows.map((row) => {
     const normalized = {};
     Object.entries(row).forEach(([key, value]) => {
       const cleanKey = key.trim().toLowerCase();
-      if (["wa", "no wa", "nomor wa", "no_wa", "telepon", "no hp", "no_hp", "whatsapp"].includes(cleanKey)) {
+      if (waAliases.includes(cleanKey)) {
         normalized["no_wa"] = String(value ?? "").trim();
+      } else if (mapelAliases.includes(cleanKey)) {
+        const valStr = String(value ?? "").trim();
+        normalized["pelajaran_id"] = pelajaranMap.get(valStr.toLowerCase()) || (Number(valStr) ? Number(valStr) : null);
       } else {
         normalized[cleanKey] = String(value ?? "").trim();
       }
     });
-    return Object.fromEntries(fields.map((field) => [field, normalized[field] || ""]));
+    return Object.fromEntries(fields.map((field) => {
+      const val = normalized[field];
+      if (field === "no_wa" || field === "pelajaran_id") {
+        return [field, val ? val : null];
+      }
+      return [field, val || ""];
+    }));
   }).filter((record) => requiredFields.some((field) => record[field]));
   const records = normalizedRows.map((record, index) => {
     if (requiredFields.some((field) => !record[field] || record[field].length > 255)) {
@@ -798,7 +854,7 @@ async function apiGetClassStudents(classId) {
 
   const studentIds = [...new Set(links.map((link) => link.siswa_id))];
   const { data, error: studentsError } = await client.from("data_siswa")
-    .select("id, nis, nama, photo_path").in("id", studentIds).order("nama", { ascending: true });
+    .select("id, nis, nama, no_wa, photo_path").in("id", studentIds).order("nama", { ascending: true });
   if (studentsError) throwSupabaseError(studentsError);
   return {
     data: data.map((student) => ({

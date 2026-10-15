@@ -401,6 +401,7 @@
                                             <th>No</th>
                                             <th>NIP</th>
                                             <th>Nama</th>
+                                            <th>Mata Pelajaran</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -680,6 +681,12 @@
                                                 <label for="nama">Nama</label>
                                                 <input type="text" name="nama" class="form-control" id="nama" required>
                                             </div>
+                                            <div class="form-group">
+                                                <label for="pelajaran_id">Mata Pelajaran</label>
+                                                <select name="pelajaran_id" class="form-control" id="pelajaran_id">
+                                                    <option value="">-- Pilih Mata Pelajaran (Opsional) --</option>
+                                                </select>
+                                            </div>
                                             <button type="submit" class="btn btn-primary">Tambah</button>
                                         </form>
                                     </div>
@@ -693,7 +700,7 @@
                                                 <div class="col-md-4">
                                                         <button type="submit" class="btn btn-success btn-block">Import</button>
                                                 </div>
-                                                <small class="form-text text-muted mt-3">teks jadi export template later</small>
+                                                <small class="form-text text-muted mt-3">Format kolom Excel: NIP, Nama, Mata Pelajaran (opsional)</small>
                                             </div>
                                         </form>
                                     </div>
@@ -721,6 +728,12 @@
                                     <div class="form-group">
                                         <label for="editNama">Nama</label>
                                         <input type="text" name="nama" class="form-control" id="editNama" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="editPelajaranId">Mata Pelajaran</label>
+                                        <select name="pelajaran_id" class="form-control" id="editPelajaranId">
+                                            <option value="">-- Pilih Mata Pelajaran (Opsional) --</option>
+                                        </select>
                                     </div>
                                     <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
                                 </form>
@@ -753,6 +766,7 @@
                         var id = button.getAttribute('data-id');
                         var nip = button.getAttribute('data-nip');
                         var nama = button.getAttribute('data-nama');
+                        var pelajaran_id = button.getAttribute('data-pelajaran-id');
 
                         // Set the form action URL
                         var form = document.getElementById('editGuruForm');
@@ -761,6 +775,8 @@
                         // Set the input values
                         document.getElementById('editNip').value = nip;
                         document.getElementById('editNama').value = nama;
+                        var sel = document.getElementById('editPelajaranId');
+                        if (sel) sel.value = pelajaran_id || '';
                     }
                     function hapusGuru(button) {
                         var id = button.getAttribute('data-id');

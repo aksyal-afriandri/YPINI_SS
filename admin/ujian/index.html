@@ -317,7 +317,8 @@
 							</div>
 							<div class="d-flex flex-wrap align-items-center mt-2 mt-md-0">
 								<button id="downloadQuestionTemplate" class="btn btn-sm btn-outline-secondary mr-2" type="button" title="Unduh template Excel/CSV"><i class="fas fa-download mr-1"></i>Template</button>
-								<button id="importQuestionsButton" class="btn btn-sm btn-outline-primary mr-2" type="button"><i class="fas fa-file-import mr-1"></i>Import</button>
+								<button id="importQuestionsButton" class="btn btn-sm btn-outline-primary mr-2" type="button"><i class="fas fa-file-import mr-1"></i>Import Excel</button>
+								<button id="bulkUploadPhotosButton" class="btn btn-sm btn-outline-info mr-2" type="button" title="Upload foto-foto soal sekaligus secara massal"><i class="fas fa-images mr-1"></i>Upload Foto Massal</button>
 								<button id="newQuestionButton" class="btn btn-sm btn-primary" type="button"><i class="fas fa-plus mr-1"></i>Tambah soal</button>
 							</div>
 						</div>
@@ -325,7 +326,7 @@
 							<div id="questionsMessage" class="small text-muted mb-3"></div>
 							<div class="table-responsive">
 								<table class="table table-hover" id="questionTable">
-									<thead><tr><th>No.</th><th>Tipe</th><th>Soal</th><th>Aksi</th></tr></thead>
+									<thead><tr><th>No.</th><th>Tipe</th><th>Gambar</th><th>Soal</th><th>Aksi</th></tr></thead>
 									<tbody></tbody>
 								</table>
 							</div>
@@ -376,6 +377,36 @@
 						<div class="form-group col-sm-4"><label for="questionNumber">Nomor urut</label><input id="questionNumber" name="nomor_urut" type="number" class="form-control" min="1" step="1" required></div>
 					</div>
 					<div class="form-group"><label for="questionText">Pertanyaan</label><textarea id="questionText" name="pertanyaan" class="form-control" rows="3" required></textarea></div>
+					
+					<!-- Pengaturan Foto Soal (Bisa 1 s/d 3 Foto) -->
+					<div class="form-group">
+						<div class="d-flex justify-content-between align-items-center mb-1">
+							<label class="font-weight-bold mb-0">
+								<i class="fas fa-images mr-1 text-primary"></i> Foto Soal (Opsional, bisa 1 - 3 foto)
+							</label>
+							<span class="badge badge-secondary" id="questionPhotoCountBadge">0 foto terpilih</span>
+						</div>
+						<div class="custom-file mb-2">
+							<input type="file" class="custom-file-input" id="questionImageFiles" accept="image/*" multiple>
+							<label class="custom-file-label" for="questionImageFiles" id="questionImageFilesLabel">Pilih file foto (Bisa pilih 1, 2, atau 3 foto)...</label>
+						</div>
+						<div class="input-group input-group-sm mb-2">
+							<div class="input-group-prepend">
+								<span class="input-group-text">Tambah via URL</span>
+							</div>
+							<input type="url" class="form-control" id="questionImageUrlInput" placeholder="https://contoh.com/gambar.png (Tekan tombol +)">
+							<div class="input-group-append">
+								<button class="btn btn-outline-primary" type="button" id="btnAddQuestionUrl" title="Tambahkan URL ke daftar foto"><i class="fas fa-plus"></i></button>
+							</div>
+						</div>
+						<small class="form-text text-muted mb-2">
+							Tips: 1 soal bisa memiliki hingga 3 foto (misal: gambar ilustrasi, tabel, atau denah). Foto yang dipilih akan langsung ditampilkan di bawah.
+						</small>
+						<div id="questionImagesPreviewWrapper" class="d-none p-2 border rounded bg-light">
+							<div class="d-flex flex-wrap" id="questionImagesPreviewList" style="gap: 10px;"></div>
+						</div>
+					</div>
+
 					<div id="multipleChoiceFields">
 						<div class="form-row">
 							<div class="form-group col-md-6"><label for="choiceA">Pilihan A</label><input id="choiceA" name="pilihan_a" class="form-control"></div>
@@ -392,6 +423,111 @@
 				<div class="modal-footer"><button class="btn btn-light" type="button" data-dismiss="modal">Batal</button><button id="saveQuestionButton" class="btn btn-primary" type="submit">Simpan soal</button></div>
 			</form>
 		</div></div>
+	</div>
+
+	<!-- Modal Upload Foto Soal Massal -->
+	<div class="modal fade" id="bulkUploadPhotosModal" tabindex="-1" role="dialog" aria-labelledby="bulkUploadPhotosTitle" aria-hidden="true">
+		<div class="modal-dialog modal-xl" role="document">
+			<div class="modal-content shadow-lg border-0">
+				<div class="modal-header bg-info text-white">
+					<h5 class="modal-title font-weight-bold" id="bulkUploadPhotosTitle">
+						<i class="fas fa-images mr-2"></i>Upload Foto Soal Massal
+					</h5>
+					<button class="close text-white" type="button" data-dismiss="modal" aria-label="Tutup">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body p-4">
+					<!-- Panduan Penamaan File -->
+					<div class="alert alert-light border shadow-sm mb-4">
+						<h6 class="font-weight-bold text-primary mb-2">
+							<i class="fas fa-info-circle mr-1"></i>Panduan Penamaan File Foto (Sangat Mudah & Otomatis):
+						</h6>
+						<div class="row small">
+							<div class="col-md-6 mb-2">
+								<div class="p-2 border rounded bg-white h-100">
+									<strong class="text-dark"><i class="fas fa-magic mr-1 text-info"></i>Cara 1: Otomatis dari Nomor Soal</strong>
+									<ul class="pl-3 mt-1 mb-0 text-muted">
+										<li><strong>1 Foto per Soal:</strong> Beri nama file <code>1.jpg</code>, <code>2.png</code>, atau <code>soal_1.jpg</code>.</li>
+										<li><strong>2 atau 3 Foto per Soal:</strong> Beri nama <code>1_1.jpg</code>, <code>1_2.jpg</code>, <code>1_3.jpg</code> (atau <code>soal1_1.png</code>, <code>soal1_2.png</code>).</li>
+										<li><em>Sistem otomatis memasangkannya ke Soal Nomor 1, 2, dst.</em></li>
+									</ul>
+								</div>
+							</div>
+							<div class="col-md-6 mb-2">
+								<div class="p-2 border rounded bg-white h-100">
+									<strong class="text-dark"><i class="fas fa-file-excel mr-1 text-success"></i>Cara 2: Menggunakan Kolom Gambar di Excel</strong>
+									<ul class="pl-3 mt-1 mb-0 text-muted">
+										<li>Di template Excel kolom <code>gambar</code>, tuliskan nama filenya, misal: <code>peta_dunia.png</code>.</li>
+										<li>Jika 2-3 foto di 1 soal, pisahkan koma: <code>diagram_sel.png, grafik.jpg</code>.</li>
+										<li><em>Unggah file dengan nama yang sama, sistem langsung mencocokkannya ke baris soal itu.</em></li>
+									</ul>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Area Pilih File / Drag & Drop -->
+					<div class="card p-4 text-center bg-light mb-3" style="border: 2px dashed #4e73df; cursor: pointer; border-radius: 10px;" id="bulkDropZone">
+						<i class="fas fa-cloud-upload-alt fa-3x text-primary mb-2"></i>
+						<h5 class="font-weight-bold text-gray-800 mb-1">Klik di sini atau Tarik & Lepas Foto-Foto Soal</h5>
+						<p class="small text-muted mb-3">Format yang didukung: JPG, JPEG, PNG, WebP, GIF. Anda bisa memilih puluhan foto sekaligus!</p>
+						<input type="file" id="bulkPhotosInput" multiple accept="image/*" class="d-none">
+						<div>
+							<button type="button" class="btn btn-primary px-4 shadow-sm" onclick="document.getElementById('bulkPhotosInput').click()">
+								<i class="fas fa-folder-open mr-1"></i>Pilih Foto dari Komputer
+							</button>
+						</div>
+					</div>
+
+					<div id="bulkUploadAlert" class="alert alert-danger d-none" role="alert"></div>
+
+					<!-- Pratinjau Pencocokan File -->
+					<div id="bulkPreviewSection" class="d-none">
+						<div class="d-flex justify-content-between align-items-center mb-2">
+							<span class="font-weight-bold text-dark">
+								<i class="fas fa-clipboard-check mr-1 text-success"></i>Pratinjau Hasil Pencocokan (<span id="bulkTotalFilesCount">0</span> foto terdeteksi)
+							</span>
+							<button type="button" class="btn btn-sm btn-outline-danger" id="btnClearBulkFiles">
+								<i class="fas fa-trash mr-1"></i>Hapus Semua Pilihan
+							</button>
+						</div>
+
+						<div class="table-responsive border rounded" style="max-height: 340px; overflow-y: auto;">
+							<table class="table table-sm table-hover mb-0">
+								<thead class="thead-light sticky-top">
+									<tr>
+										<th style="width: 60px;">Foto</th>
+										<th>Nama File</th>
+										<th>Ukuran</th>
+										<th>Target Soal Ujian</th>
+										<th>Status Pencocokan</th>
+									</tr>
+								</thead>
+								<tbody id="bulkPhotosPreviewTable"></tbody>
+							</table>
+						</div>
+
+						<!-- Progress Bar saat Mengunggah -->
+						<div id="bulkUploadProgressBarContainer" class="d-none mt-3">
+							<div class="d-flex justify-content-between small font-weight-bold mb-1">
+								<span id="bulkUploadStatusText" class="text-primary"><i class="fas fa-spinner fa-spin mr-1"></i>Mengunggah ke penyimpanan...</span>
+								<span id="bulkUploadPercentText" class="text-primary font-weight-bold">0%</span>
+							</div>
+							<div class="progress" style="height: 14px;">
+								<div id="bulkUploadProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer bg-light">
+					<button class="btn btn-secondary font-weight-bold" type="button" data-dismiss="modal">Tutup</button>
+					<button id="btnStartBulkUpload" class="btn btn-success font-weight-bold shadow-sm px-4" type="button" disabled>
+						<i class="fas fa-cloud-upload-alt mr-1"></i>Mulai Unggah & Pasangkan ke Soal
+					</button>
+				</div>
+			</div>
+		</div>
 	</div>
 
 	<div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-hidden="true"><div class="modal-dialog" role="document"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Keluar dari akun?</h5><button class="close" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button></div><div class="modal-body">Sesi admin akan diakhiri.</div><div class="modal-footer"><button class="btn btn-light" type="button" data-dismiss="modal">Batal</button><form id="logoutForm"><button class="btn btn-primary" type="submit">Keluar</button></form></div></div></div></div>
@@ -450,12 +586,22 @@
 		}
 
 		async function loadSubjects() {
-			const { data, error } = await client.from("data_pelajaran")
-				.select("id, nama_pelajaran").order("nama_pelajaran");
-			if (error) throw error;
-			subjects = data || [];
-			document.getElementById("examSubject").innerHTML = '<option value="">Pilih mata pelajaran</option>' +
-				subjects.map((subject) => `<option value="${subject.id}">${escapeHtml(subject.nama_pelajaran)}</option>`).join("");
+			try {
+				const { data, error } = await client.from("data_pelajaran")
+					.select("id, nama_pelajaran").order("nama_pelajaran");
+				if (error) throw error;
+				subjects = data || [];
+				const examSubject = document.getElementById("examSubject");
+				if (!subjects.length) {
+					examSubject.innerHTML = '<option value="">(Belum ada mata pelajaran - Tambahkan di menu Data Pelajaran)</option>';
+				} else {
+					examSubject.innerHTML = '<option value="">Pilih mata pelajaran</option>' +
+						subjects.map((subject) => `<option value="${subject.id}">${escapeHtml(subject.nama_pelajaran)}</option>`).join("");
+				}
+			} catch (err) {
+				console.warn("Gagal memuat data pelajaran:", err);
+				document.getElementById("examSubject").innerHTML = '<option value="">Gagal memuat data pelajaran</option>';
+			}
 		}
 
 		async function loadExams() {
@@ -502,6 +648,40 @@
 			document.getElementById("essayReferences").required = !isMultipleChoice;
 		}
 
+		let currentQuestionImages = [];
+
+		function renderQuestionImagesPreview() {
+			const listEl = document.getElementById("questionImagesPreviewList");
+			const wrapperEl = document.getElementById("questionImagesPreviewWrapper");
+			const countBadge = document.getElementById("questionPhotoCountBadge");
+			if (!listEl || !wrapperEl || !countBadge) return;
+			listEl.innerHTML = "";
+			
+			countBadge.textContent = `${currentQuestionImages.length} foto terpilih`;
+			if (currentQuestionImages.length === 0) {
+				wrapperEl.classList.add("d-none");
+				return;
+			}
+			wrapperEl.classList.remove("d-none");
+			
+			currentQuestionImages.forEach((item, index) => {
+				const card = document.createElement("div");
+				card.className = "position-relative border rounded p-1 bg-white text-center shadow-sm";
+				card.style.width = "105px";
+				card.innerHTML = `
+					<div class="position-relative">
+						<img src="${escapeHtml(item.url)}" alt="Foto ${index + 1}" style="width: 95px; height: 75px; object-fit: cover; border-radius: 4px;">
+						<button type="button" class="btn btn-danger btn-sm position-absolute" style="top: 2px; right: 2px; width: 22px; height: 22px; padding: 0; line-height: 1; border-radius: 50%; font-size: 11px;" title="Hapus foto ini" data-remove-img="${index}">
+							<i class="fas fa-times"></i>
+						</button>
+					</div>
+					<div class="small font-weight-bold text-dark mt-1" style="font-size: 11px;">Foto ${index + 1}</div>
+					<div class="badge badge-light border text-muted" style="font-size: 9px;">${item.type === 'file' ? 'File Baru' : 'Tersimpan'}</div>
+				`;
+				listEl.appendChild(card);
+			});
+		}
+
 		async function loadQuestions() {
 			if (!selectedExam) return;
 			document.getElementById("selectedExamLabel").textContent = selectedExam.nama_ujian;
@@ -514,25 +694,53 @@
 			document.getElementById("questionsMessage").textContent = questions.length
 				? `${questions.length} soal` : "Belum ada soal pada ujian ini.";
 			if (!questions.length) {
-				questionRows.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Tambahkan soal untuk ujian ini.</td></tr>';
+				questionRows.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Tambahkan soal untuk ujian ini.</td></tr>';
 				return;
 			}
-			questionRows.innerHTML = questions.map((question) => `<tr>
-				<td>${question.nomor_urut}</td>
-				<td>${question.soal_type === "pg" ? "Pilihan ganda" : "Essay"}</td>
-				<td>${escapeHtml(question.pertanyaan)}</td>
-				<td class="text-nowrap">
-					<button class="btn btn-sm btn-outline-secondary" data-question-action="edit" data-id="${question.id}" title="Edit soal"><i class="fas fa-edit"></i></button>
-					<button class="btn btn-sm btn-outline-danger" data-question-action="delete" data-id="${question.id}" title="Hapus soal"><i class="fas fa-trash"></i></button>
-				</td>
-			</tr>`).join("");
+			questionRows.innerHTML = questions.map((question) => {
+				let urls = [];
+				if (Array.isArray(question.gambar_urls) && question.gambar_urls.length > 0) {
+					urls = question.gambar_urls.filter(Boolean);
+				} else if (question.gambar_url) {
+					urls = question.gambar_url.split(/[\r\n,]+/).map(s => s.trim()).filter(Boolean);
+				}
+
+				let imgHtml = '<span class="text-muted small">-</span>';
+				if (urls.length > 0) {
+					imgHtml = `<div class="d-flex align-items-center" style="gap: 4px;">` +
+						urls.slice(0, 3).map((u, i) => `
+							<a href="${escapeHtml(u)}" target="_blank" title="Foto ${i+1}">
+								<img src="${escapeHtml(u)}" style="height: 36px; width: 36px; object-fit: cover; border-radius: 4px;" class="border shadow-sm" alt="Foto ${i+1}">
+							</a>
+						`).join("") +
+						(urls.length > 3 ? `<span class="badge badge-secondary small" title="${urls.length} foto">+${urls.length - 3}</span>` : '') +
+						(urls.length > 1 ? `<span class="badge badge-info small ml-1">${urls.length} foto</span>` : '') +
+						`</div>`;
+				}
+
+				return `<tr>
+					<td>${question.nomor_urut}</td>
+					<td>${question.soal_type === "pg" ? "Pilihan ganda" : "Essay"}</td>
+					<td>${imgHtml}</td>
+					<td>${escapeHtml(question.pertanyaan)}</td>
+					<td class="text-nowrap">
+						<button class="btn btn-sm btn-outline-secondary" data-question-action="edit" data-id="${question.id}" title="Edit soal"><i class="fas fa-edit"></i></button>
+						<button class="btn btn-sm btn-outline-danger" data-question-action="delete" data-id="${question.id}" title="Hapus soal"><i class="fas fa-trash"></i></button>
+					</td>
+				</tr>`;
+			}).join("");
 		}
 
 		function openNewExam() {
 			editingExamId = null;
 			examForm.reset();
 			document.getElementById("examModalTitle").textContent = "Buat ujian";
-			document.getElementById("examFormError").classList.add("d-none");
+			const errorBox = document.getElementById("examFormError");
+			errorBox.classList.add("d-none");
+			if (!subjects.length) {
+				errorBox.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> Data mata pelajaran masih kosong. Silakan tambahkan mata pelajaran terlebih dahulu di menu <strong>Data Pelajaran</strong> sebelum membuat jadwal ujian.';
+				errorBox.classList.remove("d-none");
+			}
 			const now = new Date();
 			const later = new Date(now.getTime() + 60 * 60 * 1000);
 			document.getElementById("examOpenAt").value = toLocalInput(now);
@@ -560,8 +768,13 @@
 		function openNewQuestion() {
 			editingQuestion = null;
 			questionForm.reset();
+			currentQuestionImages = [];
+			renderQuestionImagesPreview();
 			document.getElementById("questionModalTitle").textContent = "Tambah soal";
 			document.getElementById("questionFormError").classList.add("d-none");
+			document.getElementById("questionImageFiles").value = "";
+			document.getElementById("questionImageFilesLabel").textContent = "Pilih file foto (Bisa pilih 1, 2, atau 3 foto)...";
+			document.getElementById("questionImageUrlInput").value = "";
 			questionForm.elements.nomor_urut.value = String(examQuestions.length + 1);
 			setQuestionType("pg");
 			$("#questionModal").modal("show");
@@ -575,6 +788,23 @@
 			questionForm.reset();
 			document.getElementById("questionModalTitle").textContent = "Edit soal";
 			document.getElementById("questionFormError").classList.add("d-none");
+			document.getElementById("questionImageFiles").value = "";
+			document.getElementById("questionImageFilesLabel").textContent = "Pilih file foto (Bisa pilih 1, 2, atau 3 foto)...";
+			document.getElementById("questionImageUrlInput").value = "";
+
+			// Load existing photos
+			currentQuestionImages = [];
+			if (Array.isArray(question.gambar_urls) && question.gambar_urls.length > 0) {
+				question.gambar_urls.forEach(url => {
+					if (url && url.trim()) currentQuestionImages.push({ type: 'existing', url: url.trim() });
+				});
+			} else if (question.gambar_url) {
+				question.gambar_url.split(/[\r\n,]+/).forEach(url => {
+					if (url && url.trim()) currentQuestionImages.push({ type: 'existing', url: url.trim() });
+				});
+			}
+			renderQuestionImagesPreview();
+
 			questionForm.elements.nomor_urut.value = question.nomor_urut;
 			questionForm.elements.pertanyaan.value = question.pertanyaan;
 			questionForm.elements.soal_type.value = question.soal_type;
@@ -603,6 +833,14 @@
 			const errorBox = document.getElementById("examFormError");
 			const button = document.getElementById("saveExamButton");
 			errorBox.classList.add("d-none");
+
+			const subjectId = Number(form.elements.pelajaran_id.value);
+			if (!subjectId || isNaN(subjectId)) {
+				errorBox.textContent = "Silakan pilih mata pelajaran yang valid.";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
 			const openedAt = new Date(form.elements.dibuka_at.value);
 			const closedAt = new Date(form.elements.ditutup_at.value);
 			if (!(openedAt < closedAt)) {
@@ -610,11 +848,19 @@
 				errorBox.classList.remove("d-none");
 				return;
 			}
+
+			const duration = Number(form.elements.waktu_menit.value);
+			if (!duration || duration <= 0) {
+				errorBox.textContent = "Durasi ujian harus lebih dari 0 menit.";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
 			button.disabled = true;
 			const values = {
 				nama_ujian: form.elements.nama_ujian.value.trim(),
-				pelajaran_id: Number(form.elements.pelajaran_id.value),
-				waktu_menit: Number(form.elements.waktu_menit.value),
+				pelajaran_id: subjectId,
+				waktu_menit: duration,
 				dibuka_at: openedAt.toISOString(),
 				ditutup_at: closedAt.toISOString(),
 				acak_soal: form.elements.acak_soal.checked,
@@ -626,7 +872,12 @@
 					? client.from("ujian").update(values).eq("id", editingExamId)
 					: client.from("ujian").insert(values);
 				const { error } = await query;
-				if (error) throw error;
+				if (error) {
+					if (error.code === "42P01" || error.message.includes("does not exist")) {
+						throw new Error("Tabel 'ujian' belum dibuat di Supabase. Silakan jalankan skrip 'sql/supabase-complete-exam-system.sql' di SQL Editor Supabase.");
+					}
+					throw error;
+				}
 				$("#examModal").modal("hide");
 				showMessage(editingExamId ? "Pengaturan ujian diperbarui." : "Ujian berhasil dibuat.");
 				await loadExams();
@@ -646,6 +897,33 @@
 			errorBox.classList.add("d-none");
 			button.disabled = true;
 			const type = form.elements.soal_type.value;
+
+			// Handle uploading files in currentQuestionImages
+			const finalUrls = [];
+			try {
+				for (let i = 0; i < currentQuestionImages.length; i++) {
+					const item = currentQuestionImages[i];
+					if (item.type === 'file' && item.file) {
+						const cleanName = item.file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+						const path = `${selectedExam.id}/${Date.now()}_${i}_${cleanName}`;
+						const { data: uploadData, error: uploadError } = await client.storage
+							.from("exam-photos")
+							.upload(path, item.file, { upsert: true });
+						if (uploadError) throw uploadError;
+						const { data: pubData } = client.storage.from("exam-photos").getPublicUrl(path);
+						if (pubData?.publicUrl) finalUrls.push(pubData.publicUrl);
+					} else if (item.url) {
+						finalUrls.push(item.url);
+					}
+				}
+			} catch (uploadErr) {
+				console.warn("Upload gambar soal gagal:", uploadErr);
+				errorBox.textContent = "Gagal mengunggah foto soal: " + uploadErr.message;
+				errorBox.classList.remove("d-none");
+				button.disabled = false;
+				return;
+			}
+
 			const values = {
 				ujian_id: selectedExam.id,
 				nomor_urut: Number(form.elements.nomor_urut.value),
@@ -655,6 +933,8 @@
 				pilihan_b: type === "pg" ? form.elements.pilihan_b.value.trim() : null,
 				pilihan_c: type === "pg" ? form.elements.pilihan_c.value.trim() : null,
 				pilihan_d: type === "pg" ? form.elements.pilihan_d.value.trim() : null,
+				gambar_url: finalUrls[0] || null,
+				gambar_urls: finalUrls.length ? finalUrls : null,
 			};
 			const essayAnswers = type === "essay"
 				? form.elements.jawaban_acuan.value.split(/\r?\n/).map((answer) => answer.trim()).filter(Boolean)
@@ -666,12 +946,30 @@
 				return;
 			}
 			try {
-				const questionQuery = editingQuestion
-					? client.from("soal_ujian").update(values).eq("id", editingQuestion.id).select("id").single()
-					: client.from("soal_ujian").insert(values).select("id").single();
-				const { data, error } = await questionQuery;
-				if (error) throw error;
-				const questionId = data.id;
+				let questionId;
+				try {
+					const questionQuery = editingQuestion
+						? client.from("soal_ujian").update(values).eq("id", editingQuestion.id).select("id").single()
+						: client.from("soal_ujian").insert(values).select("id").single();
+					const { data, error } = await questionQuery;
+					if (error) throw error;
+					questionId = data.id;
+				} catch (dbErr) {
+					if (dbErr.message && dbErr.message.includes("gambar_urls")) {
+						// Fallback if column gambar_urls doesn't exist yet
+						const fallbackValues = { ...values };
+						fallbackValues.gambar_url = finalUrls.join(",");
+						delete fallbackValues.gambar_urls;
+						const retryQuery = editingQuestion
+							? client.from("soal_ujian").update(fallbackValues).eq("id", editingQuestion.id).select("id").single()
+							: client.from("soal_ujian").insert(fallbackValues).select("id").single();
+						const { data: retryData, error: retryError } = await retryQuery;
+						if (retryError) throw retryError;
+						questionId = retryData.id;
+					} else {
+						throw dbErr;
+					}
+				}
 
 				if (type === "pg") {
 					const { error: keyError } = await client.from("kunci_pg").upsert({
@@ -704,9 +1002,9 @@
 
 		function downloadQuestionTemplate() {
 			const rows = [
-				["nomor_urut", "soal_type", "pertanyaan", "pilihan_a", "pilihan_b", "pilihan_c", "pilihan_d", "jawaban_benar", "jawaban_acuan"],
-				[1, "pg", "Contoh pertanyaan pilihan ganda", "Pilihan A", "Pilihan B", "Pilihan C", "Pilihan D", "A", ""],
-				[2, "essay", "Contoh pertanyaan essay", "", "", "", "", "", "jawaban acuan pertama | variasi jawaban lain"],
+				["nomor_urut", "soal_type", "pertanyaan", "pilihan_a", "pilihan_b", "pilihan_c", "pilihan_d", "jawaban_benar", "jawaban_acuan", "gambar"],
+				[1, "pg", "Perhatikan gambar berikut! Apa nama organel yang ditunjuk?", "Mitokondria", "Ribosom", "Badan Golgi", "Retikulum Endoplasma", "A", "", "1_1.jpg, 1_2.jpg"],
+				[2, "essay", "Jelaskan proses siklus air berdasarkan diagram yang tertera!", "", "", "", "", "", "evaporasi | kondensasi | presipitasi", "siklus_air.png"],
 			];
 			const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\r\n");
 			const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
@@ -733,7 +1031,7 @@
 				const type = ["pg", "pilihan ganda"].includes(typeValue) ? "pg" : typeValue === "essay" ? "essay" : null;
 				if (!type) throw new Error(`Baris ${rowNumber}: soal_type harus pg atau essay.`);
 
-			const order = values.nomor_urut ? Number(values.nomor_urut) : nextNumber;
+				const order = values.nomor_urut ? Number(values.nomor_urut) : nextNumber;
 				if (!Number.isInteger(order) || order < 1) throw new Error(`Baris ${rowNumber}: nomor_urut harus bilangan bulat positif.`);
 				if (usedNumbers.has(order)) throw new Error(`Baris ${rowNumber}: nomor urut ${order} sudah digunakan pada ujian ini.`);
 				usedNumbers.add(order);
@@ -741,6 +1039,14 @@
 
 				const questionText = values.pertanyaan || "";
 				if (!questionText) throw new Error(`Baris ${rowNumber}: pertanyaan wajib diisi.`);
+
+				// Kolom gambar: bisa gambar, gambar_url, foto, gambar_urls
+				const rawImg = values.gambar || values.gambar_url || values.foto || values.gambar_urls || values.photos || "";
+				let parsedUrls = [];
+				if (rawImg) {
+					parsedUrls = rawImg.split(/[\r\n,|]+/).map(s => s.trim()).filter(Boolean);
+				}
+
 				const question = {
 					ujian_id: selectedExam.id,
 					nomor_urut: order,
@@ -750,6 +1056,8 @@
 					pilihan_b: type === "pg" ? values.pilihan_b : null,
 					pilihan_c: type === "pg" ? values.pilihan_c : null,
 					pilihan_d: type === "pg" ? values.pilihan_d : null,
+					gambar_url: parsedUrls.length ? parsedUrls[0] : null,
+					gambar_urls: parsedUrls.length ? parsedUrls : null,
 				};
 				let correctAnswer = null;
 				let references = [];
@@ -775,9 +1083,31 @@
 			const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: "", raw: false });
 			const prepared = prepareImportedQuestions(rows);
 
-			const { data: insertedQuestions, error } = await client.from("soal_ujian")
-				.insert(prepared.map((item) => item.question)).select("id, nomor_urut");
-			if (error) throw error;
+			let insertedQuestions = null;
+			try {
+				const { data, error } = await client.from("soal_ujian")
+					.insert(prepared.map((item) => item.question)).select("id, nomor_urut");
+				if (error) throw error;
+				insertedQuestions = data;
+			} catch (insertErr) {
+				if (insertErr.message && insertErr.message.includes("gambar_urls")) {
+					const fallbackPayload = prepared.map(item => {
+						const clone = { ...item.question };
+						if (clone.gambar_urls) {
+							clone.gambar_url = clone.gambar_urls.join(",");
+							delete clone.gambar_urls;
+						}
+						return clone;
+					});
+					const { data, error } = await client.from("soal_ujian")
+						.insert(fallbackPayload).select("id, nomor_urut");
+					if (error) throw error;
+					insertedQuestions = data;
+				} else {
+					throw insertErr;
+				}
+			}
+
 			const idByOrder = new Map(insertedQuestions.map((question) => [Number(question.nomor_urut), question.id]));
 			const keys = [];
 			const references = [];
@@ -805,6 +1135,238 @@
 			await loadQuestions();
 		}
 
+		// ==================== LOGIKA BULK UPLOAD FOTO MASSAL ====================
+		let bulkSelectedFiles = [];
+
+		function parseQuestionMatch(file) {
+			const fullName = file.name.trim();
+			const lowerName = fullName.toLowerCase();
+			const nameWithoutExt = fullName.replace(/\.[^/.]+$/, "").trim();
+
+			// 1. Cek apakah cocok dengan nama file di kolom Excel yang sudah diimpor
+			const excelMatch = examQuestions.find(q => {
+				const qImages = (q.gambar_url || "").split(/[\r\n,]+/).map(s => s.trim().toLowerCase());
+				let qUrls = [];
+				if (Array.isArray(q.gambar_urls)) {
+					qUrls = q.gambar_urls.map(s => String(s).trim().toLowerCase());
+				}
+				return qImages.includes(lowerName) || qImages.includes(nameWithoutExt.toLowerCase()) ||
+					   qUrls.includes(lowerName) || qUrls.includes(nameWithoutExt.toLowerCase());
+			});
+			if (excelMatch) {
+				return {
+					question: excelMatch,
+					qNum: Number(excelMatch.nomor_urut),
+					subIndex: 1,
+					matchedBy: `Kolom Excel (Soal #${excelMatch.nomor_urut})`,
+					matched: true
+				};
+			}
+
+			// 2. Deteksi nomor soal dan indeks foto dari nama file (misal 1.jpg, 1_1.jpg, soal_2_1.png, 3a.jpg)
+			const regex = /^(?:soal[_\-\s]*)?(\d+)(?:[_\-\s]+(\d+|[a-c])|\((\d+)\))?$/i;
+			const match = nameWithoutExt.match(regex);
+			if (match) {
+				const qNum = parseInt(match[1], 10);
+				let sub = 1;
+				if (match[2]) {
+					if (/[a-c]/i.test(match[2])) {
+						sub = match[2].toLowerCase().charCodeAt(0) - 96; // a=1, b=2, c=3
+					} else {
+						sub = parseInt(match[2], 10) || 1;
+					}
+				} else if (match[3]) {
+					sub = parseInt(match[3], 10) || 1;
+				}
+
+				const targetQ = examQuestions.find(q => Number(q.nomor_urut) === qNum);
+				return {
+					question: targetQ || null,
+					qNum: qNum,
+					subIndex: sub,
+					matchedBy: `Soal #${qNum} (Foto ${sub})`,
+					matched: Boolean(targetQ)
+				};
+			}
+
+			return {
+				question: null,
+				qNum: null,
+				subIndex: 1,
+				matchedBy: "Nama file tidak cocok",
+				matched: false
+			};
+		}
+
+		function renderBulkFilesPreview() {
+			const previewSection = document.getElementById("bulkPreviewSection");
+			const tableBody = document.getElementById("bulkPhotosPreviewTable");
+			const totalBadge = document.getElementById("bulkTotalFilesCount");
+			const btnUpload = document.getElementById("btnStartBulkUpload");
+			const alertBox = document.getElementById("bulkUploadAlert");
+
+			alertBox.classList.add("d-none");
+			tableBody.innerHTML = "";
+			totalBadge.textContent = String(bulkSelectedFiles.length);
+
+			if (bulkSelectedFiles.length === 0) {
+				previewSection.classList.add("d-none");
+				btnUpload.disabled = true;
+				return;
+			}
+
+			previewSection.classList.remove("d-none");
+
+			let validMatchCount = 0;
+			bulkSelectedFiles.forEach((fileItem) => {
+				const file = fileItem.file;
+				const matchInfo = parseQuestionMatch(file);
+				fileItem.matchInfo = matchInfo;
+
+				if (matchInfo.matched) validMatchCount++;
+
+				const tr = document.createElement("tr");
+				const previewUrl = URL.createObjectURL(file);
+				const sizeKb = (file.size / 1024).toFixed(1);
+
+				let statusHtml = '';
+				let targetHtml = '';
+
+				if (matchInfo.matched) {
+					targetHtml = `<strong class="text-primary"><i class="fas fa-check-circle mr-1 text-success"></i>Soal No. ${matchInfo.qNum}</strong> <span class="badge badge-info ml-1">Foto ${matchInfo.subIndex}</span>`;
+					statusHtml = `<span class="badge badge-success px-2 py-1"><i class="fas fa-link mr-1"></i>Cocok</span>`;
+				} else if (matchInfo.qNum) {
+					targetHtml = `<span class="text-muted">Soal No. ${matchInfo.qNum}</span>`;
+					statusHtml = `<span class="badge badge-warning px-2 py-1"><i class="fas fa-exclamation-triangle mr-1"></i>Soal Belum Ada</span>`;
+				} else {
+					targetHtml = `<span class="text-muted">-</span>`;
+					statusHtml = `<span class="badge badge-danger px-2 py-1"><i class="fas fa-times-circle mr-1"></i>Nama Tidak Dikenali</span>`;
+				}
+
+				tr.innerHTML = `
+					<td class="text-center align-middle">
+						<img src="${previewUrl}" style="width: 44px; height: 44px; object-fit: cover; border-radius: 4px;" class="border shadow-sm">
+					</td>
+					<td class="align-middle">
+						<div class="font-weight-bold text-dark small text-truncate" style="max-width: 220px;" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</div>
+					</td>
+					<td class="align-middle small text-muted">${sizeKb} KB</td>
+					<td class="align-middle">${targetHtml}</td>
+					<td class="align-middle">${statusHtml}</td>
+				`;
+				tableBody.appendChild(tr);
+			});
+
+			btnUpload.disabled = validMatchCount === 0;
+			if (validMatchCount === 0 && bulkSelectedFiles.length > 0) {
+				alertBox.textContent = "Tidak ada foto yang cocok dengan nomor urut soal pada ujian ini. Pastikan penamaan file sesuai contoh (misal: 1.jpg, 1_1.jpg, atau sesuai nama file di kolom Excel).";
+				alertBox.classList.remove("d-none");
+			}
+		}
+
+		async function startBulkUploadProcess() {
+			if (!selectedExam) return;
+			const btnUpload = document.getElementById("btnStartBulkUpload");
+			const progressBarContainer = document.getElementById("bulkUploadProgressBarContainer");
+			const progressBar = document.getElementById("bulkUploadProgressBar");
+			const statusText = document.getElementById("bulkUploadStatusText");
+			const percentText = document.getElementById("bulkUploadPercentText");
+			const alertBox = document.getElementById("bulkUploadAlert");
+
+			alertBox.classList.add("d-none");
+			btnUpload.disabled = true;
+			progressBarContainer.classList.remove("d-none");
+
+			const matchedItems = bulkSelectedFiles.filter(item => item.matchInfo && item.matchInfo.matched);
+			if (!matchedItems.length) {
+				alertBox.textContent = "Tidak ada foto yang cocok untuk diunggah.";
+				alertBox.classList.remove("d-none");
+				btnUpload.disabled = false;
+				return;
+			}
+
+			// Kelompokkan file berdasarkan target question id
+			const questionMap = new Map();
+			matchedItems.forEach(item => {
+				const qId = item.matchInfo.question.id;
+				if (!questionMap.has(qId)) {
+					questionMap.set(qId, []);
+				}
+				questionMap.get(qId).push(item);
+			});
+
+			let uploadedCount = 0;
+			const totalFiles = matchedItems.length;
+
+			try {
+				for (const item of matchedItems) {
+					const file = item.file;
+					const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+					const path = `${selectedExam.id}/${Date.now()}_${uploadedCount}_${cleanName}`;
+
+					statusText.innerHTML = `<i class="fas fa-spinner fa-spin mr-1"></i>Mengunggah <strong>${escapeHtml(file.name)}</strong>...`;
+
+					const { data: uploadData, error: uploadError } = await client.storage
+						.from("exam-photos")
+						.upload(path, file, { upsert: true });
+
+					if (uploadError) throw uploadError;
+
+					const { data: pubData } = client.storage.from("exam-photos").getPublicUrl(path);
+					item.uploadedUrl = pubData?.publicUrl || "";
+
+					uploadedCount++;
+					const percent = Math.round((uploadedCount / totalFiles) * 100);
+					progressBar.style.width = `${percent}%`;
+					percentText.textContent = `${percent}%`;
+				}
+
+				statusText.innerHTML = `<i class="fas fa-sync fa-spin mr-1"></i>Menghubungkan link foto ke data soal...`;
+
+				// Update database soal_ujian
+				let updatedQuestionsCount = 0;
+				for (const [qId, items] of questionMap.entries()) {
+					items.sort((a, b) => (a.matchInfo.subIndex || 1) - (b.matchInfo.subIndex || 1));
+					const urls = items.map(it => it.uploadedUrl).filter(Boolean);
+
+					if (urls.length > 0) {
+						try {
+							const { error: updErr } = await client.from("soal_ujian")
+								.update({
+									gambar_urls: urls,
+									gambar_url: urls[0] || null
+								})
+								.eq("id", qId);
+							if (updErr) throw updErr;
+						} catch (colErr) {
+							await client.from("soal_ujian")
+								.update({
+									gambar_url: urls.join(",")
+								})
+								.eq("id", qId);
+						}
+						updatedQuestionsCount++;
+					}
+				}
+
+				$("#bulkUploadPhotosModal").modal("hide");
+				showMessage(`Sukses! ${uploadedCount} foto berhasil diunggah dan dipasangkan ke ${updatedQuestionsCount} butir soal.`);
+				await loadQuestions();
+
+				bulkSelectedFiles = [];
+				renderBulkFilesPreview();
+				progressBar.style.width = "0%";
+				percentText.textContent = "0%";
+				progressBarContainer.classList.add("d-none");
+			} catch (err) {
+				console.error("Bulk upload error:", err);
+				alertBox.textContent = "Terjadi kesalahan saat mengunggah foto: " + err.message;
+				alertBox.classList.remove("d-none");
+			} finally {
+				btnUpload.disabled = false;
+			}
+		}
+
 		document.getElementById("newExamButton").addEventListener("click", openNewExam);
 		document.getElementById("refreshExamsButton").addEventListener("click", () => loadExams().catch((error) => showMessage(error.message, "danger")));
 		document.getElementById("newQuestionButton").addEventListener("click", openNewQuestion);
@@ -824,6 +1386,117 @@
 				event.target.value = "";
 			}
 		});
+
+		// Bulk Upload Photos Modal Triggers
+		document.getElementById("bulkUploadPhotosButton").addEventListener("click", () => {
+			if (!selectedExam) {
+				showMessage("Silakan pilih ujian terlebih dahulu.", "warning");
+				return;
+			}
+			bulkSelectedFiles = [];
+			renderBulkFilesPreview();
+			document.getElementById("bulkUploadProgressBarContainer").classList.add("d-none");
+			document.getElementById("bulkUploadAlert").classList.add("d-none");
+			$("#bulkUploadPhotosModal").modal("show");
+		});
+
+		document.getElementById("bulkPhotosInput").addEventListener("change", (e) => {
+			const files = Array.from(e.target.files || []);
+			if (!files.length) return;
+			files.forEach(f => {
+				bulkSelectedFiles.push({ file: f });
+			});
+			renderBulkFilesPreview();
+			e.target.value = "";
+		});
+
+		const bulkDropZone = document.getElementById("bulkDropZone");
+		if (bulkDropZone) {
+			["dragenter", "dragover"].forEach(eventName => {
+				bulkDropZone.addEventListener(eventName, (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					bulkDropZone.style.borderColor = "#28a745";
+					bulkDropZone.style.backgroundColor = "#e8f4ec";
+				}, false);
+			});
+			["dragleave", "drop"].forEach(eventName => {
+				bulkDropZone.addEventListener(eventName, (e) => {
+					e.preventDefault();
+					e.stopPropagation();
+					bulkDropZone.style.borderColor = "#4e73df";
+					bulkDropZone.style.backgroundColor = "#f8f9fc";
+				}, false);
+			});
+			bulkDropZone.addEventListener("drop", (e) => {
+				const dt = e.dataTransfer;
+				const files = Array.from(dt.files || []).filter(f => f.type.startsWith("image/"));
+				if (files.length > 0) {
+					files.forEach(f => bulkSelectedFiles.push({ file: f }));
+					renderBulkFilesPreview();
+				}
+			});
+		}
+
+		document.getElementById("btnClearBulkFiles").addEventListener("click", () => {
+			bulkSelectedFiles = [];
+			renderBulkFilesPreview();
+		});
+
+		document.getElementById("btnStartBulkUpload").addEventListener("click", startBulkUploadProcess);
+
+		// Event listener form tambah/edit soal single
+		document.getElementById("questionImageFiles").addEventListener("change", (e) => {
+			const files = Array.from(e.target.files || []);
+			if (files.length > 0) {
+				files.forEach(file => {
+					if (currentQuestionImages.length >= 5) return;
+					currentQuestionImages.push({
+						type: 'file',
+						url: URL.createObjectURL(file),
+						file: file
+					});
+				});
+				renderQuestionImagesPreview();
+			}
+			e.target.value = "";
+		});
+
+		function addUrlToQuestionImages() {
+			const urlInput = document.getElementById("questionImageUrlInput");
+			const val = urlInput.value.trim();
+			if (!val) return;
+			// Bisa pisahkan beberapa URL dengan koma
+			const urls = val.split(/[\r\n,]+/).map(s => s.trim()).filter(Boolean);
+			urls.forEach(u => {
+				if (currentQuestionImages.length >= 5) return;
+				currentQuestionImages.push({
+					type: 'url',
+					url: u
+				});
+			});
+			urlInput.value = "";
+			renderQuestionImagesPreview();
+		}
+
+		document.getElementById("btnAddQuestionUrl").addEventListener("click", addUrlToQuestionImages);
+		document.getElementById("questionImageUrlInput").addEventListener("keydown", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				addUrlToQuestionImages();
+			}
+		});
+
+		document.getElementById("questionImagesPreviewList").addEventListener("click", (e) => {
+			const btn = e.target.closest("button[data-remove-img]");
+			if (!btn) return;
+			const idx = parseInt(btn.dataset.removeImg, 10);
+			if (!isNaN(idx)) {
+				currentQuestionImages.splice(idx, 1);
+				renderQuestionImagesPreview();
+			}
+		});
+
 		examRows.addEventListener("change", async (event) => {
 			const toggle = event.target.closest("input[data-exam-active]");
 			if (!toggle) return;
@@ -840,11 +1513,13 @@
 				await loadExams().catch(() => {});
 			}
 		});
+
 		document.getElementById("questionsBackButton").addEventListener("click", () => {
 			questionsSection.classList.add("d-none");
 			examListView.classList.remove("d-none");
 			window.scrollTo({ top: 0, behavior: "smooth" });
 		});
+
 		document.getElementById("questionType").addEventListener("change", (event) => setQuestionType(event.target.value));
 		examForm.addEventListener("submit", saveExam);
 		questionForm.addEventListener("submit", saveQuestion);
