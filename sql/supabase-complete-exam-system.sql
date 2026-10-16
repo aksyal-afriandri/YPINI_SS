@@ -153,15 +153,36 @@ CREATE TABLE IF NOT EXISTS public.jawaban_siswa (
   CHECK (urutan_opsi_tampil IS NULL OR cardinality(urutan_opsi_tampil) = 4)
 );
 
--- 9. PERBAIKI FOREIGN KEY PADA TABEL RELASI LAIN (CASCADE SAAT SISWA DIHAPUS)
-ALTER TABLE public.siswa_kelas_tahun_ajaran
-DROP CONSTRAINT IF EXISTS siswa_kelas_tahun_ajaran_siswa_id_fkey;
+-- 9. PERBAIKI FOREIGN KEY (CASCADE SAAT UJIAN ATAU SISWA DIHAPUS)
+ALTER TABLE IF EXISTS public.siswa_kelas_tahun_ajaran
+  DROP CONSTRAINT IF EXISTS siswa_kelas_tahun_ajaran_siswa_id_fkey,
+  ADD CONSTRAINT siswa_kelas_tahun_ajaran_siswa_id_fkey
+    FOREIGN KEY (siswa_id) REFERENCES public.data_siswa (id) ON DELETE CASCADE;
 
-ALTER TABLE public.siswa_kelas_tahun_ajaran
-ADD CONSTRAINT siswa_kelas_tahun_ajaran_siswa_id_fkey
-FOREIGN KEY (siswa_id)
-REFERENCES public.data_siswa (id)
-ON DELETE CASCADE;
+ALTER TABLE IF EXISTS public.percobaan_ujian
+  DROP CONSTRAINT IF EXISTS percobaan_ujian_ujian_id_fkey,
+  ADD CONSTRAINT percobaan_ujian_ujian_id_fkey
+    FOREIGN KEY (ujian_id) REFERENCES public.ujian(id) ON DELETE CASCADE;
+
+ALTER TABLE IF EXISTS public.percobaan_ujian
+  DROP CONSTRAINT IF EXISTS percobaan_ujian_siswa_id_fkey,
+  ADD CONSTRAINT percobaan_ujian_siswa_id_fkey
+    FOREIGN KEY (siswa_id) REFERENCES public.data_siswa(id) ON DELETE CASCADE;
+
+ALTER TABLE IF EXISTS public.soal_ujian
+  DROP CONSTRAINT IF EXISTS soal_ujian_ujian_id_fkey,
+  ADD CONSTRAINT soal_ujian_ujian_id_fkey
+    FOREIGN KEY (ujian_id) REFERENCES public.ujian(id) ON DELETE CASCADE;
+
+ALTER TABLE IF EXISTS public.kunci_pg
+  DROP CONSTRAINT IF EXISTS kunci_pg_soal_id_fkey,
+  ADD CONSTRAINT kunci_pg_soal_id_fkey
+    FOREIGN KEY (soal_id) REFERENCES public.soal_ujian(id) ON DELETE CASCADE;
+
+ALTER TABLE IF EXISTS public.jawaban_acuan_essay
+  DROP CONSTRAINT IF EXISTS jawaban_acuan_essay_soal_id_fkey,
+  ADD CONSTRAINT jawaban_acuan_essay_soal_id_fkey
+    FOREIGN KEY (soal_id) REFERENCES public.soal_ujian(id) ON DELETE CASCADE;
 
 -- 10. INDEX PERFORMA
 CREATE INDEX IF NOT EXISTS ujian_pelajaran_aktif_idx

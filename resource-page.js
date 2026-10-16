@@ -135,6 +135,9 @@ document.addEventListener("DOMContentLoaded", () => {
         { action: "edit", label: "Edit", style: "warning", target: config.editModal },
         { action: "delete", label: "Hapus", style: "danger", target: config.deleteModal },
       ];
+      if (config.resource === "guru") {
+        rowActions.push({ action: "reset-password", label: "Reset Password", style: "info" });
+      }
       if (config.resource === "kelas") {
         rowActions.unshift({ action: "wali-kelas", label: "Wali Kelas", style: "success", target: "waliKelasModal" });
       }
@@ -276,6 +279,30 @@ document.addEventListener("DOMContentLoaded", () => {
           el.value = "";
         }
       });
+    } else if (button.dataset.recordAction === "reset-password") {
+      const confirmReset = window.confirm(
+        `Reset password akun guru "${record.nama}" (NIP: ${record.nip}) ke password default (NIP)?\n\nKlik OK untuk mereset.`
+      );
+      if (!confirmReset) return;
+
+      try {
+        setStatus(`Mereset password guru ${record.nama}...`, false, true);
+        if (typeof apiAdminResetGuruPassword === "function") {
+          await apiAdminResetGuruPassword(record.nip);
+        } else {
+          const client = getSupabaseClient();
+          const { error } = await client.rpc("admin_set_guru_password", {
+            p_nip: String(record.nip).trim(),
+            p_new_password: String(record.nip).trim(),
+          });
+          if (error) throw error;
+        }
+        window.alert(`Password guru "${record.nama}" berhasil direset ke default (NIP: ${record.nip}).`);
+        setStatus(`Password ${record.nama} berhasil direset ke default.`, false, true);
+      } catch (err) {
+        window.alert(`Gagal mereset password: ${err.message}`);
+        setStatus(err.message, true);
+      }
     } else {
       deleteForm.dataset.recordId = record.id;
       const message = deleteForm.querySelector("p");

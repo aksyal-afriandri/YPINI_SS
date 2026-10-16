@@ -1,0 +1,433 @@
+/* ==========================================================================
+   Activity Calendar & Agenda Stylesheet
+   Theme: SB Admin 2 + Theme Green (#16a34a)
+   ========================================================================== */
+
+/* Container & Header Controls */
+.activity-calendar-wrapper {
+  color: #334155;
+}
+
+.calendar-header-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background-color: #ffffff;
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  margin-bottom: 20px;
+}
+
+.cal-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cal-month-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  min-width: 170px;
+  margin: 0;
+}
+
+.cal-view-modes .btn {
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 6px 14px;
+}
+
+/* Calendar Card & Grid */
+.calendar-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.calendar-grid-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.82rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 0;
+}
+
+.calendar-grid-body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background-color: #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.cal-day-cell {
+  background: #ffffff;
+  min-height: 95px;
+  padding: 6px 8px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cal-day-cell:hover {
+  background-color: #f1f5f9;
+  z-index: 2;
+}
+
+.cal-day-cell.other-month {
+  background-color: #fafafa;
+  color: #cbd5e1;
+}
+
+.cal-day-cell.other-month .cal-day-num {
+  color: #94a3b8;
+  opacity: 0.6;
+}
+
+.cal-day-cell.is-today {
+  background-color: #f0fdf4;
+}
+
+.cal-day-cell.is-today .cal-day-num {
+  background-color: #16a34a;
+  color: #ffffff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.cal-day-cell.is-selected {
+  outline: 2px solid #16a34a;
+  background-color: #ecfdf5 !important;
+  z-index: 3;
+}
+
+.cal-day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.cal-day-num {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #334155;
+  display: inline-block;
+}
+
+.cal-day-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.cal-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #16a34a;
+  display: inline-block;
+}
+
+/* Event Pills inside Calendar Cell */
+.cal-event-pill {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: #dcfce7;
+  color: #15803d;
+  font-weight: 600;
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-left: 3px solid #16a34a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: transform 0.1s ease;
+}
+
+.cal-event-pill:hover {
+  transform: translateY(-1px);
+  background-color: #bbf7d0;
+}
+
+.cal-event-more {
+  font-size: 0.68rem;
+  color: #059669;
+  font-weight: 700;
+  padding-left: 4px;
+}
+
+/* Agenda Panel / Timeline */
+.agenda-panel-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  padding: 20px;
+  height: 100%;
+}
+
+.agenda-filter-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  color: #166534;
+  font-size: 0.88rem;
+}
+
+.agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 650px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* Modern Agenda Item Card */
+.agenda-item-card {
+  display: flex;
+  gap: 16px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.agenda-item-card:hover {
+  border-color: #86efac;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Date Box (Calendar Tear-Off Sheet) */
+.agenda-date-box {
+  flex-shrink: 0;
+  width: 68px;
+  text-align: center;
+  border: 1px solid #d1fae5;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  height: fit-content;
+}
+
+.agenda-date-month {
+  background-color: #16a34a;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 2px;
+  letter-spacing: 0.05em;
+}
+
+.agenda-date-day {
+  font-size: 1.55rem;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.1;
+  padding: 6px 2px 2px 2px;
+}
+
+.agenda-date-dayname {
+  font-size: 0.68rem;
+  color: #64748b;
+  font-weight: 600;
+  padding-bottom: 4px;
+}
+
+/* Agenda Content Area */
+.agenda-body {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.agenda-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.agenda-title a {
+  color: #0f172a;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.agenda-title a:hover {
+  color: #16a34a;
+  text-decoration: underline;
+}
+
+.agenda-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+}
+
+.agenda-desc {
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.45;
+  margin-bottom: 12px;
+  white-space: pre-line;
+}
+
+/* Photo Thumbnail Previews */
+.agenda-thumbnails {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.agenda-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  cursor: pointer;
+}
+
+.agenda-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+
+.agenda-thumb-more {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background-color: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #cbd5e1;
+  text-decoration: none;
+}
+
+.agenda-thumb-more:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  text-decoration: none;
+}
+
+/* Agenda Actions */
+.agenda-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Empty State */
+.agenda-empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #64748b;
+}
+
+.agenda-empty-icon {
+  font-size: 2.8rem;
+  color: #cbd5e1;
+  margin-bottom: 12px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 991.98px) {
+  .calendar-header-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .cal-nav-group {
+    justify-content: space-between;
+  }
+  
+  .cal-day-cell {
+    min-height: 70px;
+    padding: 4px;
+  }
+  
+  .cal-event-pill {
+    font-size: 0.65rem;
+    padding: 1px 3px;
+  }
+  
+  .agenda-item-card {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .agenda-date-box {
+    flex-direction: row;
+    width: auto;
+    align-items: center;
+    border-radius: 6px;
+    padding: 4px 8px;
+    gap: 8px;
+  }
+  
+  .agenda-date-month {
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  
+  .agenda-date-day {
+    font-size: 1.1rem;
+    padding: 0;
+  }
+  
+  .agenda-date-dayname {
+    padding: 0;
+  }
+}

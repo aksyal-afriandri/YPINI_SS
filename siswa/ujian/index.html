@@ -209,7 +209,9 @@
 
     <!-- Actions Kanan: Timer, Modal Navigasi Soal, Identitas Siswa -->
     <div class="d-flex align-items-center ml-auto">
-      <!-- Tombol Navigasi Soal (Modal) -->
+      <!-- Badge Progres Jawaban -->
+      
+
       <!-- Timer Countdown -->
       <div id="timerContainer" class="mr-2 mr-md-3 d-none">
         <span id="examTimerBadge" class="badge badge-primary cbt-timer-badge shadow-sm">
@@ -256,9 +258,13 @@
           <i class="fas fa-check-circle text-success fa-4x"></i>
         </div>
         <h3 class="font-weight-bold text-gray-800 mb-2">Ujian Berhasil Dikumpulkan!</h3>
-        <p class="text-muted mb-4" id="completedSubtext">
+        <p class="text-muted mb-3" id="completedSubtext">
           Jawaban Anda telah tersimpan di sistem. Terima kasih telah mengikuti ujian dengan jujur dan tertib.
         </p>
+        <!-- <div id="completedScoreBox" class="alert alert-success d-inline-block px-4 py-2 mb-4 d-none">
+          <span class="font-weight-bold">Hasil Ujian: </span>
+          <span id="completedScoreText" class="font-weight-bold text-success">-</span>
+        </div> -->
         <div>
           <a href="../" class="btn btn-primary px-4 py-2 font-weight-bold">
             <i class="fas fa-home mr-1"></i> Kembali ke Dashboard Siswa
@@ -584,6 +590,11 @@
       })[character]);
     }
 
+    function safeSetText(id, text) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text ?? "";
+    }
+
     function getQuestionImages(question) {
       if (!question) return [];
       if (Array.isArray(question.gambar_urls) && question.gambar_urls.length > 0) {
@@ -604,13 +615,14 @@
 
     function showView(viewId) {
       ["loadingView", "messageView", "completedView", "examMainView"].forEach((id) => {
-        document.getElementById(id).classList.toggle("d-none", id !== viewId);
+        const el = document.getElementById(id);
+        if (el) el.classList.toggle("d-none", id !== viewId);
       });
     }
 
     function showMessage(title, text) {
-      document.getElementById("messageTitle").textContent = title;
-      document.getElementById("messageBody").textContent = text;
+      safeSetText("messageTitle", title);
+      safeSetText("messageBody", text);
       showView("messageView");
     }
 
@@ -732,10 +744,10 @@
       });
 
       const total = questionsList.length;
-      document.getElementById("topbarAnsweredBadge").textContent = `${answered + doubt}/${total}`;
-      document.getElementById("modalCountAnswered").textContent = String(answered);
-      document.getElementById("modalCountDoubt").textContent = String(doubt);
-      document.getElementById("modalCountUnanswered").textContent = String(unanswered);
+      safeSetText("topbarAnsweredBadge", `${answered + doubt}/${total}`);
+      safeSetText("modalCountAnswered", String(answered));
+      safeSetText("modalCountDoubt", String(doubt));
+      safeSetText("modalCountUnanswered", String(unanswered));
     }
 
     // Tampilkan Soal Aktif (1 Soal per Halaman)
@@ -745,23 +757,25 @@
       if (!question) return;
 
       // Header Info Soal
-      document.getElementById("activeQuestionNumber").textContent = String(currentIndex + 1);
-      document.getElementById("activeQuestionType").textContent = question.soal_type === "pg" ? "Pilihan Ganda" : "Essay";
+      safeSetText("activeQuestionNumber", String(currentIndex + 1));
+      safeSetText("activeQuestionType", question.soal_type === "pg" ? "Pilihan Ganda" : "Essay");
 
       // Status Badge
       const statusBadge = document.getElementById("activeQuestionStatusBadge");
       const currentAns = studentAnswers[question.id] || { answer: "", doubt: false };
       const hasAnswer = currentAns.answer && currentAns.answer.trim().length > 0;
 
-      if (currentAns.doubt) {
-        statusBadge.className = "badge badge-warning text-dark px-2 py-1 font-weight-bold";
-        statusBadge.textContent = "Ragu-Ragu";
-      } else if (hasAnswer) {
-        statusBadge.className = "badge badge-success px-2 py-1 font-weight-bold";
-        statusBadge.textContent = question.soal_type === "pg" ? `Dijawab: ${currentAns.answer}` : "Sudah Dijawab";
-      } else {
-        statusBadge.className = "badge badge-light border text-muted px-2 py-1";
-        statusBadge.textContent = "Belum Dijawab";
+      if (statusBadge) {
+        if (currentAns.doubt) {
+          statusBadge.className = "badge badge-warning text-dark px-2 py-1 font-weight-bold";
+          statusBadge.textContent = "Ragu-Ragu";
+        } else if (hasAnswer) {
+          statusBadge.className = "badge badge-success px-2 py-1 font-weight-bold";
+          statusBadge.textContent = question.soal_type === "pg" ? `Dijawab: ${currentAns.answer}` : "Sudah Dijawab";
+        } else {
+          statusBadge.className = "badge badge-light border text-muted px-2 py-1";
+          statusBadge.textContent = "Belum Dijawab";
+        }
       }
 
       // Foto Soal (Mendukung 1 hingga 3 Foto sekaligus)
@@ -770,43 +784,45 @@
       const urls = getQuestionImages(question);
 
       if (urls.length > 0) {
-        imagesList.innerHTML = urls.map((url, idx) => {
-          const colClass = urls.length === 1 ? "col-12" : urls.length === 2 ? "col-md-6 mb-2" : "col-md-4 mb-2";
-          const labelHtml = urls.length > 1 ? `<span class="badge badge-primary position-absolute shadow-sm" style="top: 8px; left: 24px; z-index: 2;">Gambar ${idx + 1}</span>` : "";
-          return `
-            <div class="${colClass} position-relative text-center">
-              ${labelHtml}
-              <div class="p-2 border rounded bg-white shadow-sm h-100 d-flex align-items-center justify-content-center" style="min-height: 140px;">
-                <img src="${escapeHtml(url)}" 
-                     alt="Foto Soal ${idx + 1}" 
-                     class="cbt-question-image" 
-                     data-zoom-src="${escapeHtml(url)}" 
-                     data-zoom-title="Gambar ${idx + 1} - Soal No. ${currentIndex + 1}">
+        if (imagesList) {
+          imagesList.innerHTML = urls.map((url, idx) => {
+            const colClass = urls.length === 1 ? "col-12" : urls.length === 2 ? "col-md-6 mb-2" : "col-md-4 mb-2";
+            const labelHtml = urls.length > 1 ? `<span class="badge badge-primary position-absolute shadow-sm" style="top: 8px; left: 24px; z-index: 2;">Gambar ${idx + 1}</span>` : "";
+            return `
+              <div class="${colClass} position-relative text-center">
+                ${labelHtml}
+                <div class="p-2 border rounded bg-white shadow-sm h-100 d-flex align-items-center justify-content-center" style="min-height: 140px;">
+                  <img src="${escapeHtml(url)}" 
+                       alt="Foto Soal ${idx + 1}" 
+                       class="cbt-question-image" 
+                       data-zoom-src="${escapeHtml(url)}" 
+                       data-zoom-title="Gambar ${idx + 1} - Soal No. ${currentIndex + 1}">
+                </div>
               </div>
-            </div>
-          `;
-        }).join("");
-        imageBox.classList.remove("d-none");
+            `;
+          }).join("");
+        }
+        if (imageBox) imageBox.classList.remove("d-none");
       } else {
-        imagesList.innerHTML = "";
-        imageBox.classList.add("d-none");
+        if (imagesList) imagesList.innerHTML = "";
+        if (imageBox) imageBox.classList.add("d-none");
       }
 
       // Teks pertanyaan
-      document.getElementById("questionText").textContent = question.pertanyaan;
+      safeSetText("questionText", question.pertanyaan || "");
 
       // Render Pilihan Ganda atau Essay
       const optionsContainer = document.getElementById("optionsContainer");
       const essayContainer = document.getElementById("essayContainer");
 
       if (question.soal_type === "pg") {
-        optionsContainer.classList.remove("d-none");
-        essayContainer.classList.add("d-none");
+        if (optionsContainer) optionsContainer.classList.remove("d-none");
+        if (essayContainer) essayContainer.classList.add("d-none");
 
-        document.getElementById("textOptionA").textContent = question.pilihan_a || "";
-        document.getElementById("textOptionB").textContent = question.pilihan_b || "";
-        document.getElementById("textOptionC").textContent = question.pilihan_c || "";
-        document.getElementById("textOptionD").textContent = question.pilihan_d || "";
+        safeSetText("textOptionA", question.pilihan_a || "");
+        safeSetText("textOptionB", question.pilihan_b || "");
+        safeSetText("textOptionC", question.pilihan_c || "");
+        safeSetText("textOptionD", question.pilihan_d || "");
 
         document.querySelectorAll(".cbt-option").forEach((opt) => {
           const optVal = opt.dataset.option;
@@ -933,15 +949,17 @@
         }
       });
 
-      document.getElementById("summaryAnswered").textContent = String(answered);
-      document.getElementById("summaryDoubt").textContent = String(doubt);
-      document.getElementById("summaryUnanswered").textContent = String(unanswered);
+      safeSetText("summaryAnswered", String(answered));
+      safeSetText("summaryDoubt", String(doubt));
+      safeSetText("summaryUnanswered", String(unanswered));
 
       const warningAlert = document.getElementById("modalWarningAlert");
-      if (unanswered > 0 || doubt > 0) {
-        warningAlert.classList.remove("d-none");
-      } else {
-        warningAlert.classList.add("d-none");
+      if (warningAlert) {
+        if (unanswered > 0 || doubt > 0) {
+          warningAlert.classList.remove("d-none");
+        } else {
+          warningAlert.classList.add("d-none");
+        }
       }
 
       $("#confirmSubmitModal").modal("show");
@@ -984,10 +1002,10 @@
 
         const scoreBox = document.getElementById("completedScoreBox");
         if (submissionResult?.nilai_pg !== undefined && submissionResult.total_pg > 0) {
-          scoreBox.classList.remove("d-none");
-          document.getElementById("completedScoreText").textContent = `${submissionResult.nilai_pg} (Benar ${submissionResult.pg_benar} dari ${submissionResult.total_pg} soal PG)`;
+          if (scoreBox) scoreBox.classList.remove("d-none");
+          safeSetText("completedScoreText", `${submissionResult.nilai_pg} (Benar ${submissionResult.pg_benar} dari ${submissionResult.total_pg} soal PG)`);
         } else {
-          scoreBox.classList.add("d-none");
+          if (scoreBox) scoreBox.classList.add("d-none");
         }
 
         showView("completedView");
@@ -1025,7 +1043,7 @@
 
         const alreadyCompleted = localStorage.getItem(`ypn_cbt_completed_${selectedExamId}_${nis}`);
         if (alreadyCompleted === "true") {
-          document.getElementById("completedSubtext").textContent = "Anda sudah pernah menyelesaikan dan mengumpulkan ujian ini sebelumnya.";
+          safeSetText("completedSubtext", "Anda sudah pernah menyelesaikan dan mengumpulkan ujian ini sebelumnya.");
           showView("completedView");
           return;
         }
@@ -1101,11 +1119,11 @@
         studentAnswers = loadSavedAnswers(activeExam.id);
 
         const mapel = activeExam.data_pelajaran?.nama_pelajaran || "Umum";
-        document.getElementById("examBadgeSubject").textContent = mapel;
-        document.getElementById("examTitle").textContent = activeExam.nama_ujian;
-        document.getElementById("examSubjectInfo").textContent = mapel;
-        document.getElementById("examDurationInfo").textContent = `${activeExam.waktu_menit} Menit`;
-        document.getElementById("examTotalQuestionsInfo").textContent = `${questionsList.length} Soal`;
+        safeSetText("examBadgeSubject", mapel);
+        safeSetText("examTitle", activeExam.nama_ujian || "Ujian");
+        safeSetText("examSubjectInfo", mapel);
+        safeSetText("examDurationInfo", `${activeExam.waktu_menit} Menit`);
+        safeSetText("examTotalQuestionsInfo", `${questionsList.length} Soal`);
 
         initExamTimer(activeExam);
         renderGridButtons();

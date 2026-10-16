@@ -1538,14 +1538,34 @@
 					await loadQuestions();
 					questionsSection.scrollIntoView({ behavior: "smooth", block: "start" });
 				}
-				if (button.dataset.action === "delete-exam" && window.confirm(`Hapus ujian "${exam.nama_ujian}" beserta soal-soalnya?`)) {
+				if (button.dataset.action === "delete-exam" && window.confirm(`Hapus ujian "${exam.nama_ujian}" beserta seluruh soal dan data pengerjaan siswa?`)) {
+					// 1. Bersihkan data jawaban dan percobaan siswa terkait ujian ini terlebih dahulu
+					try {
+						await client.from("jawaban_siswa").delete().eq("ujian_id", exam.id);
+					} catch (_) {}
+					try {
+						await client.from("percobaan_ujian").delete().eq("ujian_id", exam.id);
+					} catch (_) {}
+
+					// 2. Bersihkan kunci & acuan jawaban soal
+					try {
+						const { data: soalList } = await client.from("soal_ujian").select("id").eq("ujian_id", exam.id);
+						if (soalList && soalList.length > 0) {
+							const soalIds = soalList.map((s) => s.id);
+							await client.from("kunci_pg").delete().in("soal_id", soalIds);
+							await client.from("jawaban_acuan_essay").delete().in("soal_id", soalIds);
+						}
+						await client.from("soal_ujian").delete().eq("ujian_id", exam.id);
+					} catch (_) {}
+
+					// 3. Hapus ujian
 					const { error } = await client.from("ujian").delete().eq("id", exam.id);
 					if (error) throw error;
 					if (selectedExam?.id === exam.id) {
 						selectedExam = null;
 						questionsSection.classList.add("d-none");
 					}
-					showMessage("Ujian dan soal terkait berhasil dihapus.");
+					showMessage("Ujian beserta seluruh data pengerjaan dan soal berhasil dihapus.");
 					await loadExams();
 				}
 			} catch (error) {

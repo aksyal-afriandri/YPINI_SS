@@ -21,6 +21,7 @@
     <link href="../../../assets/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="../../../assets/css/theme-green.css" rel="stylesheet">
     <link href="../../../assets/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
+    <link href="../../../assets/css/activity-calendar.css" rel="stylesheet">
 
 </head>
 <body id="page-top" data-login-path="../../../index.html" data-activity-type="ummi">
@@ -385,33 +386,119 @@
                 <div class="container-fluid">
                     <div id="supabaseStatus" class="small text-danger mb-3" role="status"></div>
 
-                    <!-- Card Tabel Kegiatan -->
-                    <div class="card shadow mb-4">
-                        <div class="card-header py-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="m-0 font-weight-bold text-primary">Data Kegiatan Ummi</h6>
-                                <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#tambahKegiatanModal">
+                    <!-- Activity Calendar & Agenda Container -->
+                    <div class="activity-calendar-wrapper mb-4">
+                        <!-- Top Toolbar & Navigation -->
+                        <div class="calendar-header-toolbar">
+                            <div class="cal-nav-group">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="calPrevMonthBtn" title="Bulan Sebelumnya">
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm px-3" id="calTodayBtn">
+                                    Hari Ini
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="calNextMonthBtn" title="Bulan Berikutnya">
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                                <h4 class="cal-month-title ml-2" id="calCurrentMonthTitle">Memuat...</h4>
+                            </div>
+
+                            <div class="d-flex align-items-center flex-wrap" style="gap: 10px;">
+                                <!-- Quick Jump Selectors -->
+                                <div class="d-flex align-items-center" style="gap: 6px;">
+                                    <select id="calMonthSelect" class="form-control form-control-sm" style="width: 125px;"></select>
+                                    <select id="calYearSelect" class="form-control form-control-sm" style="width: 90px;"></select>
+                                </div>
+
+                                <!-- Search -->
+                                <div class="input-group input-group-sm" style="width: 180px;">
+                                    <input type="text" id="calSearchInput" class="form-control" placeholder="Cari kegiatan...">
+                                    <div class="input-group-append">
+                                        <button class="btn btn-outline-secondary" type="button" id="calSearchClearBtn" title="Hapus pencarian">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- View Mode Toggles -->
+                                <div class="btn-group btn-group-sm cal-view-modes" role="group">
+                                    <button type="button" class="btn btn-primary" id="calViewSplitBtn" title="Kalender & Agenda Berdampingan">
+                                        <i class="fas fa-columns mr-1"></i> Kalender & Agenda
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" id="calViewCalendarBtn" title="Tampilan Kalender Saja">
+                                        <i class="fas fa-calendar-alt mr-1"></i> Kalender
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" id="calViewAgendaBtn" title="Tampilan Daftar Agenda">
+                                        <i class="fas fa-list-ul mr-1"></i> Agenda
+                                    </button>
+                                </div>
+
+                                <!-- Add Activity Button -->
+                                <button type="button" class="btn btn-primary btn-sm ml-auto" data-toggle="modal" data-target="#tambahKegiatanModal">
                                     <i class="fas fa-plus fa-sm mr-1"></i> Tambah Kegiatan
                                 </button>
                             </div>
                         </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
-                                    <thead class="thead-light">
-                                        <tr>
-                                            <th style="width: 45px;" class="text-center">No</th>
-                                            <th style="width: 140px;">Tanggal</th>
-                                            <th>Nama Kegiatan</th>
-                                            <th>Deskripsi</th>
-                                            <th style="width: 160px;">Galeri Foto</th>
-                                            <th style="width: 220px;" class="text-center">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
+
+                        <!-- Main Calendar & Agenda Display Grid -->
+                        <div class="row" id="calDisplayContainer">
+                            <!-- Left Column: Calendar View -->
+                            <div class="col-lg-6 mb-4" id="calColCalendar">
+                                <div class="calendar-card">
+                                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                                        <h6 class="m-0 font-weight-bold text-primary">
+                                            <i class="fas fa-calendar mr-2"></i>Kalender Kegiatan
+                                        </h6>
+                                        <span class="small text-muted" id="calEventCountBadge">0 Kegiatan Bulan Ini</span>
+                                    </div>
+                                    <div class="calendar-grid-header">
+                                        <div>Sen</div>
+                                        <div>Sel</div>
+                                        <div>Rab</div>
+                                        <div>Kam</div>
+                                        <div>Jum</div>
+                                        <div>Sab</div>
+                                        <div>Min</div>
+                                    </div>
+                                    <div class="calendar-grid-body" id="calendarDaysGrid">
                                         <!-- Diisi secara dinamis oleh activity-page.js -->
-                                    </tbody>
-                                </table>
+                                    </div>
+                                    <div class="card-footer bg-light py-2 small text-muted d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <span class="cal-dot mr-1"></span> Klik tanggal untuk memfilter agenda
+                                        </div>
+                                        <button type="button" class="btn btn-link btn-sm p-0 text-primary" id="calResetFilterBtn" style="display: none;">
+                                            Tampilkan Semua Bulan Ini
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right Column: Agenda List -->
+                            <div class="col-lg-6 mb-4" id="calColAgenda">
+                                <div class="agenda-panel-card">
+                                    <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
+                                        <h6 class="m-0 font-weight-bold text-primary" id="agendaHeaderTitle">
+                                            <i class="fas fa-calendar-check mr-2"></i>Agenda Kegiatan
+                                        </h6>
+                                        <span class="badge badge-success px-2 py-1" id="agendaTotalBadge">0 Agenda</span>
+                                    </div>
+
+                                    <!-- Filter Banner (when a single date is selected) -->
+                                    <div id="agendaFilterBanner" class="agenda-filter-banner" style="display: none;">
+                                        <span>
+                                            <i class="fas fa-filter mr-1"></i> Menampilkan agenda tanggal: <strong id="agendaFilterDateLabel">-</strong>
+                                        </span>
+                                        <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 ml-2" id="agendaClearDateFilter">
+                                            <i class="fas fa-times mr-1"></i> Semua
+                                        </button>
+                                    </div>
+
+                                    <!-- List of Agenda Cards -->
+                                    <div class="agenda-list" id="agendaListContainer">
+                                        <!-- Diisi secara dinamis oleh activity-page.js -->
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

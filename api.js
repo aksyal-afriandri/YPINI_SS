@@ -165,24 +165,51 @@ async function apiBulkUploadStudentPhotos(files) {
 
 async function apiLogin(credentials) {
   const client = getSupabaseClient();
+  let email = (credentials.email || "").trim();
+  if (email && !email.includes("@")) {
+    email = `${email}@gmail.com`;
+  }
+
   const { data, error } = await client.auth.signInWithPassword({
-    email: credentials.email,
+    email: email,
     password: credentials.password,
   });
   if (error) throwSupabaseError(error);
 
   const { data: profile, error: profileError } = await client
     .from("profiles")
-    .select("name, role")
+    .select("name, role, nip")
     .eq("user_id", data.user.id)
     .single();
 
-  if (profileError || profile?.role !== "admin") {
+  if (profileError || !["admin", "guru"].includes(profile?.role)) {
     await client.auth.signOut();
-    throw new Error("Akun ini tidak memiliki akses admin.");
+    throw new Error("Akun ini tidak memiliki akses admin atau guru.");
   }
 
-  return { user: { id: data.user.id, name: profile.name, role: profile.role } };
+  return { user: { id: data.user.id, name: profile.name, role: profile.role, nip: profile.nip || "" } };
+}
+
+async function apiChangeMyPassword(newPassword) {
+  if (!newPassword || newPassword.trim().length < 4) {
+    throw new Error("Password minimal 4 karakter.");
+  }
+  const client = getSupabaseClient();
+  const { data, error } = await client.auth.updateUser({
+    password: newPassword.trim(),
+  });
+  if (error) throwSupabaseError(error);
+  return data;
+}
+
+async function apiAdminResetGuruPassword(nip, newPassword = null) {
+  const client = getSupabaseClient();
+  const { data, error } = await client.rpc("admin_set_guru_password", {
+    p_nip: String(nip).trim(),
+    p_new_password: newPassword ? String(newPassword).trim() : String(nip).trim(),
+  });
+  if (error) throwSupabaseError(error);
+  return data;
 }
 
 async function apiLogout() {

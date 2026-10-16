@@ -45,10 +45,10 @@
                             </div>
                             <form class="user" id="loginForm">
                                 <div class="form-group">
-                                    <input type="email" name="email" class="form-control form-control-user"
+                                    <input type="text" name="email" class="form-control form-control-user"
                                         id="exampleInputName" value="" autocomplete="username"
-                                        placeholder="Email" required autofocus>
-                                                                    </div>
+                                        placeholder="NIP / Username" required autofocus>
+                                </div>
                                 <div class="form-group">
                                     <input type="password" name="password" class="form-control form-control-user"
                                         id="exampleInputPassword" autocomplete="current-password"
@@ -92,8 +92,13 @@
         submitButton.disabled = true;
 
         try {
+            let identifier = form.elements.email.value.trim();
+            if (identifier && !identifier.includes("@")) {
+                identifier = `${identifier}@gmail.com`;
+            }
+
             await apiLogin({
-                email: form.elements.email.value,
+                email: identifier,
                 password: form.elements.password.value,
             });
             window.location.href = "admin/dashboard/";
