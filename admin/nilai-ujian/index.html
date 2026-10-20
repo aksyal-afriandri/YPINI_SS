@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<title>YPINI - Jawaban & Nilai Siswa</title>
+	<link href="../../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+	<link href="https://fonts.googleapis.com/css?family=Nunito:300,400,600,700,800" rel="stylesheet">
+	<link href="../../assets/img/logo.png" rel="icon">
+	<link href="../../assets/css/sb-admin-2.min.css" rel="stylesheet">
+	<link href="../../assets/css/theme-green.css" rel="stylesheet">
+	<style>
+		.badge-status { font-size: 0.82rem; padding: 0.4em 0.7em; }
+		.option-row { border: 1px solid #e3e6f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; transition: all .2s; }
+		.option-row.student-choice { border-color: #4e73df; background-color: #f0f4ff; }
+		.option-row.correct-key { border-color: #1cc88a; background-color: #eafaf1; }
+		.option-row.wrong-choice { border-color: #e74a3b; background-color: #fdf2f2; }
+		.essay-student-box { background: #f8f9fc; border-left: 4px solid #4e73df; border-radius: 4px; padding: 12px 16px; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; }
+		.essay-reference-box { background: #fffdf5; border-left: 4px solid #f6c23e; border-radius: 4px; padding: 10px 14px; font-size: 0.88rem; line-height: 1.4; white-space: pre-wrap; }
+		.question-image-thumb { max-height: 180px; max-width: 100%; border-radius: 6px; border: 1px solid #e3e6f0; object-fit: contain; cursor: pointer; transition: transform .2s; }
+		.question-image-thumb:hover { transform: scale(1.02); }
+		@media print {
+			body * { visibility: hidden; }
+			#printArea, #printArea * { visibility: visible; }
+			#printArea { position: absolute; left: 0; top: 0; width: 100%; }
+			.no-print { display: none !important; }
+		}
+	</style>
+</head>
+<body id="page-top" data-login-path="../../index.html">
+	<div id="wrapper">
+		<!-- Sidebar -->
+		<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+			<a class="sidebar-brand d-flex align-items-center justify-content-center" href="../dashboard/">
+				<img src="../../assets/img/logo.png" class="img-fluid" style="max-height: 40px; max-width: 100px; object-fit: contain;" alt="Logo">
+			</a>
+			<hr class="sidebar-divider my-0">
+			<li class="nav-item"><a class="nav-link" href="../dashboard/"><i class="fas fa-fw fa-tachometer-alt"></i><span>Dashboard</span></a></li>
+			<li class="nav-item"><a class="nav-link" href="../ujian/"><i class="fas fa-fw fa-clipboard-list"></i><span>Pengaturan Ujian</span></a></li>
+			
+			<!-- Nav Item - Nilai & Jawaban Siswa -->
+			<li class="nav-item active" id="examResultNavigation">
+				<a class="nav-link" href="#" data-toggle="collapse" data-target="#collapseExamResult" aria-expanded="true" aria-controls="collapseExamResult">
+					<i class="fas fa-fw fa-user-check"></i>
+					<span>Jawaban & Nilai Siswa</span>
+				</a>
+				<div id="collapseExamResult" class="collapse show" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAllExamResultsLink" href="./">Semua Siswa</a>
+						<h6 class="collapse-header">Berdasarkan Kelas:</h6>
+						<div id="sidebarExamResultClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
+
+			<hr class="sidebar-divider">
+			<div class="sidebar-heading">Interface</div>
+			<li class="nav-item">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+					<i class="fas fa-fw fa-database"></i><span>Data Admin</span>
+				</a>
+				<div id="collapseTwo" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" href="../guru/data-guru/">Data Guru</a>
+						<a class="collapse-item" href="../kelas/data-kelas/">Data Kelas</a>
+						<a class="collapse-item" href="../pelajaran/data-pelajaran/">Data Pelajaran</a>
+						<a class="collapse-item" href="../tahun/data-tahun/">Data Tahun Ajaran</a>
+					</div>
+				</div>
+			</li>
+
+			<li class="nav-item" id="activityNavigation">
+				<a class="nav-link collapsed" id="headingActivity" href="#" data-toggle="collapse" data-target="#collapseActivity" aria-expanded="false" aria-controls="collapseActivity">
+					<i class="fas fa-fw fa-database"></i><span>Data Aktifitas</span>
+				</a>
+				<div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" href="../aktifitas/data-fieldtrip/">Data Field Trip</a>
+						<a class="collapse-item" href="../aktifitas/data-akhwah/">Data Akhwah</a>
+						<a class="collapse-item" href="../aktifitas/data-ummi/">Data Ummi</a>
+						<a class="collapse-item" href="../aktifitas/data-pembelajaran/">Data Pembelajaran</a>
+					</div>
+				</div>
+			</li>
+
+			<li class="nav-item" id="studentNavigation">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseStudentNavigation" aria-expanded="false" aria-controls="collapseStudentNavigation">
+					<i class="fas fa-fw fa-user-graduate"></i><span>Data Siswa</span>
+				</a>
+				<div id="collapseStudentNavigation" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAllStudentsLink" href="../siswa/data-siswa/">Semua Siswa</a>
+						<h6 class="collapse-header">Siswa per Kelas:</h6>
+						<div id="sidebarClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
+
+			<li class="nav-item">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities" aria-expanded="false" aria-controls="collapseUtilities">
+					<i class="fas fa-fw fa-wrench"></i><span>Absensi</span>
+				</a>
+				<div id="collapseUtilities" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAttendanceLink" href="../absensi/?mode=scan#scanner">Scan Absensi</a>
+						<a class="collapse-item" href="../absensi/#rekap">Rekap Absensi</a>
+						<h6 class="collapse-header">Rekap per Kelas:</h6>
+						<div id="sidebarAttendanceClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
+			<hr class="sidebar-divider d-none d-md-block">
+			<div class="text-center d-none d-md-inline"><button class="rounded-circle border-0" id="sidebarToggle"></button></div>
+		</ul>
+
+		<!-- Content Wrapper -->
+		<div id="content-wrapper" class="d-flex flex-column">
+			<div id="content">
+				<!-- Topbar -->
+				<nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+
+                    <!-- Sidebar Toggle (Topbar) -->
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                        <i class="fa fa-bars"></i>
+                    </button>
+
+                    <!-- Topbar Search -->
+                    <form
+                        class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search">
+                        <div class="input-group">
+                            <input type="text" class="form-control bg-light border-0 small" placeholder="Search for..."
+                                aria-label="Search" aria-describedby="basic-addon2">
+                            <div class="input-group-append">
+                                <button class="btn btn-primary" type="button">
+                                    <i class="fas fa-search fa-sm"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Topbar Navbar -->
+                    <ul class="navbar-nav ml-auto">
+
+                        <!-- Nav Item - Search Dropdown (Visible Only XS) -->
+                        <li class="nav-item dropdown no-arrow d-sm-none">
+                            <a class="nav-link dropdown-toggle" href="#" id="searchDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-search fa-fw"></i>
+                            </a>
+                            <!-- Dropdown - Messages -->
+                            <div class="dropdown-menu dropdown-menu-right p-3 shadow animated--grow-in"
+                                aria-labelledby="searchDropdown">
+                                <form class="form-inline mr-auto w-100 navbar-search">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control bg-light border-0 small"
+                                            placeholder="Search for..." aria-label="Search"
+                                            aria-describedby="basic-addon2">
+                                        <div class="input-group-append">
+                                            <button class="btn btn-primary" type="button">
+                                                <i class="fas fa-search fa-sm"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </li>
+
+                        <!-- Nav Item - Alerts -->
+                        <!-- <li class="nav-item dropdown no-arrow mx-1">
+                            <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-bell fa-fw"></i>
+                                <span class="badge badge-danger badge-counter">3+</span>
+                            </a>
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="alertsDropdown">
+                                <h6 class="dropdown-header">
+                                    Alerts Center
+                                </h6>
+                                <a class="dropdown-item d-flex align-items-center" href="#">
+                                    <div class="mr-3">
+                                        <div class="icon-circle bg-primary">
+                                            <i class="fas fa-file-alt text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="small text-gray-500">December 12, 2019</div>
+                                        <span class="font-weight-bold">A new monthly report is ready to download!</span>
+                                    </div>
+                                </a>
+                                <a class="dropdown-item d-flex align-items-center" href="#">
+                                    <div class="mr-3">
+                                        <div class="icon-circle bg-success">
+                                            <i class="fas fa-donate text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="small text-gray-500">December 7, 2019</div>
+                                        $290.29 has been deposited into your account!
+                                    </div>
+                                </a>
+                                <a class="dropdown-item d-flex align-items-center" href="#">
+                                    <div class="mr-3">
+                                        <div class="icon-circle bg-warning">
+                                            <i class="fas fa-exclamation-triangle text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="small text-gray-500">December 2, 2019</div>
+                                        Spending Alert: We've noticed unusually high spending for your account.
+                                    </div>
+                                </a>
+                                <a class="dropdown-item text-center small text-gray-500" href="#">Show All Alerts</a>
+                            </div>
+                        </li> -->
+
+                        <!-- Nav Item - Messages -->
+                        <!-- <li class="nav-item dropdown no-arrow mx-1">
+                            <a class="nav-link dropdown-toggle" href="#" id="messagesDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-envelope fa-fw"></i>
+                             
+                                <span class="badge badge-danger badge-counter">7</span>
+                            </a>
+                           
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="messagesDropdown">
+                                <h6 class="dropdown-header">
+                                    Message Center
+                                </h6>
+                                <a class="dropdown-item d-flex align-items-center" href="#">
+                                    <div class="dropdown-list-image mr-3">
+                                        <img class="rounded-circle" src="img/undraw_profile_1.svg"
+                                            alt="...">
+                                        <div class="status-indicator bg-success"></div>
+                                    </div>
+                                    <div class="font-weight-bold">
+                                        <div class="text-truncate">Hi there! I am wondering if you can help me with a
+                                            problem I've been having.</div>
+                                        <div class="small text-gray-500">Emily Fowler · 58m</div>
+                                    </div>
+                                </a>
+                                <a class="dropdown-item d-flex align-items-center" href="#">
+                                    <div class="dropdown-list-image mr-3">
+                                        <img class="rounded-circle" src="img/undraw_profile_2.svg"
+                                            alt="...">
+                                        <div class="status-indicator"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-truncate">I have the photos that you ordered last month, how
+                                            would you like them sent to you?</div>
+                                        <div class="small text-gray-500">Jae Chun · 1d</div>
+                                    </div>
+                                </a>
+                                <a class="dropdown-item d-flex align-items-center" href="#">
+                                    <div class="dropdown-list-image mr-3">
+                                        <img class="rounded-circle" src="img/undraw_profile_3.svg"
+                                            alt="...">
+                                        <div class="status-indicator bg-warning"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-truncate">Last month's report looks great, I am very happy with
+                                            the progress so far, keep up the good work!</div>
+                                        <div class="small text-gray-500">Morgan Alvarez · 2d</div>
+                                    </div>
+                                </a>
+                                <a class="dropdown-item d-flex align-items-center" href="#">
+                                    <div class="dropdown-list-image mr-3">
+                                        <img class="rounded-circle" src="https://source.unsplash.com/Mv9hjnEUHR4/60x60"
+                                            alt="...">
+                                        <div class="status-indicator bg-success"></div>
+                                    </div>
+                                    <div>
+                                        <div class="text-truncate">Am I a good boy? The reason I ask is because someone
+                                            told me that people say this to all dogs, even if they aren't good...</div>
+                                        <div class="small text-gray-500">Chicken the Dog · 2w</div>
+                                    </div>
+                                </a>
+                                <a class="dropdown-item text-center small text-gray-500" href="#">Read More Messages</a>
+                            </div>
+                        </li>  -->
+
+                        <div class="topbar-divider d-none d-sm-block"></div>
+
+                        <!-- Nav Item - User Information -->
+                        <li class="nav-item dropdown no-arrow">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">Admin</span>
+                                <i class="fas fa-user-circle fa-2x text-gray-400"></i>
+                            </a>
+                            <!-- Dropdown - User Information -->
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="userDropdown">
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Profile
+                                </a>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-cogs fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Settings
+                                </a>
+                                <a class="dropdown-item" href="#">
+                                    <i class="fas fa-list fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Activity Log
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Logout
+                                </a>
+                            </div>
+                        </li>
+
+                    </ul>
+
+                </nav>
+
+				<!-- Main Container -->
+				<div class="container-fluid">
+					<div class="d-sm-flex align-items-center justify-content-between mb-3">
+						<div>
+							<h1 class="h3 mb-1 text-gray-800 font-weight-bold" id="examResultClassHeading">Hasil & Penilaian Ujian Siswa</h1>
+						</div>
+						<div class="mt-2 mt-sm-0">
+							<button class="btn btn-sm btn-outline-primary shadow-sm mr-1" id="btnRefreshData">
+								<i class="fas fa-sync-alt fa-sm mr-1"></i>Refresh
+							</button>
+							<button class="btn btn-sm btn-primary shadow-sm" id="btnPrintReport">
+								<i class="fas fa-print fa-sm mr-1"></i>Cetak Rekap Nilai
+							</button>
+						</div>
+					</div>
+
+					<div id="pageAlertBox"></div>
+
+					<!-- Stat Cards -->
+					<!-- <div class="row mb-4" >
+						<div class="col-xl-3 col-md-6 mb-3">
+							<div class="card border-left-primary shadow h-100 py-2">
+								<div class="card-body">
+									<div class="row no-gutters align-items-center">
+										<div class="col mr-2">
+											<div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Pengerjaan</div>
+											<div class="h5 mb-0 font-weight-bold text-gray-800" id="statTotalSubmissions">0</div>
+										</div>
+										<div class="col-auto"><i class="fas fa-users fa-2x text-gray-300"></i></div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-3 col-md-6 mb-3">
+							<div class="card border-left-warning shadow h-100 py-2">
+								<div class="card-body">
+									<div class="row no-gutters align-items-center">
+										<div class="col mr-2">
+											<div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Perlu Dinilai / Draf</div>
+											<div class="h5 mb-0 font-weight-bold text-gray-800" id="statPendingGrading">0</div>
+										</div>
+										<div class="col-auto"><i class="fas fa-clock fa-2x text-gray-300"></i></div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-3 col-md-6 mb-3">
+							<div class="card border-left-success shadow h-100 py-2">
+								<div class="card-body">
+									<div class="row no-gutters align-items-center">
+										<div class="col mr-2">
+											<div class="text-xs font-weight-bold text-success text-uppercase mb-1">Sudah Difinalisasi</div>
+											<div class="h5 mb-0 font-weight-bold text-gray-800" id="statFinalizedGrading">0</div>
+										</div>
+										<div class="col-auto"><i class="fas fa-check-circle fa-2x text-gray-300"></i></div>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="col-xl-3 col-md-6 mb-3">
+							<div class="card border-left-info shadow h-100 py-2">
+								<div class="card-body">
+									<div class="row no-gutters align-items-center">
+										<div class="col mr-2">
+											<div class="text-xs font-weight-bold text-info text-uppercase mb-1">Rata-rata Nilai Akhir</div>
+											<div class="h5 mb-0 font-weight-bold text-gray-800" id="statAverageScore">0.00</div>
+										</div>
+										<div class="col-auto"><i class="fas fa-award fa-2x text-gray-300"></i></div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div> -->
+
+					<!-- Filter Box -->
+					<div class="card shadow mb-4">
+						<div class="card-header py-3 bg-light d-flex align-items-center justify-content-between">
+							<h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter mr-1"></i>Filter & Pencarian Jawaban Siswa</h6>
+							<button class="btn btn-sm btn-link text-muted p-0" id="btnResetFilters">Reset Filter</button>
+						</div>
+						<div class="card-body">
+							<div class="row">
+								<div class="col-md-3 col-sm-6 mb-2">
+									<label class="small font-weight-bold text-gray-700">Filter Kelas</label>
+									<select id="filterClass" class="form-control form-control-sm">
+										<option value="">Semua Kelas</option>
+									</select>
+								</div>
+								<div class="col-md-3 col-sm-6 mb-2">
+									<label class="small font-weight-bold text-gray-700">Filter Ujian</label>
+									<select id="filterExam" class="form-control form-control-sm">
+										<option value="">Semua Ujian</option>
+									</select>
+								</div>
+								<div class="col-md-3 col-sm-6 mb-2">
+									<label class="small font-weight-bold text-gray-700">Status Penilaian</label>
+									<select id="filterStatus" class="form-control form-control-sm">
+										<option value="">Semua Status</option>
+										<option value="dikumpulkan">Perlu Dinilai / Dikumpulkan</option>
+										<option value="dinilai">Sudah Dinilai / Final</option>
+										<option value="berlangsung">Sedang Berlangsung</option>
+									</select>
+								</div>
+								<div class="col-md-3 col-sm-6 mb-2">
+									<label class="small font-weight-bold text-gray-700">Cari Siswa</label>
+									<div class="input-group input-group-sm">
+										<input type="text" id="searchKeyword" class="form-control" placeholder="Nama siswa atau NIS...">
+										<div class="input-group-append">
+											<span class="input-group-text"><i class="fas fa-search"></i></span>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Table of Exam Submissions -->
+					<div class="card shadow mb-4">
+						<div class="card-header py-3 d-flex align-items-center justify-content-between">
+							<h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list mr-1"></i>Daftar Pengerjaan Siswa</h6>
+							<span class="small text-muted" id="tableFilterSummary">Menampilkan seluruh data</span>
+						</div>
+						<div class="card-body p-0">
+							<div class="table-responsive">
+								<table class="table table-hover table-striped mb-0" id="submissionsTable">
+									<thead class="thead-light">
+										<tr>
+											<th style="width: 45px;">No</th>
+											<th>Siswa</th>
+											<th>Kelas</th>
+											<th>Ujian & Mapel</th>
+											<th>Waktu Pengumpulan</th>
+											<th class="text-center" style="width: 120px;">Nilai Akhir</th>
+											<th class="text-center" style="width: 120px;">Status</th>
+											<th class="text-center" style="width: 120px;">Aksi</th>
+										</tr>
+									</thead>
+									<tbody id="submissionsTableBody">
+										<tr>
+											<td colspan="10" class="text-center py-4 text-muted">
+												<i class="fas fa-spinner fa-spin mr-1"></i>Memuat pengerjaan ujian siswa...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Footer -->
+			<footer class="sticky-footer bg-white mt-auto">
+				<div class="container my-auto">
+					<div class="copyright text-center my-auto">
+						<span>Copyright &copy; YPINI School System</span>
+					</div>
+				</div>
+			</footer>
+		</div>
+	</div>
+
+	<!-- Modal: Review & Finalize Grades -->
+	<div class="modal fade" id="reviewModal" tabindex="-1" role="dialog" aria-labelledby="reviewModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+			<div class="modal-content border-0 shadow-lg">
+				<div class="modal-header bg-primary text-white py-3">
+					<h5 class="modal-title font-weight-bold" id="reviewModalLabel">
+						<i class="fas fa-clipboard-check mr-2"></i>Pemeriksaan Jawaban & Finalisasi Nilai
+					</h5>
+					<button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body p-4" style="background-color: #fbfcfd;">
+					<div id="modalAlertBox"></div>
+
+					<!-- Student & Exam Header Info -->
+					<div class="card shadow-sm border-0 mb-4">
+						<div class="card-body p-3 bg-white rounded">
+							<div class="row align-items-center">
+								<div class="col-md-7 mb-2 mb-md-0">
+									<div class="d-flex align-items-center">
+										<div class="mr-3">
+											<div class="rounded-circle bg-light d-flex align-items-center justify-content-center text-primary" style="width: 48px; height: 48px; font-size: 1.4rem;">
+												<i class="fas fa-user-graduate"></i>
+											</div>
+										</div>
+										<div>
+											<h5 class="font-weight-bold text-gray-900 mb-0" id="reviewStudentName">-</h5>
+											<div class="small text-muted">
+												NIS: <span class="font-weight-bold text-gray-700" id="reviewStudentNis">-</span> | 
+												Kelas: <span class="badge badge-info font-weight-bold" id="reviewStudentClass">-</span>
+											</div>
+										</div>
+									</div>
+								</div>
+								<div class="col-md-5 text-md-right">
+									<div class="font-weight-bold text-gray-800" id="reviewExamName">-</div>
+									<div class="small text-muted">
+										Mapel: <span class="text-gray-700 font-weight-bold" id="reviewExamSubject">-</span> | 
+										Submit: <span id="reviewExamSubmittedAt">-</span>
+									</div>
+									<div class="mt-1" id="reviewStatusBadgeContainer"></div>
+								</div>
+							</div>
+							<div class="border-top mt-2 pt-2 small text-muted d-flex justify-content-between align-items-center" id="reviewAuditInfo">
+								<span><i class="fas fa-info-circle mr-1"></i>Periksa jawaban di bawah ini dan tentukan nilai akhir siswa.</span>
+								<span id="reviewLastAuditedBy"></span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Simple Score Finalization Card -->
+					<div class="card shadow-sm border-0 mb-4 bg-white">
+						<div class="card-body py-3 px-4">
+							<div class="row align-items-center">
+								<!-- Jawaban Benar -->
+								<div class="col-md-6 col-sm-12 mb-3 mb-md-0 d-flex align-items-center">
+									<div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mr-3 shadow-sm" style="width: 48px; height: 48px; font-size: 1.3rem;">
+										<i class="fas fa-check"></i>
+									</div>
+									<div>
+										<div class="small text-muted font-weight-bold text-uppercase">Jawaban Benar</div>
+										<div class="h4 font-weight-bold text-gray-900 mb-0">
+											<span id="simpleCorrectCount" class="text-success">0</span> <span class="text-muted" style="font-size: 1.1rem; font-weight: normal;">/ <span id="simpleTotalQuestions">0</span> Soal</span>
+										</div>
+									</div>
+								</div>
+
+								<!-- Nilai Akhir -->
+								<div class="col-md-6 col-sm-12 d-flex align-items-center justify-content-md-end">
+									<div class="mr-3 text-md-right">
+										<label for="inputFinalScore" class="font-weight-bold text-gray-800 mb-0 d-block">Nilai Akhir Siswa:</label>
+										<span class="small text-muted">Tentukan nilai akhir (0 - 100)</span>
+									</div>
+									<div style="width: 140px;">
+										<input type="number" step="0.5" min="0" max="100" id="inputFinalScore" class="form-control form-control-lg font-weight-bold text-center text-primary" style="font-size: 1.5rem; height: 50px;" value="0">
+									</div>
+								</div>
+						</div>
+					</div>
+
+					<!-- Question & Answer List -->
+					<div class="d-flex justify-content-between align-items-center mb-3">
+						<h6 class="font-weight-bold text-gray-800 m-0"><i class="fas fa-file-alt mr-1"></i>Lembar Jawaban Siswa per Butir Soal</h6>
+						<div class="small text-muted" id="reviewQuestionsCount">0 Soal</div>
+					</div>
+
+					<div id="reviewQuestionsList">
+						<div class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin mr-1"></i>Memuat butir soal & jawaban...</div>
+					</div>
+				</div>
+				<div class="modal-footer bg-white justify-content-between">
+					<div>
+						<button type="button" class="btn btn-outline-danger btn-sm" id="btnResetStudentAttemptModal">
+							<i class="fas fa-redo-alt mr-1"></i>Reset Pengerjaan (Ujian Ulang)
+						</button>
+					</div>
+					<div>
+						<button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+						<button type="button" class="btn btn-outline-primary" id="btnSaveDraftGrading">
+							<i class="fas fa-save mr-1"></i>Simpan Draf Penilaian
+						</button>
+						<button type="button" class="btn btn-success font-weight-bold px-3" id="btnFinalizeGrading">
+							<i class="fas fa-check-circle mr-1"></i>Finalisasi Nilai
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Printable Area (Hidden on screen, visible during print) -->
+	<div id="printArea" class="d-none">
+		<div style="font-family: Arial, sans-serif; padding: 20px; color: #000;">
+			<div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px;">
+				<h3 style="margin: 0; font-weight: bold; text-transform: uppercase;">YPINI SCHOOL SYSTEM</h3>
+				<h4 style="margin: 4px 0 0 0; font-weight: bold;">REKAPITULASI HASIL & NILAI UJIAN SISWA</h4>
+				<p style="margin: 4px 0 0 0; font-size: 13px;" id="printHeaderSubtitle">Tahun Ajaran Aktif</p>
+			</div>
+
+			<table style="width: 100%; margin-bottom: 15px; font-size: 13px;">
+				<tr>
+					<td style="width: 15%; font-weight: bold;">Mata Pelajaran</td>
+					<td style="width: 35%;" id="printMetaSubject">: -</td>
+					<td style="width: 15%; font-weight: bold;">Kelas</td>
+					<td style="width: 35%;" id="printMetaClass">: -</td>
+				</tr>
+				<tr>
+					<td style="font-weight: bold;">Nama Ujian</td>
+					<td id="printMetaExam">: -</td>
+					<td style="font-weight: bold;">Tanggal Cetak</td>
+					<td id="printMetaDate">: -</td>
+				</tr>
+			</table>
+
+			<table style="width: 100%; border-collapse: collapse; font-size: 12px;" border="1" cellpadding="6">
+				<thead>
+					<tr style="background-color: #f2f2f2; text-align: center;">
+						<th style="width: 35px;">No</th>
+						<th style="width: 120px;">NIS</th>
+						<th style="text-align: left;">Nama Siswa</th>
+						<th style="width: 100px;">Kelas</th>
+						<th style="width: 100px;">Nilai Akhir</th>
+						<th style="width: 120px;">Status</th>
+					</tr>
+				</thead>
+				<tbody id="printTableBody">
+					<!-- Populated dynamically -->
+				</tbody>
+			</table>
+
+			<div style="margin-top: 30px; display: flex; justify-content: flex-end;">
+				<div style="text-align: center; width: 220px; font-size: 13px;">
+					<p style="margin-bottom: 60px;">Guru Pengampu / Wali Kelas,</p>
+					<p style="margin: 0; font-weight: bold; text-decoration: underline;" id="printTeacherName">( ........................................ )</p>
+					<p style="margin: 0; font-size: 11px;">NIP: ........................................</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Bootstrap core JavaScript-->
+	<script src="../../assets/vendor/jquery/jquery.min.js"></script>
+	<script src="../../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+	<script src="../../assets/vendor/jquery-easing/jquery.easing.min.js"></script>
+	<script src="../../assets/js/sb-admin-2.min.js"></script>
+
+	<!-- Supabase API & Session -->
+	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<script src="../../supabase-config.js"></script>
+	<script src="../../api.js"></script>
+	<script src="../../admin-session.js"></script>
+	<script src="../../class-navigation.js"></script>
+
+	<script>
+		let allSubmissions = [];
+		let filteredSubmissions = [];
+		let allClasses = [];
+		let allExams = [];
+		let activeAcademicYearId = null;
+		let currentSelectedAttempt = null;
+		let currentAttemptQuestions = [];
+		let currentAttemptStudentAnswers = new Map();
+		let currentAttemptKunciPg = new Map();
+		let currentAttemptAcuanEssay = new Map();
+
+		function showMessage(msg, type = "success") {
+			const box = document.getElementById("pageAlertBox");
+			box.innerHTML = `
+				<div class="alert alert-${type} alert-dismissible fade show shadow-sm" role="alert">
+					<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${msg}
+					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+			`;
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+		}
+
+		function showModalMessage(msg, type = "success") {
+			const box = document.getElementById("modalAlertBox");
+			box.innerHTML = `
+				<div class="alert alert-${type} alert-dismissible fade show" role="alert">
+					<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${msg}
+					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+			`;
+		}
+
+		function formatWibDate(dateStr) {
+			if (!dateStr) return "-";
+			try {
+				const d = new Date(dateStr);
+				return d.toLocaleString("id-ID", {
+					timeZone: "Asia/Jakarta",
+					day: "2-digit",
+					month: "short",
+					year: "numeric",
+					hour: "2-digit",
+					minute: "2-digit"
+				});
+			} catch (_) {
+				return dateStr;
+			}
+		}
+
+		async function loadClasses() {
+			try {
+				const result = await apiGet("/data/kelas");
+				allClasses = result.data || [];
+				const select = document.getElementById("filterClass");
+				select.innerHTML = '<option value="">Semua Kelas</option>';
+				allClasses.forEach(c => {
+					const opt = document.createElement("option");
+					opt.value = String(c.id);
+					opt.textContent = [c.jenjang, c.nama_kelas].filter(Boolean).join(" - ");
+					select.appendChild(opt);
+				});
+
+				// Check URL query param
+				const urlParams = new URLSearchParams(window.location.search);
+				const classParam = urlParams.get("kelas");
+				if (classParam) {
+					select.value = classParam;
+					const foundClass = allClasses.find(c => String(c.id) === classParam);
+					if (foundClass) {
+						const headingEl = document.getElementById("examResultClassHeading");
+						if (headingEl) {
+							headingEl.textContent = `Hasil Ujian Kelas ${[foundClass.jenjang, foundClass.nama_kelas].filter(Boolean).join(" - ")}`;
+						}
+					}
+				}
+			} catch (err) {
+				console.error("Gagal memuat kelas:", err);
+			}
+		}
+
+		async function loadExams() {
+			try {
+				const client = getSupabaseClient();
+				const { data, error } = await client
+					.from("ujian")
+					.select("id, nama_ujian, pelajaran_id, aktif, data_pelajaran(nama_pelajaran)")
+					.order("id", { ascending: false });
+				if (error) throw error;
+				allExams = data || [];
+				const select = document.getElementById("filterExam");
+				select.innerHTML = '<option value="">Semua Ujian</option>';
+				allExams.forEach(e => {
+					const opt = document.createElement("option");
+					opt.value = String(e.id);
+					const subject = e.data_pelajaran?.nama_pelajaran ? ` (${e.data_pelajaran.nama_pelajaran})` : '';
+					const statusText = e.aktif ? '[Aktif]' : '[Nonaktif]';
+					opt.textContent = `${e.nama_ujian}${subject} ${statusText}`;
+					select.appendChild(opt);
+				});
+			} catch (err) {
+				console.error("Gagal memuat ujian:", err);
+			}
+		}
+
+		async function loadAllSubmissions() {
+			const tableBody = document.getElementById("submissionsTableBody");
+			tableBody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin mr-2"></i>Mengambil data pengerjaan ujian siswa...</td></tr>';
+
+			try {
+				const client = getSupabaseClient();
+				activeAcademicYearId = await getActiveAcademicYearId().catch(() => null);
+
+				// 1. Ambil penempatan kelas siswa untuk tahun ajaran aktif
+				const placementsByStudentId = new Map();
+				if (activeAcademicYearId) {
+					const { data: placements } = await client
+						.from("siswa_kelas_tahun_ajaran")
+						.select("siswa_id, kelas_tahun_ajaran_id, kelas_tahun_ajaran(id, jenjang, nama_kelas)")
+						.eq("tahun_ajaran_id", activeAcademicYearId);
+
+					(placements || []).forEach(p => {
+						const className = p.kelas_tahun_ajaran 
+							? [p.kelas_tahun_ajaran.jenjang, p.kelas_tahun_ajaran.nama_kelas].filter(Boolean).join(" - ")
+							: "-";
+						placementsByStudentId.set(String(p.siswa_id), {
+							classYearId: p.kelas_tahun_ajaran_id,
+							className: className
+						});
+					});
+				}
+
+				// 2. Ambil seluruh percobaan_ujian
+				const { data: attempts, error } = await client
+					.from("percobaan_ujian")
+					.select(`
+						id,
+						ujian_id,
+						siswa_id,
+						status,
+						mulai_at,
+						dikumpulkan_at,
+						nilai_pilihan_ganda,
+						nilai_essay_final,
+						nilai_total,
+						created_at,
+						updated_at,
+						data_siswa (
+							id,
+							nis,
+							nama,
+							photo_path
+						),
+						ujian (
+							id,
+							nama_ujian,
+							pelajaran_id,
+							waktu_menit,
+							aktif,
+							data_pelajaran (
+								nama_pelajaran
+							)
+						)
+					`)
+					.order("id", { ascending: false });
+
+				if (error) throw error;
+
+				allSubmissions = (attempts || []).map(att => {
+					const placement = placementsByStudentId.get(String(att.siswa_id));
+					return {
+						...att,
+						studentName: att.data_siswa?.nama || "Siswa Tidak Ditemukan",
+						studentNis: att.data_siswa?.nis || "-",
+						studentPhoto: att.data_siswa?.photo_path || null,
+						examName: att.ujian?.nama_ujian || "Ujian Tidak Diketahui",
+						subjectName: att.ujian?.data_pelajaran?.nama_pelajaran || "-",
+						className: placement?.className || "Belum ada kelas",
+						classId: placement?.classYearId || null,
+					};
+				});
+
+				applyFilters();
+			} catch (err) {
+				console.error("Gagal memuat pengerjaan ujian:", err);
+				tableBody.innerHTML = `<tr><td colspan="10" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle mr-2"></i>Gagal memuat data: ${err.message}</td></tr>`;
+			}
+		}
+
+		function applyFilters() {
+			const filterClassVal = document.getElementById("filterClass").value;
+			const filterExamVal = document.getElementById("filterExam").value;
+			const filterStatusVal = document.getElementById("filterStatus").value;
+			const searchKeyword = document.getElementById("searchKeyword").value.trim().toLowerCase();
+
+			filteredSubmissions = allSubmissions.filter(item => {
+				if (filterClassVal && String(item.classId) !== filterClassVal) return false;
+				if (filterExamVal && String(item.ujian_id) !== filterExamVal) return false;
+				if (filterStatusVal && item.status !== filterStatusVal) return false;
+				if (searchKeyword) {
+					const matchName = item.studentName.toLowerCase().includes(searchKeyword);
+					const matchNis = item.studentNis.toLowerCase().includes(searchKeyword);
+					const matchExam = item.examName.toLowerCase().includes(searchKeyword);
+					if (!matchName && !matchNis && !matchExam) return false;
+				}
+				return true;
+			});
+
+			renderTable();
+			updateStats();
+		}
+
+		function updateStats() {
+			const elTotal = document.getElementById("statTotalSubmissions");
+			const elPending = document.getElementById("statPendingGrading");
+			const elFinalized = document.getElementById("statFinalizedGrading");
+			const elAvg = document.getElementById("statAverageScore");
+
+			// Jika elemen stat cards tidak ada di DOM (dihilangkan oleh pengguna), lewati dengan aman
+			if (!elTotal && !elPending && !elFinalized && !elAvg) return;
+
+			if (elTotal) elTotal.textContent = filteredSubmissions.length;
+			const pending = filteredSubmissions.filter(s => s.status === 'dikumpulkan').length;
+			const finalized = filteredSubmissions.filter(s => s.status === 'dinilai').length;
+			if (elPending) elPending.textContent = pending;
+			if (elFinalized) elFinalized.textContent = finalized;
+
+			const scores = filteredSubmissions
+				.filter(s => s.nilai_total !== null && s.nilai_total !== undefined)
+				.map(s => Number(s.nilai_total));
+			
+			const avg = scores.length > 0 
+				? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)
+				: "0.00";
+			if (elAvg) elAvg.textContent = avg;
+		}
+
+		function renderTable() {
+			const tableBody = document.getElementById("submissionsTableBody");
+			const summaryText = document.getElementById("tableFilterSummary");
+
+			if (filteredSubmissions.length === 0) {
+				if (tableBody) tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-5 text-muted"><i class="fas fa-inbox fa-3x mb-3 d-block text-gray-300"></i>Tidak ada data pengerjaan ujian yang cocok dengan filter yang dipilih.</td></tr>';
+				if (summaryText) summaryText.textContent = "0 data ditemukan";
+				return;
+			}
+
+			if (summaryText) summaryText.textContent = `Menampilkan ${filteredSubmissions.length} dari total ${allSubmissions.length} pengerjaan`;
+
+			tableBody.innerHTML = filteredSubmissions.map((item, index) => {
+				let statusBadge = '';
+				if (item.status === 'dinilai') {
+					statusBadge = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai</span>';
+				} else if (item.status === 'dikumpulkan') {
+					statusBadge = '<span class="badge badge-warning text-dark badge-status"><i class="fas fa-clock mr-1"></i>Perlu Dinilai</span>';
+				} else {
+					statusBadge = '<span class="badge badge-info badge-status"><i class="fas fa-spinner fa-spin mr-1"></i>Berlangsung</span>';
+				}
+
+				const nilaiTotalDisplay = item.nilai_total !== null && item.nilai_total !== undefined
+					? `<span class="badge badge-${item.nilai_total >= 75 ? 'success' : 'primary'} p-2 font-weight-bold" style="font-size: 0.95rem;">${Number(item.nilai_total).toFixed(2)}</span>`
+					: '<span class="badge badge-light text-muted border">Belum Final</span>';
+
+				return `
+					<tr>
+						<td class="text-center align-middle font-weight-bold text-gray-600">${index + 1}</td>
+						<td class="align-middle">
+							<div class="font-weight-bold text-gray-900">${escapeHtml(item.studentName)}</div>
+							<div class="small text-muted">NIS: ${escapeHtml(item.studentNis)}</div>
+						</td>
+						<td class="align-middle">
+							<span class="badge badge-secondary">${escapeHtml(item.className)}</span>
+						</td>
+						<td class="align-middle">
+							<div class="font-weight-bold text-gray-800">${escapeHtml(item.examName)}</div>
+							<div class="small text-muted"><i class="fas fa-book-open mr-1"></i>${escapeHtml(item.subjectName)}</div>
+						</td>
+						<td class="align-middle small">
+							<div><i class="fas fa-calendar-check text-success mr-1"></i>${formatWibDate(item.dikumpulkan_at || item.mulai_at)}</div>
+							${item.dikumpulkan_at ? '' : '<span class="text-info font-italic">Sedang mengerjakan</span>'}
+						</td>
+						<td class="align-middle text-center">${nilaiTotalDisplay}</td>
+						<td class="align-middle text-center">${statusBadge}</td>
+						<td class="align-middle text-center">
+							<div class="btn-group btn-group-sm">
+								<button class="btn btn-primary" data-action="review" data-attempt-id="${item.id}" title="Periksa Jawaban & Beri Nilai">
+									<i class="fas fa-edit mr-1"></i>Periksa
+								</button>
+								<button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+									<span class="sr-only">Toggle Dropdown</span>
+								</button>
+								<div class="dropdown-menu dropdown-menu-right shadow">
+									<a class="dropdown-item" href="#" data-action="review" data-attempt-id="${item.id}">
+										<i class="fas fa-search mr-2 text-primary"></i>Lihat Lembar Jawaban
+									</a>
+									${item.status === 'dinilai' ? `
+										<a class="dropdown-item" href="#" data-action="reopen" data-attempt-id="${item.id}">
+											<i class="fas fa-undo-alt mr-2 text-warning"></i>Buka Kembali Nilai
+										</a>
+									` : ''}
+									<div class="dropdown-divider"></div>
+									<a class="dropdown-item text-danger" href="#" data-action="reset" data-attempt-id="${item.id}">
+										<i class="fas fa-redo-alt mr-2"></i>Reset Pengerjaan Siswa
+									</a>
+								</div>
+							</div>
+						</td>
+					</tr>
+				`;
+			}).join('');
+		}
+
+		function escapeHtml(str) {
+			if (!str) return "";
+			return String(str)
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/"/g, "&quot;")
+				.replace(/'/g, "&#039;");
+		}
+
+		async function openReviewModal(attemptId) {
+			const attempt = allSubmissions.find(s => String(s.id) === String(attemptId));
+			if (!attempt) return;
+			currentSelectedAttempt = attempt;
+
+			document.getElementById("modalAlertBox").innerHTML = "";
+			document.getElementById("reviewStudentName").textContent = attempt.studentName;
+			document.getElementById("reviewStudentNis").textContent = attempt.studentNis;
+			document.getElementById("reviewStudentClass").textContent = attempt.className;
+			document.getElementById("reviewExamName").textContent = attempt.examName;
+			document.getElementById("reviewExamSubject").textContent = attempt.subjectName;
+			document.getElementById("reviewExamSubmittedAt").textContent = formatWibDate(attempt.dikumpulkan_at || attempt.mulai_at);
+			
+			const statusContainer = document.getElementById("reviewStatusBadgeContainer");
+			if (attempt.status === 'dinilai') {
+				statusContainer.innerHTML = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai (Final)</span>';
+			} else if (attempt.status === 'dikumpulkan') {
+				statusContainer.innerHTML = '<span class="badge badge-warning text-dark badge-status"><i class="fas fa-clock mr-1"></i>Menunggu Finalisasi Nilai</span>';
+			} else {
+				statusContainer.innerHTML = '<span class="badge badge-info badge-status"><i class="fas fa-spinner fa-spin mr-1"></i>Sedang Berlangsung</span>';
+			}
+
+			const questionsContainer = document.getElementById("reviewQuestionsList");
+			questionsContainer.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-2 d-block text-primary"></i>Mengambil butir soal, kunci, dan jawaban siswa...</div>';
+
+			$("#reviewModal").modal("show");
+
+			try {
+				const client = getSupabaseClient();
+
+				// 1. Ambil soal-soal ujian ini
+				const { data: questions, error: qError } = await client
+					.from("soal_ujian")
+					.select("*")
+					.eq("ujian_id", attempt.ujian_id)
+					.order("nomor_urut", { ascending: true });
+				if (qError) throw qError;
+				currentAttemptQuestions = questions || [];
+				document.getElementById("reviewQuestionsCount").textContent = `${currentAttemptQuestions.length} Soal Ujian`;
+
+				const questionIds = currentAttemptQuestions.map(q => q.id);
+
+				// 2. Ambil kunci PG jika ada
+				currentAttemptKunciPg.clear();
+				const pgQuestions = currentAttemptQuestions.filter(q => q.soal_type === 'pg');
+				if (pgQuestions.length > 0) {
+					const { data: kunciList } = await client
+						.from("kunci_pg")
+						.select("soal_id, jawaban_benar")
+						.in("soal_id", pgQuestions.map(q => q.id));
+					(kunciList || []).forEach(k => currentAttemptKunciPg.set(String(k.soal_id), k.jawaban_benar));
+				}
+
+				// 3. Ambil jawaban acuan essay jika ada
+				currentAttemptAcuanEssay.clear();
+				const essayQuestions = currentAttemptQuestions.filter(q => q.soal_type === 'essay');
+				if (essayQuestions.length > 0) {
+					const { data: acuanList } = await client
+						.from("jawaban_acuan_essay")
+						.select("soal_id, jawaban")
+						.in("soal_id", essayQuestions.map(q => q.id));
+					(acuanList || []).forEach(a => {
+						const list = currentAttemptAcuanEssay.get(String(a.soal_id)) || [];
+						list.push(a.jawaban);
+						currentAttemptAcuanEssay.set(String(a.soal_id), list);
+					});
+				}
+
+				// 4. Ambil jawaban siswa untuk percobaan ini
+				currentAttemptStudentAnswers.clear();
+				const { data: answers, error: aError } = await client
+					.from("jawaban_siswa")
+					.select("*")
+					.eq("percobaan_id", attempt.id);
+				if (aError) throw aError;
+				(answers || []).forEach(a => currentAttemptStudentAnswers.set(String(a.soal_id), a));
+
+				// 5. Informasi audit peninjau
+				let reviewerName = null;
+				let auditedAt = null;
+				const sampleAnswer = (answers || []).find(a => a.ditinjau_oleh);
+				if (sampleAnswer && sampleAnswer.ditinjau_oleh) {
+					auditedAt = sampleAnswer.ditinjau_at;
+					const { data: reviewerProfile } = await client
+						.from("profiles")
+						.select("name, role")
+						.eq("user_id", sampleAnswer.ditinjau_oleh)
+						.maybeSingle();
+					if (reviewerProfile) {
+						reviewerName = `${reviewerProfile.name} (${reviewerProfile.role})`;
+					}
+				}
+
+				const lastAuditedEl = document.getElementById("reviewLastAuditedBy");
+				if (reviewerName) {
+					lastAuditedEl.innerHTML = `<span class="badge badge-light border text-gray-700"><i class="fas fa-user-edit mr-1"></i>Penilai: ${escapeHtml(reviewerName)} (${formatWibDate(auditedAt)})</span>`;
+				} else {
+					lastAuditedEl.textContent = "";
+				}
+
+				// 6. Tampilkan pertanyaan, jawaban, dan hitung jawaban benar
+				renderReviewQuestions();
+
+				// Isi nilai akhir (jika sudah ada gunakan nilai tersimpan, jika belum otomatis estimasi dari jawaban benar PG)
+				if (attempt.nilai_total !== null && attempt.nilai_total !== undefined) {
+					document.getElementById("inputFinalScore").value = Number(attempt.nilai_total).toFixed(2);
+				} else {
+					const pgQuestions = currentAttemptQuestions.filter(q => q.soal_type === 'pg');
+					let correctCount = 0;
+					pgQuestions.forEach(q => {
+						const ans = currentAttemptStudentAnswers.get(String(q.id));
+						const kunci = currentAttemptKunciPg.get(String(q.id));
+						if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) {
+							correctCount++;
+						}
+					});
+					const autoScore = pgQuestions.length > 0 
+						? ((correctCount / pgQuestions.length) * 100).toFixed(2)
+						: "0.00";
+					document.getElementById("inputFinalScore").value = autoScore;
+				}
+			} catch (err) {
+				console.error("Gagal membuka lembar koreksi:", err);
+				questionsContainer.innerHTML = `<div class="alert alert-danger m-3"><i class="fas fa-exclamation-triangle mr-2"></i>Gagal memuat jawaban: ${err.message}</div>`;
+			}
+		}
+
+		function renderReviewQuestions() {
+			const container = document.getElementById("reviewQuestionsList");
+			if (currentAttemptQuestions.length === 0) {
+				container.innerHTML = '<div class="alert alert-info">Belum ada soal pada ujian ini.</div>';
+				return;
+			}
+
+			let html = '';
+			currentAttemptQuestions.forEach((q, idx) => {
+				const qNum = q.nomor_urut || (idx + 1);
+				const studentAns = currentAttemptStudentAnswers.get(String(q.id));
+				const isEssay = q.soal_type === 'essay';
+
+				// Gambar pendukung
+				let imagesHtml = '';
+				const allImages = [];
+				if (q.gambar_url) allImages.push(q.gambar_url);
+				if (Array.isArray(q.gambar_urls)) {
+					q.gambar_urls.forEach(u => { if (u && !allImages.includes(u)) allImages.push(u); });
+				}
+				if (allImages.length > 0) {
+					imagesHtml = `
+						<div class="d-flex flex-wrap gap-2 my-2">
+							${allImages.map(img => `
+								<a href="${escapeHtml(img)}" target="_blank" class="mr-2 mb-2">
+									<img src="${escapeHtml(img)}" class="question-image-thumb" alt="Foto Soal">
+								</a>
+							`).join('')}
+						</div>
+					`;
+				}
+
+				if (!isEssay) {
+					// Pilihan Ganda
+					const studentChoice = studentAns?.jawaban_pg ? studentAns.jawaban_pg.toUpperCase() : null;
+					const correctKey = currentAttemptKunciPg.get(String(q.id)) || null;
+					const isCorrect = studentChoice && correctKey && studentChoice === correctKey;
+
+					let statusBadge = '';
+					if (!studentChoice) {
+						statusBadge = '<span class="badge badge-secondary"><i class="fas fa-minus-circle mr-1"></i>Tidak Dijawab</span>';
+					} else if (isCorrect) {
+						statusBadge = '<span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>Benar</span>';
+					} else {
+						statusBadge = '<span class="badge badge-danger"><i class="fas fa-times-circle mr-1"></i>Salah</span>';
+					}
+
+					const options = [
+						{ key: 'A', text: q.pilihan_a },
+						{ key: 'B', text: q.pilihan_b },
+						{ key: 'C', text: q.pilihan_c },
+						{ key: 'D', text: q.pilihan_d },
+					];
+
+					html += `
+						<div class="card shadow-sm border-left-${isCorrect ? 'success' : (studentChoice ? 'danger' : 'secondary')} mb-3">
+							<div class="card-header py-2 bg-white d-flex justify-content-between align-items-center">
+								<div>
+									<span class="font-weight-bold text-gray-800 mr-2">Soal No. ${qNum}</span>
+									<span class="badge badge-primary">Pilihan Ganda</span>
+								</div>
+								<div>${statusBadge}</div>
+							</div>
+							<div class="card-body py-3">
+								<div class="text-gray-900 font-weight-500 mb-2" style="white-space: pre-wrap; font-size: 1rem;">${escapeHtml(q.pertanyaan)}</div>
+								${imagesHtml}
+
+								<div class="mt-3">
+									${options.map(opt => {
+										let rowClass = 'option-row';
+										let badgeInfo = '';
+										if (opt.key === studentChoice && opt.key === correctKey) {
+											rowClass += ' correct-key font-weight-bold';
+											badgeInfo = '<span class="badge badge-success float-right"><i class="fas fa-check mr-1"></i>Jawaban Siswa & Kunci Benar</span>';
+										} else if (opt.key === studentChoice && opt.key !== correctKey) {
+											rowClass += ' wrong-choice font-weight-bold';
+											badgeInfo = '<span class="badge badge-danger float-right"><i class="fas fa-times mr-1"></i>Jawaban Siswa</span>';
+										} else if (opt.key === correctKey) {
+											rowClass += ' correct-key font-weight-bold';
+											badgeInfo = '<span class="badge badge-success float-right"><i class="fas fa-key mr-1"></i>Kunci Jawaban</span>';
+										}
+
+										return `
+											<div class="${rowClass}">
+												<span class="badge badge-light border mr-2 font-weight-bold">${opt.key}</span>
+												<span>${escapeHtml(opt.text || '-')}</span>
+												${badgeInfo}
+											</div>
+										`;
+									}).join('')}
+								</div>
+							</div>
+						</div>
+					`;
+				} else {
+					// Soal Essay
+					const studentText = studentAns?.jawaban_essay ? studentAns.jawaban_essay.trim() : '';
+					const references = currentAttemptAcuanEssay.get(String(q.id)) || [];
+					const currentScore = studentAns?.nilai_final !== null && studentAns?.nilai_final !== undefined
+						? Number(studentAns.nilai_final)
+						: '';
+					const currentNote = studentAns?.catatan_guru || '';
+
+					html += `
+						<div class="card shadow-sm border-left-warning mb-3">
+							<div class="card-header py-2 bg-white d-flex justify-content-between align-items-center">
+								<div>
+									<span class="font-weight-bold text-gray-800 mr-2">Soal No. ${qNum}</span>
+									<span class="badge badge-warning text-dark">Essay / Uraian</span>
+								</div>
+								<span class="small text-muted"><i class="fas fa-pen-alt mr-1"></i>Perlu Penilaian Guru</span>
+							</div>
+							<div class="card-body py-3">
+								<div class="text-gray-900 font-weight-500 mb-2" style="white-space: pre-wrap; font-size: 1rem;">${escapeHtml(q.pertanyaan)}</div>
+								${imagesHtml}
+
+								<div class="mt-3 mb-2">
+									<label class="small font-weight-bold text-gray-700">
+										<i class="fas fa-comment-dots text-primary mr-1"></i>Jawaban Siswa:
+									</label>
+									<div class="essay-student-box">
+										${studentText ? escapeHtml(studentText) : '<span class="text-muted font-italic"><i class="fas fa-ban mr-1"></i>Siswa tidak mengisi jawaban pada butir ini.</span>'}
+									</div>
+								</div>
+
+								${references.length > 0 ? `
+									<div class="mt-2 mb-3">
+										<label class="small font-weight-bold text-warning">
+											<i class="fas fa-lightbulb mr-1"></i>Kunci / Acuan Jawaban Acuan:
+										</label>
+										<div class="essay-reference-box">
+											${references.map((ref, rIdx) => `<div>${references.length > 1 ? `<strong>${rIdx + 1}.</strong> ` : ''}${escapeHtml(ref)}</div>`).join('')}
+										</div>
+									</div>
+								` : ''}
+
+								<div class="mt-3">
+									<label class="small font-weight-bold text-gray-700">Catatan Guru untuk Butir Ini (Opsional):</label>
+									<input type="text" class="form-control form-control-sm essay-note-input" data-soal-id="${q.id}" value="${escapeHtml(currentNote)}" placeholder="Komentar / masukan...">
+								</div>
+							</div>
+						</div>
+					`;
+				}
+			});
+
+			container.innerHTML = html;
+
+			// Hitung jawaban benar PG untuk ringkasan
+			let correctCount = 0;
+			currentAttemptQuestions.forEach(q => {
+				if (q.soal_type === 'pg') {
+					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const kunci = currentAttemptKunciPg.get(String(q.id));
+					if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) {
+						correctCount++;
+					}
+				}
+			});
+
+			const correctEl = document.getElementById("simpleCorrectCount");
+			const totalEl = document.getElementById("simpleTotalQuestions");
+			if (correctEl) correctEl.textContent = correctCount;
+			if (totalEl) totalEl.textContent = currentAttemptQuestions.length;
+		}
+
+
+		async function saveGrading(finalize = false) {
+			if (!currentSelectedAttempt) return;
+			const attemptId = currentSelectedAttempt.id;
+			const finalScoreVal = parseFloat(document.getElementById("inputFinalScore").value);
+
+			if (isNaN(finalScoreVal) || finalScoreVal < 0 || finalScoreVal > 100) {
+				showModalMessage("Nilai total akhir harus berupa angka antara 0 dan 100.", "danger");
+				return;
+			}
+
+			const saveDraftBtn = document.getElementById("btnSaveDraftGrading");
+			const finalizeBtn = document.getElementById("btnFinalizeGrading");
+			saveDraftBtn.disabled = true;
+			finalizeBtn.disabled = true;
+
+			try {
+				const client = getSupabaseClient();
+				const currentUserId = window.currentUser?.id || null;
+				const nowIso = new Date().toISOString();
+
+				// 1. Simpan catatan pada butir soal essay jika ada
+				const essayNoteInputs = document.querySelectorAll(".essay-note-input");
+				for (const noteInp of essayNoteInputs) {
+					const soalId = noteInp.dataset.soalId;
+					const note = noteInp.value.trim() || null;
+
+					const existing = currentAttemptStudentAnswers.get(String(soalId));
+					if (existing) {
+						await client.from("jawaban_siswa").update({
+							catatan_guru: note,
+							ditinjau_oleh: currentUserId,
+							ditinjau_at: nowIso,
+							updated_at: nowIso
+						}).eq("id", existing.id);
+					} else if (note) {
+						await client.from("jawaban_siswa").insert({
+							percobaan_id: attemptId,
+							ujian_id: currentSelectedAttempt.ujian_id,
+							soal_id: Number(soalId),
+							urutan_soal: 1,
+							catatan_guru: note,
+							ditinjau_oleh: currentUserId,
+							ditinjau_at: nowIso
+						});
+					}
+				}
+
+				// 2. Hitung statistik jawaban PG
+				const pgQuestions = currentAttemptQuestions.filter(q => q.soal_type === 'pg');
+				let pgCorrectCount = 0;
+				pgQuestions.forEach(q => {
+					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const kunci = currentAttemptKunciPg.get(String(q.id));
+					if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) {
+						pgCorrectCount++;
+					}
+				});
+				const pgScore = pgQuestions.length > 0 ? (pgCorrectCount / pgQuestions.length) * 100 : null;
+
+				const updatePayload = {
+					nilai_pilihan_ganda: pgScore !== null ? parseFloat(pgScore.toFixed(2)) : null,
+					nilai_total: parseFloat(finalScoreVal.toFixed(2)),
+					updated_at: nowIso
+				};
+
+				if (finalize) {
+					updatePayload.status = 'dinilai';
+				}
+
+				const { error: updError } = await client
+					.from("percobaan_ujian")
+					.update(updatePayload)
+					.eq("id", attemptId);
+
+				if (updError) throw updError;
+
+				showModalMessage(
+					finalize 
+						? "Nilai siswa berhasil difinalisasi! Status telah diubah menjadi 'Sudah Dinilai'." 
+						: "Draf penilaian berhasil disimpan.",
+					"success"
+				);
+
+				// Perbarui status lokal
+				currentSelectedAttempt.status = finalize ? 'dinilai' : currentSelectedAttempt.status;
+				currentSelectedAttempt.nilai_total = updatePayload.nilai_total;
+				currentSelectedAttempt.nilai_pilihan_ganda = updatePayload.nilai_pilihan_ganda;
+
+				const statusContainer = document.getElementById("reviewStatusBadgeContainer");
+				if (finalize) {
+					statusContainer.innerHTML = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai (Final)</span>';
+				}
+
+				// Refresh data induk di background
+				await loadAllSubmissions();
+			} catch (err) {
+				console.error("Gagal menyimpan penilaian:", err);
+				showModalMessage(`Gagal menyimpan: ${err.message}`, "danger");
+			} finally {
+				saveDraftBtn.disabled = false;
+				finalizeBtn.disabled = false;
+			}
+		}
+
+		async function resetStudentAttempt(attemptId) {
+			const attempt = allSubmissions.find(s => String(s.id) === String(attemptId));
+			if (!attempt) return;
+
+			const confirmMsg = `Reset pengerjaan ujian untuk siswa "${attempt.studentName}" pada ujian "${attempt.examName}"?\n\nPERINGATAN: Seluruh jawaban dan riwayat pengerjaan siswa ini akan dihapus permanen agar siswa dapat mengulang kembali ujian ini dari awal.`;
+			if (!window.confirm(confirmMsg)) return;
+
+			try {
+				const client = getSupabaseClient();
+				// Hapus jawaban_siswa terlebih dahulu
+				await client.from("jawaban_siswa").delete().eq("percobaan_id", attemptId);
+				// Hapus percobaan_ujian
+				const { error } = await client.from("percobaan_ujian").delete().eq("id", attemptId);
+				if (error) throw error;
+
+				$("#reviewModal").modal("hide");
+				showMessage(`Pengerjaan siswa "${attempt.studentName}" berhasil direset. Siswa kini dapat mengulang ujian.`);
+				await loadAllSubmissions();
+			} catch (err) {
+				alert(`Gagal mereset pengerjaan: ${err.message}`);
+			}
+		}
+
+		async function reopenAttemptGrading(attemptId) {
+			if (!window.confirm("Buka kembali status penilaian siswa ini ke status 'Dikumpulkan' untuk merevisi nilai?")) return;
+			try {
+				const client = getSupabaseClient();
+				const { error } = await client.from("percobaan_ujian").update({ status: 'dikumpulkan', updated_at: new Date().toISOString() }).eq("id", attemptId);
+				if (error) throw error;
+				showMessage("Status penilaian dibuka kembali. Anda dapat mengedit nilai siswa.");
+				await loadAllSubmissions();
+			} catch (err) {
+				alert(`Gagal membuka kembali: ${err.message}`);
+			}
+		}
+
+		function printReport() {
+			const filterClassVal = document.getElementById("filterClass").value;
+			const filterExamVal = document.getElementById("filterExam").value;
+
+			const classSelect = document.getElementById("filterClass");
+			const selectedClassText = classSelect.options[classSelect.selectedIndex]?.text || "Semua Kelas";
+
+			const examSelect = document.getElementById("filterExam");
+			const selectedExamText = examSelect.options[examSelect.selectedIndex]?.text || "Semua Ujian";
+
+			document.getElementById("printMetaClass").textContent = `: ${selectedClassText}`;
+			document.getElementById("printMetaExam").textContent = `: ${selectedExamText}`;
+			document.getElementById("printMetaDate").textContent = `: ${new Date().toLocaleDateString("id-ID", { day: '2-digit', month: 'long', year: 'numeric' })}`;
+
+			// Nama guru penandatangan
+			const currentTeacher = window.currentUserProfile?.name || "Administrator";
+			document.getElementById("printTeacherName").textContent = `( ${currentTeacher} )`;
+
+			// Tentukan mata pelajaran
+			let subjectText = "-";
+			if (filteredSubmissions.length > 0) {
+				const sample = filteredSubmissions.find(s => s.subjectName && s.subjectName !== '-');
+				if (sample) subjectText = sample.subjectName;
+			}
+			document.getElementById("printMetaSubject").textContent = `: ${subjectText}`;
+
+			const printTbody = document.getElementById("printTableBody");
+			if (filteredSubmissions.length === 0) {
+				printTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Tidak ada data pengerjaan ujian.</td></tr>';
+			} else {
+				printTbody.innerHTML = filteredSubmissions.map((s, idx) => `
+					<tr>
+						<td style="text-align: center;">${idx + 1}</td>
+						<td style="text-align: center;">${escapeHtml(s.studentNis)}</td>
+						<td>${escapeHtml(s.studentName)}</td>
+						<td style="text-align: center;">${escapeHtml(s.className)}</td>
+						<td style="text-align: center; font-weight: bold;">${s.nilai_total !== null ? Number(s.nilai_total).toFixed(2) : '-'}</td>
+						<td style="text-align: center;">${s.status === 'dinilai' ? 'Sudah Dinilai' : (s.status === 'dikumpulkan' ? 'Dikumpulkan' : 'Berlangsung')}</td>
+					</tr>
+				`).join('');
+			}
+
+			window.print();
+		}
+
+		document.addEventListener("DOMContentLoaded", async () => {
+			if (!await window.adminSessionReady) return;
+
+			await loadClasses();
+			await loadExams();
+			await loadAllSubmissions();
+
+			document.getElementById("btnRefreshData").addEventListener("click", loadAllSubmissions);
+			document.getElementById("filterClass").addEventListener("change", applyFilters);
+			document.getElementById("filterExam").addEventListener("change", applyFilters);
+			document.getElementById("filterStatus").addEventListener("change", applyFilters);
+			document.getElementById("searchKeyword").addEventListener("input", applyFilters);
+
+			document.getElementById("btnResetFilters").addEventListener("click", () => {
+				document.getElementById("filterClass").value = "";
+				document.getElementById("filterExam").value = "";
+				document.getElementById("filterStatus").value = "";
+				document.getElementById("searchKeyword").value = "";
+				applyFilters();
+			});
+
+			document.getElementById("submissionsTable").addEventListener("click", (e) => {
+				const btn = e.target.closest("[data-action]");
+				if (!btn) return;
+				const action = btn.dataset.action;
+				const attemptId = btn.dataset.attemptId;
+				if (action === "review") openReviewModal(attemptId);
+				if (action === "reopen") reopenAttemptGrading(attemptId);
+				if (action === "reset") resetStudentAttempt(attemptId);
+			});
+
+			document.getElementById("btnSaveDraftGrading").addEventListener("click", () => saveGrading(false));
+			document.getElementById("btnFinalizeGrading").addEventListener("click", () => saveGrading(true));
+
+			document.getElementById("btnResetStudentAttemptModal").addEventListener("click", () => {
+				if (currentSelectedAttempt) resetStudentAttempt(currentSelectedAttempt.id);
+			});
+
+			document.getElementById("btnPrintReport").addEventListener("click", printReport);
+		});
+	</script>
+</body>
+</html>

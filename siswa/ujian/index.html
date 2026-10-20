@@ -199,7 +199,6 @@
     <!-- Brand / Logo -->
     <a class="navbar-brand d-flex align-items-center" href="../">
       <img src="../../assets/img/logo.png" class="cbt-brand-logo mr-2" alt="Logo">
-      <span class="d-none d-sm-inline font-weight-bold text-gray-800">CBT Online</span>
     </a>
 
     <!-- Badge Mapel -->
@@ -365,26 +364,26 @@
               <div class="d-flex justify-content-between align-items-center flex-wrap">
                 <!-- Tombol Sebelumnya -->
                 <button type="button" class="btn btn-secondary px-3 mb-2 mb-sm-0" id="btnPrevQuestion">
-                  <i class="fas fa-chevron-left mr-1"></i> Sebelumnya
+                  <i class="fas fa-chevron-left mr-1"></i>
                 </button>
 
                 <!-- Tombol Navigasi Modal (Daftar Soal) & Ragu-Ragu -->
                 <div class="d-flex mb-2 mb-sm-0">
                   <button type="button" class="btn btn-outline-primary px-3 mr-2 font-weight-bold" data-toggle="modal" data-target="#navigasiSoalModal">
-                    <i class="fas fa-th mr-1"></i> Daftar Soal
+                    <i class="fas fa-th mr-1"></i>
                   </button>
-                  <button type="button" class="btn btn-outline-warning px-3" id="btnDoubtQuestion">
+                  <!-- <button type="button" class="btn btn-outline-warning px-3" id="btnDoubtQuestion">
                     <i class="fas fa-flag mr-1"></i> <span id="btnDoubtText">Ragu-Ragu</span>
-                  </button>
+                  </button> -->
                 </div>
 
                 <!-- Tombol Berikutnya / Selesai -->
                 <div class="d-flex">
                   <button type="button" class="btn btn-primary px-4" id="btnNextQuestion">
-                    Berikutnya <i class="fas fa-chevron-right ml-1"></i>
+                    <i class="fas fa-chevron-right ml-1"></i>
                   </button>
                   <button type="button" class="btn btn-success px-4 ml-2 d-none" id="btnFinishExamInline">
-                    <i class="fas fa-check-circle mr-1"></i> Selesai
+                    <i class="fas fa-check-circle mr-1"></i>
                   </button>
                 </div>
               </div>
@@ -566,6 +565,51 @@
 
     function getStorageKeyTimer(examId) {
       return `ypn_cbt_timer_${examId}_${currentStudentNis}`;
+    }
+
+    function getStorageKeyOptions(examId) {
+      return `ypn_cbt_options_${examId}_${currentStudentNis}`;
+    }
+
+    function setupShuffledOptions() {
+      if (!activeExam) return;
+      const optKey = getStorageKeyOptions(activeExam.id);
+      let savedOptionsMap = {};
+      if (activeExam.acak_jawaban) {
+        try {
+          const raw = localStorage.getItem(optKey);
+          if (raw) savedOptionsMap = JSON.parse(raw);
+        } catch (_) {}
+      }
+
+      let mapUpdated = false;
+      questionsList.forEach((q) => {
+        if (q.soal_type !== "pg") return;
+
+        if (activeExam.acak_jawaban) {
+          const savedKeys = savedOptionsMap[q.id];
+          if (Array.isArray(savedKeys) && savedKeys.length === 4 && ['A', 'B', 'C', 'D'].every((k) => savedKeys.includes(k))) {
+            q._shuffledOptionKeys = savedKeys;
+          } else {
+            const keys = ['A', 'B', 'C', 'D'];
+            for (let i = keys.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [keys[i], keys[j]] = [keys[j], keys[i]];
+            }
+            q._shuffledOptionKeys = keys;
+            savedOptionsMap[q.id] = keys;
+            mapUpdated = true;
+          }
+        } else {
+          q._shuffledOptionKeys = ['A', 'B', 'C', 'D'];
+        }
+      });
+
+      if (activeExam.acak_jawaban && mapUpdated) {
+        try {
+          localStorage.setItem(optKey, JSON.stringify(savedOptionsMap));
+        } catch (_) {}
+      }
     }
 
     function loadSavedAnswers(examId) {
@@ -771,7 +815,15 @@
           statusBadge.textContent = "Ragu-Ragu";
         } else if (hasAnswer) {
           statusBadge.className = "badge badge-success px-2 py-1 font-weight-bold";
-          statusBadge.textContent = question.soal_type === "pg" ? `Dijawab: ${currentAns.answer}` : "Sudah Dijawab";
+          if (question.soal_type === "pg") {
+            const shuffledKeys = question._shuffledOptionKeys || ['A', 'B', 'C', 'D'];
+            const displayLabels = ['A', 'B', 'C', 'D'];
+            const originalKeyIndex = shuffledKeys.indexOf(currentAns.answer);
+            const displayedLabel = originalKeyIndex !== -1 ? displayLabels[originalKeyIndex] : currentAns.answer;
+            statusBadge.textContent = `Dijawab: ${displayedLabel}`;
+          } else {
+            statusBadge.textContent = "Sudah Dijawab";
+          }
         } else {
           statusBadge.className = "badge badge-light border text-muted px-2 py-1";
           statusBadge.textContent = "Belum Dijawab";
@@ -819,14 +871,30 @@
         if (optionsContainer) optionsContainer.classList.remove("d-none");
         if (essayContainer) essayContainer.classList.add("d-none");
 
-        safeSetText("textOptionA", question.pilihan_a || "");
-        safeSetText("textOptionB", question.pilihan_b || "");
-        safeSetText("textOptionC", question.pilihan_c || "");
-        safeSetText("textOptionD", question.pilihan_d || "");
+        const shuffledKeys = question._shuffledOptionKeys || ['A', 'B', 'C', 'D'];
+        const displayLabels = ['A', 'B', 'C', 'D'];
+        const optionTexts = {
+          A: question.pilihan_a || "",
+          B: question.pilihan_b || "",
+          C: question.pilihan_c || "",
+          D: question.pilihan_d || ""
+        };
 
-        document.querySelectorAll(".cbt-option").forEach((opt) => {
-          const optVal = opt.dataset.option;
-          opt.classList.toggle("selected", currentAns.answer === optVal);
+        const optionCards = document.querySelectorAll(".cbt-option");
+        optionCards.forEach((optCard, idx) => {
+          const originalKey = shuffledKeys[idx] || displayLabels[idx];
+          const displayLabel = displayLabels[idx];
+
+          const badgeEl = optCard.querySelector(".cbt-option-badge");
+          if (badgeEl) badgeEl.textContent = displayLabel;
+
+          const textEl = optCard.querySelector(".cbt-option-text");
+          if (textEl) textEl.textContent = optionTexts[originalKey] || "-";
+
+          optCard.dataset.originalKey = originalKey;
+          optCard.dataset.displayLabel = displayLabel;
+
+          optCard.classList.toggle("selected", currentAns.answer === originalKey);
         });
       } else {
         optionsContainer.classList.add("d-none");
@@ -834,17 +902,6 @@
 
         const essayInput = document.getElementById("essayAnswerInput");
         essayInput.value = currentAns.answer || "";
-      }
-
-      // Tombol Ragu-Ragu
-      const btnDoubt = document.getElementById("btnDoubtQuestion");
-      const doubtText = document.getElementById("btnDoubtText");
-      if (currentAns.doubt) {
-        btnDoubt.className = "btn btn-warning px-3 font-weight-bold";
-        doubtText.textContent = "Tandai Yakin";
-      } else {
-        btnDoubt.className = "btn btn-outline-warning px-3";
-        doubtText.textContent = "Ragu-Ragu";
       }
 
       // Tombol Sebelumnya
@@ -998,6 +1055,7 @@
         try {
           localStorage.setItem(`ypn_cbt_completed_${activeExam.id}_${currentStudentNis}`, "true");
           localStorage.removeItem(getStorageKeyTimer(activeExam.id));
+          localStorage.removeItem(getStorageKeyOptions(activeExam.id));
         } catch (_) {}
 
         const scoreBox = document.getElementById("completedScoreBox");
@@ -1116,6 +1174,9 @@
           }
         }
 
+        // Acak Pilihan Jawaban jika setting acak_jawaban aktif
+        setupShuffledOptions();
+
         studentAnswers = loadSavedAnswers(activeExam.id);
 
         const mapel = activeExam.data_pelajaran?.nama_pelajaran || "Umum";
@@ -1141,7 +1202,7 @@
 
       document.querySelectorAll(".cbt-option").forEach((opt) => {
         opt.addEventListener("click", () => {
-          selectOption(opt.dataset.option);
+          selectOption(opt.dataset.originalKey || opt.dataset.option);
         });
       });
 

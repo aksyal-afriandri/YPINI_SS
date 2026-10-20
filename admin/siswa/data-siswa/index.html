@@ -52,6 +52,21 @@
                     <i class="fas fa-fw fa-clipboard-list"></i>
                     <span>Pengaturan Ujian</span></a>
             </li>
+
+            <li class="nav-item" id="examResultNavigation">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseExamResult"
+                    aria-expanded="false" aria-controls="collapseExamResult">
+                    <i class="fas fa-fw fa-user-check"></i>
+                    <span>Jawaban & Nilai Siswa</span>
+                </a>
+                <div id="collapseExamResult" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" id="sidebarAllExamResultsLink" href="../../nilai-ujian/">Semua Siswa</a>
+                        <h6 class="collapse-header">Berdasarkan Kelas:</h6>
+                        <div id="sidebarExamResultClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+                    </div>
+                </div>
+            </li>
             <hr class="sidebar-divider">
 
             <!-- Heading -->
@@ -85,10 +100,10 @@
                 </a>
                 <div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <a class="collapse-item" href="">Data</a>
                         <a class="collapse-item" href="../../aktifitas/data-fieldtrip/">Data Field Trip</a>
                         <a class="collapse-item" href="../../aktifitas/data-akhwah/">Data Akhwah</a>
-                        <a class="collapse-item" href="../../aktifitas/data-ummi/">Data Umnni</a>
+                        <a class="collapse-item" href="../../aktifitas/data-ummi/">Data Ummi</a>
+                        <a class="collapse-item" href="../../aktifitas/data-pembelajaran/">Data Pembelajaran</a>
                     </div>
                 </div>
             </li>
@@ -352,7 +367,7 @@
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <span class="mr-2 d-none d-lg-inline text-gray-600 small">Admin</span>
-                                <span class="img-profile rounded-circle d-inline-flex align-items-center justify-content-center bg-primary text-white" aria-label="Profil">S</span>
+                                <i class="fas fa-user-circle fa-2x text-gray-400"></i>
                             </a>
                             <!-- Dropdown - User Information -->
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"

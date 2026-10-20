@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="Nilai Ujian Siswa YPINI">
+    <meta name="author" content="">
+
+    <title>YPINI - Nilai Ujian Siswa</title>
+
+    <!-- Custom fonts for this template-->
+    <link href="../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+    <link href="../assets/img/logo.png" rel="icon">
+
+    <!-- Custom styles for this template-->
+    <link href="../assets/css/sb-admin-2.min.css" rel="stylesheet">
+    <link href="../assets/css/theme-green.css" rel="stylesheet">
+    <link href="../assets/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet">
+
+    <style>
+        .table td {
+            vertical-align: middle !important;
+        }
+    </style>
+</head>
+<body id="page-top" data-login-path="login.html">
+    <!-- Page Wrapper -->
+    <div id="wrapper">
+        <!-- Sidebar -->
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+            <!-- Sidebar - Brand -->
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="./">
+                <div class="sidebar-brand-icon">
+                     <img src="../assets/img/logo.png" class="img-fluid" style="max-height: 40px; max-width: 100px; object-fit: contain;" alt="Logo">
+                </div>
+            </a>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider my-0">
+
+            <!-- Nav Item - Ujian -->
+            <li class="nav-item">
+                <a class="nav-link" href="index.html">
+                    <i class="fas fa-fw fa-pencil-alt"></i>
+                    <span>Ujian</span></a>
+            </li>
+
+            <!-- Nav Item - Nilai Ujian (Active) -->
+            <li class="nav-item active">
+                <a class="nav-link" href="nilai.html">
+                    <i class="fas fa-fw fa-award"></i>
+                    <span>Nilai Ujian</span></a>
+            </li>
+
+            <!-- Divider -->
+            <hr class="sidebar-divider d-none d-md-block">
+
+            <!-- Sidebar Toggler (Sidebar) -->
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+
+        </ul>
+        <!-- End of Sidebar -->
+  
+        <!-- Content Wrapper -->
+        <div id="content-wrapper" class="d-flex flex-column">
+            <!-- Main Content -->
+            <div id="content">    
+                <!-- Topbar -->
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <!-- Sidebar Toggle (Topbar) -->
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                        <i class="fa fa-bars"></i>
+                    </button>
+
+                    <!-- Topbar Title -->
+                    <div class="d-none d-sm-block text-gray-800 font-weight-bold">
+                        <i class="fas fa-award text-success mr-2"></i>Daftar Nilai Siswa
+                    </div>
+
+                    <!-- Topbar Navbar -->
+                    <ul class="navbar-nav ml-auto">
+                        <div class="topbar-divider d-none d-sm-block"></div>
+
+                        <!-- Nav Item - User Information -->
+                        <li class="nav-item dropdown no-arrow">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span id="studentName" class="mr-2 d-none d-lg-inline text-gray-600 small font-weight-bold">Siswa</span>
+                                <img class="img-profile rounded-circle" src="img/undraw_profile.svg">
+                            </a>
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="userDropdown">
+                                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-danger"></i>
+                                    Logout
+                                </a>
+                            </div>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- End of Topbar -->
+
+                <!-- Begin Page Content -->
+                <div class="container-fluid">
+                    <div id="supabaseStatus" class="small text-danger mb-3" role="status"></div>
+
+                    <!-- Ringkasan Singkat Total Ujian -->
+                    <div class="row mb-3">
+                        <div class="col-sm-6 col-md-4 mb-2">
+                            <div class="card border-left-success shadow-sm py-2">
+                                <div class="card-body py-2 px-3">
+                                    <div class="small text-muted font-weight-bold text-uppercase">Ujian Pernah Dilakukan</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-900 mt-1">
+                                        <span id="totalAttemptedCount">0</span> Ujian
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-md-4 mb-2">
+                            <div class="card border-left-danger shadow-sm py-2">
+                                <div class="card-body py-2 px-3">
+                                    <div class="small text-muted font-weight-bold text-uppercase">Tidak Diselesaikan / Belum</div>
+                                    <div class="h5 mb-0 font-weight-bold text-gray-900 mt-1">
+                                        <span id="totalUnfinishedCount">0</span> Ujian
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card Tabel Nilai Ujian -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-clipboard-list mr-1"></i>Riwayat & Nilai Ujian
+                            </h6>
+                            <button id="btnRefreshData" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-sync-alt mr-1"></i> Refresh
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="examScoresStatus" class="small text-muted mb-3" role="status">Memuat data nilai ujian...</div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-hover mb-0" id="examScoresTable" width="100%" cellspacing="0">
+                                    <thead class="thead-light">
+                                        <tr>
+                                            <th style="width: 5%; text-align: center;">No</th>
+                                            <th style="width: 35%;">Ujian</th>
+                                            <th style="width: 25%;">Mata Pelajaran</th>
+                                            <th style="width: 20%; text-align: center;">Status</th>
+                                            <th style="width: 15%; text-align: center;">Nilai Akhir</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="examScoresTableBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4 text-muted">
+                                                <i class="fas fa-spinner fa-spin mr-2"></i>Memuat riwayat ujian...
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- /.container-fluid -->
+            </div>
+            <!-- End of Main Content -->
+
+            <!-- Footer -->
+            <footer class="sticky-footer bg-white">
+                <div class="container my-auto">
+                    <div class="copyright text-center my-auto">
+                        <span>Your Website</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+        <!-- End of Content Wrapper -->
+    </div>
+    <!-- End of Page Wrapper -->
+
+    <!-- Scroll to Top Button-->
+    <a class="scroll-to-top rounded" href="#page-top">
+        <i class="fas fa-angle-up"></i>
+    </a>
+
+    <!-- Logout Modal-->
+    <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title font-weight-bold" id="exampleModalLabel">Konfirmasi Keluar</h5>
+                    <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">Pilih "Logout" di bawah untuk mengakhiri sesi siswa.</div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+                    <form id="logoutForm" action="#" method="post">
+                        <button class="btn btn-primary font-weight-bold" type="submit">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap core JavaScript-->
+    <script src="../assets/vendor/jquery/jquery.min.js"></script>
+    <script src="../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="../assets/vendor/jquery-easing/jquery.easing.min.js"></script>
+    <script src="../assets/js/sb-admin-2.min.js"></script>
+
+    <script src="student-session.js"></script>
+    <script src="../supabase-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return "";
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        async function loadExamScores() {
+            const statusEl = document.getElementById("examScoresStatus");
+            const tableBody = document.getElementById("examScoresTableBody");
+            const nis = sessionStorage.getItem("ypn_student_nis");
+
+            if (!nis) return;
+
+            statusEl.textContent = "Memuat data...";
+
+            try {
+                if (!window.SUPABASE_CONFIG?.url || !window.SUPABASE_CONFIG?.anonKey || !window.supabase?.createClient) {
+                    throw new Error("Konfigurasi atau library Supabase belum tersedia.");
+                }
+
+                const client = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.anonKey);
+
+                // 1. Verifikasi NIS Siswa
+                const { data: nisExists, error: nisError } = await client
+                    .rpc("student_nis_exists", { p_nis: nis });
+
+                if (nisError) throw nisError;
+                if (nisExists !== true) {
+                    sessionStorage.removeItem("ypn_student_nis");
+                    window.location.replace("login.html");
+                    return;
+                }
+
+                // 2. Ambil data riwayat pengerjaan & nilai via RPC get_student_exam_history
+                let examList = [];
+                let rpcOk = false;
+
+                try {
+                    const { data: resData, error: resErr } = await client
+                        .rpc("get_student_exam_history", { p_nis: nis });
+
+                    if (!resErr && resData?.success) {
+                        rpcOk = true;
+                        examList = resData.exams || [];
+                        if (resData.siswa?.nama) {
+                            const nameEl = document.getElementById("studentName");
+                            if (nameEl) nameEl.textContent = `${resData.siswa.nama} (${nis})`;
+                        }
+                    }
+                } catch (rpcErr) {
+                    console.warn("Fallback query direct:", rpcErr);
+                }
+
+                // Fallback jika RPC belum dieksekusi di database
+                if (!rpcOk) {
+                    const { data: exams, error: exErr } = await client
+                        .from("ujian")
+                        .select("id, nama_ujian, dibuka_at, ditutup_at, data_pelajaran(nama_pelajaran)")
+                        .eq("aktif", true)
+                        .order("dibuka_at", { ascending: false });
+
+                    if (exErr) throw exErr;
+
+                    examList = (exams || []).map(u => {
+                        const isEnded = new Date() > new Date(u.ditutup_at);
+                        const isCompleted = localStorage.getItem(`ypn_cbt_completed_${u.id}_${nis}`) === "true";
+
+                        return {
+                            id: u.id,
+                            nama_ujian: u.nama_ujian,
+                            nama_pelajaran: u.data_pelajaran?.nama_pelajaran || "-",
+                            is_ended: isEnded,
+                            attempt_status: isCompleted ? 'dikumpulkan' : null,
+                            is_finalized: false,
+                            nilai_akhir: null
+                        };
+                    });
+                }
+
+                // Sinkronisasi dengan localStorage browser
+                examList.forEach(item => {
+                    const localCompleted = localStorage.getItem(`ypn_cbt_completed_${item.id}_${nis}`);
+                    if (localCompleted === "true" && !item.attempt_status) {
+                        item.attempt_status = 'dikumpulkan';
+                    }
+                });
+
+                // Hitung total ujian yang sudah dilakukan dan belum/tidak diselesaikan
+                let attemptedCount = 0;
+                let unfinishedCount = 0;
+
+                examList.forEach(e => {
+                    const isDone = (e.attempt_status === 'dikumpulkan' || e.attempt_status === 'dinilai');
+                    if (isDone) {
+                        attemptedCount++;
+                    } else {
+                        unfinishedCount++;
+                    }
+                });
+
+                document.getElementById("totalAttemptedCount").textContent = attemptedCount;
+                document.getElementById("totalUnfinishedCount").textContent = unfinishedCount;
+
+                if (examList.length === 0) {
+                    statusEl.textContent = "Belum ada data ujian.";
+                    tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Belum ada riwayat ujian.</td></tr>';
+                    return;
+                }
+
+                statusEl.textContent = `Menampilkan ${examList.length} ujian.`;
+
+                tableBody.innerHTML = examList.map((e, idx) => {
+                    const isDone = (e.attempt_status === 'dikumpulkan' || e.attempt_status === 'dinilai');
+                    const isFinalized = (e.attempt_status === 'dinilai' && e.nilai_akhir !== null && e.nilai_akhir !== undefined);
+
+                    // Status Badge
+                    let statusBadge = '';
+                    if (isFinalized) {
+                        statusBadge = '<span class="badge badge-success px-2 py-1"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai</span>';
+                    } else if (e.attempt_status === 'dikumpulkan') {
+                        statusBadge = '<span class="badge badge-info px-2 py-1"><i class="fas fa-clock mr-1"></i>Sudah Dikerjakan (Menunggu Nilai)</span>';
+                    } else if (e.is_ended) {
+                        // Tidak pernah dikerjakan dan jadwal sudah lewat
+                        statusBadge = '<span class="badge badge-danger px-2 py-1"><i class="fas fa-times-circle mr-1"></i>Tidak Diselesaikan</span>';
+                    } else {
+                        statusBadge = '<span class="badge badge-secondary px-2 py-1"><i class="fas fa-minus-circle mr-1"></i>Belum Dikerjakan</span>';
+                    }
+
+                    // Nilai Akhir: hanya muncul jika sudah difinalisasikan oleh guru
+                    let scoreDisplay = '';
+                    if (isFinalized) {
+                        scoreDisplay = `<span class="font-weight-bold text-success" style="font-size: 1.15rem;">${Number(e.nilai_akhir).toFixed(2)}</span>`;
+                    } else if (e.attempt_status === 'dikumpulkan') {
+                        scoreDisplay = '<span class="text-muted font-italic small"><i class="fas fa-lock mr-1"></i>Menunggu Penilaian Guru</span>';
+                    } else {
+                        scoreDisplay = '<span class="text-muted font-weight-bold">-</span>';
+                    }
+
+                    return `
+                        <tr>
+                            <td style="text-align: center;">${idx + 1}</td>
+                            <td><strong class="text-gray-900">${escapeHtml(e.nama_ujian)}</strong></td>
+                            <td>${escapeHtml(e.nama_pelajaran)}</td>
+                            <td style="text-align: center;">${statusBadge}</td>
+                            <td style="text-align: center;">${scoreDisplay}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Gagal memuat nilai ujian:", err);
+                statusEl.textContent = "Gagal memuat data.";
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-danger"><i class="fas fa-exclamation-triangle mr-2"></i>${escapeHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            if (!await window.studentSessionReady) return;
+            await loadExamScores();
+            document.getElementById("btnRefreshData").addEventListener("click", loadExamScores);
+        });
+    </script>
+</body>
+</html>

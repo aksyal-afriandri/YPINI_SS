@@ -21,6 +21,18 @@
 			<hr class="sidebar-divider my-0">
 			<li class="nav-item"><a class="nav-link" href="../dashboard/"><i class="fas fa-fw fa-tachometer-alt"></i><span>Dashboard</span></a></li>
 			<li class="nav-item active"><a class="nav-link" href="./"><i class="fas fa-fw fa-clipboard-list"></i><span>Pengaturan Ujian</span></a></li>
+			<li class="nav-item" id="examResultNavigation">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseExamResult" aria-expanded="false" aria-controls="collapseExamResult">
+					<i class="fas fa-fw fa-user-check"></i><span>Jawaban & Nilai Siswa</span>
+				</a>
+				<div id="collapseExamResult" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAllExamResultsLink" href="../nilai-ujian/">Semua Siswa</a>
+						<h6 class="collapse-header">Berdasarkan Kelas:</h6>
+						<div id="sidebarExamResultClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
 			<hr class="sidebar-divider">
 			<div class="sidebar-heading">Interface</div>
 			<li class="nav-item">
