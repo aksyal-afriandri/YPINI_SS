@@ -1211,19 +1211,23 @@
         handleEssayInput(e.target.value);
       });
 
-      document.getElementById("btnPrevQuestion").addEventListener("click", () => {
-        goToQuestion(currentIndex - 1);
-      });
+      const btnPrev = document.getElementById("btnPrevQuestion");
+      if (btnPrev) btnPrev.addEventListener("click", () => goToQuestion(currentIndex - 1));
 
-      document.getElementById("btnNextQuestion").addEventListener("click", () => {
-        goToQuestion(currentIndex + 1);
-      });
+      const btnNext = document.getElementById("btnNextQuestion");
+      if (btnNext) btnNext.addEventListener("click", () => goToQuestion(currentIndex + 1));
 
-      document.getElementById("btnDoubtQuestion").addEventListener("click", toggleDoubt);
+      const btnDoubt = document.getElementById("btnDoubtQuestion");
+      if (btnDoubt) btnDoubt.addEventListener("click", toggleDoubt);
 
-      document.getElementById("btnFinishExamInline").addEventListener("click", openSubmitModal);
-      document.getElementById("btnFinishFromModal").addEventListener("click", openSubmitModal);
-      document.getElementById("btnSubmitFinal").addEventListener("click", () => submitExamAction(false));
+      const btnFinishInline = document.getElementById("btnFinishExamInline");
+      if (btnFinishInline) btnFinishInline.addEventListener("click", openSubmitModal);
+
+      const btnFinishModal = document.getElementById("btnFinishFromModal");
+      if (btnFinishModal) btnFinishModal.addEventListener("click", openSubmitModal);
+
+      const btnSubmitFinal = document.getElementById("btnSubmitFinal");
+      if (btnSubmitFinal) btnSubmitFinal.addEventListener("click", () => submitExamAction(false));
 
       // Lightbox modal saat gambar soal diklik
       document.getElementById("questionImagesList").addEventListener("click", (e) => {

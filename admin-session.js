@@ -293,11 +293,81 @@ function enforceRoleAccess(profile, loginPath) {
   return false;
 }
 
+async function performAdminLogout(loginPath) {
+  try {
+    const client = typeof getSupabaseClient === "function" ? getSupabaseClient() : null;
+    if (client && client.auth) {
+      await client.auth.signOut().catch(() => {});
+    }
+  } catch (err) {
+    console.warn("SignOut notice:", err);
+  } finally {
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith("sb-") || key.includes("supabase") || key.includes("auth"))) {
+          localStorage.removeItem(key);
+        }
+      }
+      sessionStorage.clear();
+    } catch (e) {}
+    window.location.replace(loginPath);
+  }
+}
+
+function setupLogoutTriggers(loginPath) {
+  // 1. Ensure modal exists with exact same structure as dashboard
+  let modal = document.getElementById("logoutModal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.className = "modal fade";
+    modal.id = "logoutModal";
+    modal.tabIndex = -1;
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-labelledby", "exampleModalLabel");
+    modal.setAttribute("aria-hidden", "true");
+    modal.innerHTML = `
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="exampleModalLabel">Ready to Leave?</h5>
+            <button class="close" type="button" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+            <form id="logoutForm" action="#" method="post">
+              <button class="btn btn-primary" type="submit">Logout</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  // 2. Wire form submissions (identical to dashboard)
+  document.querySelectorAll("#logoutForm").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const btn = form.querySelector("button[type='submit']");
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span>Logout...';
+      }
+      await performAdminLogout(loginPath);
+    });
+  });
+}
+
 window.adminSessionError = "";
 window.adminSessionReady = new Promise((resolve) => {
   const loginPath = document.body.dataset.loginPath || "../../../index.html";
   const checkSession = async () => {
     let isAuthorized = false;
+    setupLogoutTriggers(loginPath);
     try {
       const client = getSupabaseClient();
       const { data: { user }, error } = await client.auth.getUser();
@@ -334,17 +404,8 @@ window.adminSessionReady = new Promise((resolve) => {
       // Customize UI & topbar based on role
       customizeInterfaceForUser(user, profile);
 
-      document.querySelectorAll("#logoutForm").forEach((form) => {
-        form.addEventListener("submit", async (event) => {
-          event.preventDefault();
-          try {
-            await apiLogout();
-            window.location.replace(loginPath);
-          } catch (logoutError) {
-            window.alert(logoutError.message);
-          }
-        });
-      });
+      // Setup robust universal logout handlers
+      setupLogoutTriggers(loginPath);
 
       isAuthorized = true;
       await initializeActiveYearControl(profile.role);

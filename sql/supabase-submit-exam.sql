@@ -75,6 +75,9 @@ BEGIN
     WHERE id = v_percobaan_id;
   END IF;
 
+  -- Bersihkan jawaban sebelumnya untuk percobaan ini agar tidak terjadi konflik unik urutan
+  DELETE FROM public.jawaban_siswa WHERE percobaan_id = v_percobaan_id;
+
   -- 5. Simpan masing-masing jawaban siswa
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP

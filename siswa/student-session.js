@@ -11,11 +11,27 @@ window.studentSessionReady = new Promise((resolve) => {
   const studentName = document.getElementById("studentName");
   if (studentName) studentName.textContent = `NIS ${nis}`;
 
+  function performStudentLogout() {
+    sessionStorage.removeItem("ypn_student_nis");
+    sessionStorage.clear();
+    window.location.replace(loginPath);
+  }
+
   document.querySelectorAll("#logoutForm").forEach((form) => {
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      sessionStorage.removeItem("ypn_student_nis");
-      window.location.replace(loginPath);
+      performStudentLogout();
+    });
+  });
+
+  document.querySelectorAll('a[data-target="#logoutModal"]').forEach((link) => {
+    link.addEventListener("click", (e) => {
+      if (typeof window.jQuery === "undefined" || !window.jQuery.fn || !window.jQuery.fn.modal) {
+        e.preventDefault();
+        if (window.confirm("Apakah Anda yakin ingin logout?")) {
+          performStudentLogout();
+        }
+      }
     });
   });
 

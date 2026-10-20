@@ -439,6 +439,9 @@ BEGIN
     WHERE id = v_percobaan_id;
   END IF;
 
+  -- Bersihkan jawaban sebelumnya untuk percobaan ini agar tidak terjadi konflik unik urutan
+  DELETE FROM public.jawaban_siswa WHERE percobaan_id = v_percobaan_id;
+
   -- Simpan butir-butir jawaban
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_answers)
   LOOP
