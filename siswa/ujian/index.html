@@ -682,7 +682,7 @@
       ].join(":");
     }
 
-    function initExamTimer(exam) {
+    function initExamTimer(exam, serverStartTime = null) {
       const timerBadge = document.getElementById("examTimerBadge");
       const countdownText = document.getElementById("timerCountdown");
       document.getElementById("timerContainer").classList.remove("d-none");
@@ -691,37 +691,100 @@
       const timerKey = getStorageKeyTimer(exam.id);
       let startTime = null;
 
-      try {
-        const savedStart = localStorage.getItem(timerKey);
-        if (savedStart) {
-          startTime = Number(savedStart);
-        } else {
+      if (serverStartTime) {
+        startTime = new Date(serverStartTime).getTime();
+        try { localStorage.setItem(timerKey, String(startTime)); } catch (_) {}
+      } else {
+        try {
+          const savedStart = localStorage.getItem(timerKey);
+          if (savedStart) {
+            startTime = Number(savedStart);
+          } else {
+            startTime = Date.now();
+            localStorage.setItem(timerKey, String(startTime));
+          }
+        } catch (_) {
           startTime = Date.now();
-          localStorage.setItem(timerKey, String(startTime));
         }
-      } catch (_) {
-        startTime = Date.now();
       }
 
-      function updateTimer() {
-        const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
-        const remainingSec = totalDurationSec - elapsedSec;
+      // Waktu target selesai normal siswa: waktu mulai + durasi pengerjaan
+      const studentTargetEndMs = startTime + (totalDurationSec * 1000);
 
-        if (remainingSec <= 0) {
-          countdownText.textContent = "00:00:00";
+      // Batas waktu mutlak sistem ditutup (ditutup_at)
+      const hardDeadlineMs = exam.ditutup_at ? new Date(exam.ditutup_at).getTime() : studentTargetEndMs;
+
+      // Jadwal resmi ujian selesai normal (dibuka_at + waktu_menit)
+      const officialScheduledEndMs = exam.dibuka_at
+        ? new Date(exam.dibuka_at).getTime() + (totalDurationSec * 1000)
+        : hardDeadlineMs;
+
+      let overtimeBannerShown = false;
+
+      function updateTimer() {
+        const now = Date.now();
+
+        // 1. Sisa waktu pengerjaan normal siswa
+        const studentRemainingSec = Math.max(0, Math.floor((studentTargetEndMs - now) / 1000));
+
+        // 2. Sisa waktu absolut ke batas jadwal 'ditutup_at'
+        const hardRemainingSec = Math.max(0, Math.floor((hardDeadlineMs - now) / 1000));
+
+        // Waktu tersisa riil adalah mana yang lebih cepat habis
+        const remainingSec = Math.min(studentRemainingSec, hardRemainingSec);
+
+        // Deteksi apakah sedang dalam masa Overtime:
+        // Terjadi jika jam sekarang telah melewati target jadwal normal ATAU sisa durasi normal habis,
+        // namun masih berada di dalam jendela waktu toleransi (sebelum hardDeadlineMs / ditutup_at).
+        const isOvertime = (now > officialScheduledEndMs || studentRemainingSec <= 0) && hardRemainingSec > 0;
+
+        if (remainingSec <= 0 || hardRemainingSec <= 0) {
+          if (countdownText) countdownText.textContent = "00:00:00";
           timerBadge.className = "badge badge-danger cbt-timer-badge shadow-sm";
           clearInterval(examTimerInterval);
-          alert("Waktu ujian telah habis! Jawaban Anda akan otomatis dikumpulkan.");
+          alert(isOvertime
+            ? "Batas waktu toleransi (overtime) ujian telah berakhir! Lembar jawaban Anda akan otomatis dikumpulkan sekarang."
+            : "Waktu ujian telah habis! Lembar jawaban Anda akan otomatis dikumpulkan sekarang."
+          );
           submitExamAction(true);
           return;
         }
 
-        countdownText.textContent = formatTime(remainingSec);
+        const formatted = formatTime(remainingSec);
+        if (countdownText) countdownText.textContent = formatted;
 
-        if (remainingSec <= 300) {
+        if (isOvertime) {
+          timerBadge.className = "badge badge-warning text-dark cbt-timer-badge shadow-sm border border-danger font-weight-bold";
+          timerBadge.innerHTML = `<i class="fas fa-exclamation-triangle text-danger mr-1"></i> <span class="badge badge-danger text-uppercase mr-1" style="font-size:0.75rem;">Overtime</span> <span id="timerCountdown">${formatted}</span>`;
+
+          // Tampilkan banner info overtime di bawah header jika belum ada
+          let banner = document.getElementById("cbtOvertimeAlertBanner");
+          if (!banner && !overtimeBannerShown) {
+            overtimeBannerShown = true;
+            banner = document.createElement("div");
+            banner.id = "cbtOvertimeAlertBanner";
+            banner.className = "alert alert-warning border-left-danger shadow-sm py-2 px-3 mb-3 d-flex align-items-center justify-content-between";
+            banner.innerHTML = `
+              <div class="small">
+                <i class="fas fa-info-circle text-danger mr-1"></i>
+                <strong>Masa Toleransi Tambahan (Overtime):</strong> Jam normal ujian telah terlewati. Anda sedang menggunakan waktu toleransi sistem. Pastikan jawaban dikumpulkan sebelum batas akhir ditutup.
+              </div>
+              <span class="badge badge-danger px-2 py-1 ml-2">Overtime</span>
+            `;
+            const headerCard = document.querySelector(".cbt-header-card");
+            if (headerCard && headerCard.parentNode) {
+              headerCard.parentNode.insertBefore(banner, headerCard.nextSibling);
+            }
+          }
+        } else if (remainingSec <= 300) {
           timerBadge.className = "badge badge-danger cbt-timer-badge shadow-sm";
+          timerBadge.innerHTML = `<i class="fas fa-stopwatch mr-1"></i> <span id="timerCountdown">${formatted}</span>`;
         } else if (remainingSec <= 600) {
-          timerBadge.className = "badge badge-warning cbt-timer-badge shadow-sm";
+          timerBadge.className = "badge badge-warning text-dark cbt-timer-badge shadow-sm";
+          timerBadge.innerHTML = `<i class="fas fa-stopwatch mr-1"></i> <span id="timerCountdown">${formatted}</span>`;
+        } else {
+          timerBadge.className = "badge badge-primary cbt-timer-badge shadow-sm";
+          timerBadge.innerHTML = `<i class="fas fa-stopwatch mr-1"></i> <span id="timerCountdown">${formatted}</span>`;
         }
       }
 
@@ -1185,8 +1248,30 @@
         safeSetText("examSubjectInfo", mapel);
         safeSetText("examDurationInfo", `${activeExam.waktu_menit} Menit`);
         safeSetText("examTotalQuestionsInfo", `${questionsList.length} Soal`);
+        // Laporkan mulai ujian ke database untuk status real-time admin & sinkronisasi waktu
+        let serverStartTime = null;
+        try {
+          const { data: startRes, error: startErr } = await supabase
+            .rpc("start_student_exam", {
+              p_nis: nis,
+              p_ujian_id: activeExam.id
+            });
+          if (!startErr && startRes?.success) {
+            if (startRes.status === "dikumpulkan" || startRes.status === "dinilai") {
+              try { localStorage.setItem(`ypn_cbt_completed_${activeExam.id}_${nis}`, "true"); } catch (_) {}
+              safeSetText("completedSubtext", "Anda sudah pernah menyelesaikan dan mengumpulkan ujian ini sebelumnya.");
+              showView("completedView");
+              return;
+            }
+            if (startRes.mulai_at) {
+              serverStartTime = startRes.mulai_at;
+            }
+          }
+        } catch (startEx) {
+          console.warn("Notice: start_student_exam fallback:", startEx);
+        }
 
-        initExamTimer(activeExam);
+        initExamTimer(activeExam, serverStartTime);
         renderGridButtons();
         renderCurrentQuestion();
 

@@ -324,7 +324,59 @@ END;
 $$;
 
 -- ------------------------------------------------------------------------------
--- BAGIAN 5: HAK AKSES EKSEKUSI PROSEDUR KE ANON & AUTHENTICATED
+-- BAGIAN 5: STORED PROCEDURE MULAI UJIAN (start_student_exam)
+-- Dipanggil saat siswa mulai membuka lembar ujian untuk mencatat status 'berlangsung'
+-- ------------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.start_student_exam(
+  p_nis text,
+  p_ujian_id bigint
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_siswa_id bigint;
+  v_percobaan record;
+BEGIN
+  -- 1. Verifikasi Siswa berdasarkan NIS
+  SELECT id INTO v_siswa_id
+  FROM public.data_siswa
+  WHERE nis = btrim(p_nis)
+  LIMIT 1;
+
+  IF v_siswa_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Siswa tidak ditemukan.');
+  END IF;
+
+  -- 2. Cek apakah sudah pernah ada percobaan
+  SELECT id, status, mulai_at, dikumpulkan_at
+  INTO v_percobaan
+  FROM public.percobaan_ujian
+  WHERE ujian_id = p_ujian_id AND siswa_id = v_siswa_id
+  ORDER BY id DESC
+  LIMIT 1;
+
+  IF v_percobaan IS NULL THEN
+    -- Belum pernah mulai -> Buat record baru dengan status 'berlangsung'
+    INSERT INTO public.percobaan_ujian (ujian_id, siswa_id, status, mulai_at)
+    VALUES (p_ujian_id, v_siswa_id, 'berlangsung', now())
+    RETURNING id, status, mulai_at, dikumpulkan_at INTO v_percobaan;
+  END IF;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'percobaan_id', v_percobaan.id,
+    'status', v_percobaan.status,
+    'mulai_at', v_percobaan.mulai_at,
+    'dikumpulkan_at', v_percobaan.dikumpulkan_at
+  );
+END;
+$$;
+
+-- ------------------------------------------------------------------------------
+-- BAGIAN 6: HAK AKSES EKSEKUSI PROSEDUR KE ANON & AUTHENTICATED
 -- ------------------------------------------------------------------------------
 REVOKE ALL ON FUNCTION public.submit_student_exam(text, bigint, jsonb) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.submit_student_exam(text, bigint, jsonb) TO anon, authenticated;
@@ -332,7 +384,10 @@ GRANT EXECUTE ON FUNCTION public.submit_student_exam(text, bigint, jsonb) TO ano
 REVOKE ALL ON FUNCTION public.get_student_exam_history(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_student_exam_history(text) TO anon, authenticated;
 
+REVOKE ALL ON FUNCTION public.start_student_exam(text, bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.start_student_exam(text, bigint) TO anon, authenticated;
+
 -- ------------------------------------------------------------------------------
--- BAGIAN 6: RELOAD POSTGREST SCHEMA CACHE SUPABASE
+-- BAGIAN 7: RELOAD POSTGREST SCHEMA CACHE SUPABASE
 -- ------------------------------------------------------------------------------
 NOTIFY pgrst, 'reload schema';

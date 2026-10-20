@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<title>Monitoring Ujian Siswa (Real-Time) - YPN</title>
+
+	<!-- Fonts & SB Admin 2 CSS -->
+	<link href="../../assets/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css">
+	<link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+	<link href="../../assets/css/sb-admin-2.min.css" rel="stylesheet">
+	<link href="../../assets/css/theme-green.css" rel="stylesheet">
+	<link rel="icon" type="image/x-icon" href="../../assets/img/logo.png">
+
+	<style>
+		.badge-status {
+			font-size: 0.82rem;
+			padding: 0.35rem 0.65rem;
+			font-weight: 700;
+			letter-spacing: 0.3px;
+		}
+		.pulse-indicator {
+			display: inline-block;
+			width: 10px;
+			height: 10px;
+			border-radius: 50%;
+			background-color: #1cc88a;
+			margin-right: 6px;
+			animation: pulse-animation 1.5s infinite;
+		}
+		@keyframes pulse-animation {
+			0% { transform: scale(0.9); opacity: 0.7; }
+			50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px #1cc88a; }
+			100% { transform: scale(0.9); opacity: 0.7; }
+		}
+		.overtime-badge {
+			animation: pulse-danger 1.2s infinite;
+		}
+		@keyframes pulse-danger {
+			0% { opacity: 0.85; }
+			50% { opacity: 1; filter: brightness(1.15); }
+			100% { opacity: 0.85; }
+		}
+		.table-hover tbody tr:hover {
+			background-color: rgba(78, 115, 223, 0.04);
+		}
+	</style>
+</head>
+<body id="page-top" data-login-path="../../index.html">
+	<div id="wrapper">
+		<!-- Sidebar -->
+		<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+			<a class="sidebar-brand d-flex align-items-center justify-content-center" href="../dashboard/">
+				<img src="../../assets/img/logo.png" class="img-fluid" style="max-height: 40px; max-width: 100px; object-fit: contain;" alt="Logo">
+			</a>
+			<hr class="sidebar-divider my-0">
+			<li class="nav-item"><a class="nav-link" href="../dashboard/"><i class="fas fa-fw fa-tachometer-alt"></i><span>Dashboard</span></a></li>
+			<li class="nav-item"><a class="nav-link" href="../ujian/"><i class="fas fa-fw fa-clipboard-list"></i><span>Pengaturan Ujian</span></a></li>
+			
+			<!-- Nav Item - Monitoring Ujian -->
+			<li class="nav-item active" id="examMonitoringNavigation">
+				<a class="nav-link" href="#" data-toggle="collapse" data-target="#collapseExamMonitoring" aria-expanded="true" aria-controls="collapseExamMonitoring">
+					<i class="fas fa-fw fa-desktop"></i>
+					<span>Monitoring Ujian</span>
+				</a>
+				<div id="collapseExamMonitoring" class="collapse show" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAllMonitoringLink" href="./">Semua Kelas</a>
+						<h6 class="collapse-header">Berdasarkan Kelas:</h6>
+						<div id="sidebarMonitoringClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
+
+			<!-- Nav Item - Nilai & Jawaban Siswa -->
+			<li class="nav-item" id="examResultNavigation">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseExamResult" aria-expanded="false" aria-controls="collapseExamResult">
+					<i class="fas fa-fw fa-user-check"></i>
+					<span>Jawaban & Nilai Siswa</span>
+				</a>
+				<div id="collapseExamResult" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAllExamResultsLink" href="../nilai-ujian/">Semua Siswa</a>
+						<h6 class="collapse-header">Berdasarkan Kelas:</h6>
+						<div id="sidebarExamResultClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
+
+			<hr class="sidebar-divider">
+			<div class="sidebar-heading">Interface</div>
+			<li class="nav-item">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+					<i class="fas fa-fw fa-database"></i><span>Data Admin</span>
+				</a>
+				<div id="collapseTwo" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" href="../guru/data-guru/">Data Guru</a>
+						<a class="collapse-item" href="../kelas/data-kelas/">Data Kelas</a>
+						<a class="collapse-item" href="../pelajaran/data-pelajaran/">Data Pelajaran</a>
+						<a class="collapse-item" href="../tahun/data-tahun/">Data Tahun Ajaran</a>
+					</div>
+				</div>
+			</li>
+
+			<li class="nav-item" id="activityNavigation">
+				<a class="nav-link collapsed" id="headingActivity" href="#" data-toggle="collapse" data-target="#collapseActivity" aria-expanded="false" aria-controls="collapseActivity">
+					<i class="fas fa-fw fa-database"></i><span>Data Aktifitas</span>
+				</a>
+				<div id="collapseActivity" class="collapse" aria-labelledby="headingActivity" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" href="../aktifitas/data-fieldtrip/">Data Field Trip</a>
+						<a class="collapse-item" href="../aktifitas/data-akhwah/">Data Akhwah</a>
+						<a class="collapse-item" href="../aktifitas/data-ummi/">Data Ummi</a>
+						<a class="collapse-item" href="../aktifitas/data-pembelajaran/">Data Pembelajaran</a>
+					</div>
+				</div>
+			</li>
+
+			<li class="nav-item" id="studentNavigation">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseStudentNavigation" aria-expanded="false" aria-controls="collapseStudentNavigation">
+					<i class="fas fa-fw fa-user-graduate"></i><span>Data Siswa</span>
+				</a>
+				<div id="collapseStudentNavigation" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAllStudentsLink" href="../siswa/data-siswa/">Semua Siswa</a>
+						<h6 class="collapse-header">Siswa per Kelas:</h6>
+						<div id="sidebarClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
+
+			<li class="nav-item">
+				<a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities" aria-expanded="false" aria-controls="collapseUtilities">
+					<i class="fas fa-fw fa-wrench"></i><span>Absensi</span>
+				</a>
+				<div id="collapseUtilities" class="collapse" data-parent="#accordionSidebar">
+					<div class="bg-white py-2 collapse-inner rounded">
+						<a class="collapse-item" id="sidebarAttendanceLink" href="../absensi/?mode=scan#scanner">Scan Absensi</a>
+						<a class="collapse-item" href="../absensi/#rekap">Rekap Absensi</a>
+						<h6 class="collapse-header">Rekap per Kelas:</h6>
+						<div id="sidebarAttendanceClassLinks"><span class="small text-muted px-3">Memuat kelas...</span></div>
+					</div>
+				</div>
+			</li>
+			<hr class="sidebar-divider d-none d-md-block">
+			<div class="text-center d-none d-md-inline"><button class="rounded-circle border-0" id="sidebarToggle"></button></div>
+		</ul>
+
+		<!-- Content Wrapper -->
+		<div id="content-wrapper" class="d-flex flex-column">
+			<div id="content">
+				<!-- Topbar -->
+				<nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+					<button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+						<i class="fa fa-bars"></i>
+					</button>
+
+					<div class="d-none d-sm-block font-weight-bold text-gray-800">
+						<span class="pulse-indicator"></span>Monitoring Pengerjaan Ujian Siswa (Live)
+					</div>
+
+					<ul class="navbar-nav ml-auto">
+						<div class="topbar-divider d-none d-sm-block"></div>
+						<!-- Nav Item - User Information -->
+						<li class="nav-item dropdown no-arrow">
+							<a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+								data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+								<span class="mr-2 d-none d-lg-inline text-gray-600 small" id="adminUserDisplayName">Admin</span>
+								<img class="img-profile rounded-circle" src="../../assets/img/undraw_profile.svg">
+							</a>
+							<div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="userDropdown">
+								<a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
+									<i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+									Logout
+								</a>
+							</div>
+						</li>
+					</ul>
+				</nav>
+
+				<!-- Main Container -->
+				<div class="container-fluid">
+					<div class="d-sm-flex align-items-center justify-content-between mb-3">
+						<div>
+							<h1 class="h3 mb-1 text-gray-800 font-weight-bold" id="monitoringClassHeading">Monitoring Ujian Siswa</h1>
+							<p class="text-muted small mb-0">Pantau siswa yang sedang mengerjakan, selesai, atau belum mulai secara langsung.</p>
+						</div>
+						<div class="mt-2 mt-sm-0 d-flex align-items-center">
+							<div class="custom-control custom-switch mr-3">
+								<input type="checkbox" class="custom-control-input" id="toggleAutoRefresh" checked>
+								<label class="custom-control-label small font-weight-bold text-gray-700" for="toggleAutoRefresh">
+									Auto Refresh (5s)
+								</label>
+							</div>
+							<button class="btn btn-primary btn-sm shadow-sm font-weight-bold" id="btnManualRefresh">
+								<i class="fas fa-sync-alt mr-1" id="iconRefresh"></i> Segarkan Data
+							</button>
+						</div>
+					</div>
+
+					<div id="pageAlertBox"></div>
+
+					<!-- Filter Bar -->
+					<div class="card shadow-sm mb-4 border-left-primary">
+						<div class="card-body py-3">
+							<div class="form-row align-items-center">
+								<!-- Pilih Ujian -->
+								<div class="col-md-5 col-sm-12 mb-2 mb-md-0">
+									<label class="small font-weight-bold text-gray-700 mb-1">Pilih Ujian yang Dipantau</label>
+									<select id="selectExam" class="form-control form-control-sm font-weight-bold text-primary">
+										<option value="">Memuat daftar ujian...</option>
+									</select>
+								</div>
+
+								<!-- Pilih Kelas -->
+								<div class="col-md-4 col-sm-12 mb-2 mb-md-0">
+									<label class="small font-weight-bold text-gray-700 mb-1">Pilih Kelas</label>
+									<select id="selectClass" class="form-control form-control-sm">
+										<option value="">Semua Kelas</option>
+									</select>
+								</div>
+
+								<!-- Filter Status Siswa -->
+								<div class="col-md-3 col-sm-12">
+									<label class="small font-weight-bold text-gray-700 mb-1">Filter Status</label>
+									<select id="selectStatusFilter" class="form-control form-control-sm">
+										<option value="">Semua Status Siswa</option>
+										<option value="berlangsung">Sedang Mengerjakan</option>
+										<option value="selesai">Sudah Selesai / Dikumpulkan</option>
+										<option value="belum">Belum Mengerjakan</option>
+									</select>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Simple Table Monitoring -->
+					<div class="card shadow mb-4">
+						<div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
+							<h6 class="m-0 font-weight-bold text-primary">
+								<i class="fas fa-list-ul mr-2"></i>Daftar Siswa & Status Pengerjaan Ujian
+							</h6>
+							<div class="small text-muted" id="lastUpdatedTime">
+								Pembaruan terakhir: -
+							</div>
+						</div>
+						<div class="card-body p-0">
+							<div class="table-responsive">
+								<table class="table table-hover table-striped mb-0 text-nowrap" id="monitoringTable" style="font-size: 0.9rem;">
+									<thead class="thead-light">
+										<tr>
+											<th style="width: 40px; text-align: center;">No</th>
+											<th style="width: 120px;">NIS</th>
+											<th>Nama Siswa</th>
+											<th style="width: 140px; text-align: center;">Kelas</th>
+											<th style="width: 190px; text-align: center;">Status Pengerjaan</th>
+											<th style="width: 150px; text-align: center;">Waktu Mulai</th>
+											<th style="width: 180px; text-align: center;">Sisa Waktu / Keterangan</th>
+											<th style="width: 120px; text-align: center;">Aksi</th>
+										</tr>
+									</thead>
+									<tbody id="monitoringTableBody">
+										<tr>
+											<td colspan="8" class="text-center py-4 text-muted">
+												<i class="fas fa-spinner fa-spin mr-2"></i>Memuat data monitoring...
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Footer -->
+			<footer class="sticky-footer bg-white mt-auto">
+				<div class="container my-auto">
+					<div class="copyright text-center my-auto">
+						<span>Copyright &copy; YPINI School System</span>
+					</div>
+				</div>
+			</footer>
+		</div>
+	</div>
+
+	<!-- Scroll to Top Button-->
+	<a class="scroll-to-top rounded" href="#page-top">
+		<i class="fas fa-angle-up"></i>
+	</a>
+
+	<!-- Logout Modal-->
+	<div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<div class="modal-header">
+					<h5 class="modal-title" id="exampleModalLabel">Ready to Leave?</h5>
+					<button class="close" type="button" data-dismiss="modal" aria-label="Close">
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
+				<div class="modal-footer">
+					<button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
+					<form id="logoutForm" action="#" method="post">
+						<button class="btn btn-primary" type="submit">Logout</button>
+					</form>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Bootstrap core JavaScript-->
+	<script src="../../assets/vendor/jquery/jquery.min.js"></script>
+	<script src="../../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+	<script src="../../assets/vendor/jquery-easing/jquery.easing.min.js"></script>
+	<script src="../../assets/js/sb-admin-2.min.js"></script>
+
+	<!-- Supabase API & Session -->
+	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+	<script src="../../supabase-config.js"></script>
+	<script src="../../api.js"></script>
+	<script src="../../admin-session.js"></script>
+	<script src="../../class-navigation.js"></script>
+
+	<script>
+		let activeAcademicYearId = null;
+		let allExams = [];
+		let currentSelectedExam = null;
+		let allClasses = [];
+		let selectedClassId = "";
+		let allStudentsInYear = [];
+		let attemptsMap = new Map(); // key: student_id -> attempt
+		let autoRefreshInterval = null;
+
+		function escapeHtml(str) {
+			if (str === null || str === undefined) return "";
+			return String(str)
+				.replace(/&/g, "&amp;")
+				.replace(/</g, "&lt;")
+				.replace(/>/g, "&gt;")
+				.replace(/"/g, "&quot;")
+				.replace(/'/g, "&#39;");
+		}
+
+		function formatWibTime(dateStr) {
+			if (!dateStr) return "-";
+			const d = new Date(dateStr);
+			if (isNaN(d.getTime())) return "-";
+			return d.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) + " WIB";
+		}
+
+		function formatTimeCountdown(totalSeconds) {
+			if (totalSeconds < 0) totalSeconds = 0;
+			const hours = Math.floor(totalSeconds / 3600);
+			const minutes = Math.floor((totalSeconds % 3600) / 60);
+			const seconds = totalSeconds % 60;
+			return [
+				String(hours).padStart(2, "0"),
+				String(minutes).padStart(2, "0"),
+				String(seconds).padStart(2, "0")
+			].join(":");
+		}
+
+		function showMessage(msg, type = "success") {
+			const box = document.getElementById("pageAlertBox");
+			box.innerHTML = `
+				<div class="alert alert-${type} alert-dismissible fade show shadow-sm" role="alert">
+					<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} mr-2"></i>${msg}
+					<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+			`;
+		}
+
+		async function initMonitoring() {
+			try {
+				const client = getSupabaseClient();
+				const yearRes = await apiGetAcademicYearSettings();
+				activeAcademicYearId = yearRes.activeYearId;
+
+				// 1. Ambil seluruh data ujian aktif/terbaru
+				const { data: exams, error: exErr } = await client
+					.from("ujian")
+					.select("*, data_pelajaran(nama_pelajaran)")
+					.order("dibuka_at", { ascending: false });
+
+				if (exErr) throw exErr;
+				allExams = exams || [];
+
+				const selectExam = document.getElementById("selectExam");
+				if (!allExams.length) {
+					selectExam.innerHTML = '<option value="">Belum ada ujian dibuat</option>';
+					document.getElementById("monitoringTableBody").innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Belum ada data ujian untuk dipantau. Buat ujian terlebih dahulu di menu Pengaturan Ujian.</td></tr>';
+					return;
+				}
+
+				selectExam.innerHTML = allExams.map(u => {
+					const isOngoing = new Date() >= new Date(u.dibuka_at) && new Date() <= new Date(u.ditutup_at);
+					const statusLabel = isOngoing ? "🟢 SEDANG BERLANGSUNG" : (new Date() < new Date(u.dibuka_at) ? "Terjadwal" : "Selesai");
+					return `<option value="${u.id}">${escapeHtml(u.nama_ujian)} (${u.data_pelajaran?.nama_pelajaran || '-'}) - ${statusLabel}</option>`;
+				}).join('');
+
+				// Default pilih ujian yang sedang berlangsung atau yang paling baru
+				const ongoing = allExams.find(u => new Date() >= new Date(u.dibuka_at) && new Date() <= new Date(u.ditutup_at));
+				currentSelectedExam = ongoing || allExams[0];
+				selectExam.value = currentSelectedExam.id;
+
+				// 2. Ambil daftar kelas tahun ajaran aktif
+				if (activeAcademicYearId) {
+					const { data: classesData } = await client
+						.from("kelas_tahun_ajaran")
+						.select("id, jenjang, nama_kelas")
+						.eq("tahun_ajaran_id", activeAcademicYearId)
+						.order("nama_kelas");
+					allClasses = classesData || [];
+
+					const selectClass = document.getElementById("selectClass");
+					selectClass.innerHTML = '<option value="">Semua Kelas</option>' +
+						allClasses.map(c => `<option value="${c.id}">${escapeHtml([c.jenjang, c.nama_kelas].filter(Boolean).join(' - '))}</option>`).join('');
+
+					// Cek parameter URL ?kelas=
+					const urlParams = new URLSearchParams(window.location.search);
+					const qClass = urlParams.get("kelas");
+					if (qClass && allClasses.some(c => String(c.id) === String(qClass))) {
+						selectedClassId = qClass;
+						selectClass.value = qClass;
+					}
+				}
+
+				updateExamInfoBanner();
+				await loadMonitoringData();
+				startAutoRefresh();
+			} catch (err) {
+				console.error("Init monitoring error:", err);
+				showMessage("Gagal menginisialisasi monitoring: " + err.message, "danger");
+			}
+		}
+
+		function updateExamInfoBanner() {
+			if (!currentSelectedExam) return;
+			const elTitle = document.getElementById("infoExamTitle");
+			if (elTitle) elTitle.textContent = currentSelectedExam.nama_ujian;
+			const elSubject = document.getElementById("infoExamSubject");
+			if (elSubject) elSubject.textContent = currentSelectedExam.data_pelajaran?.nama_pelajaran || "-";
+			const elDuration = document.getElementById("infoExamDuration");
+			if (elDuration) elDuration.textContent = `${currentSelectedExam.waktu_menit} Menit`;
+			const elOpen = document.getElementById("infoExamOpen");
+			if (elOpen) elOpen.textContent = formatWibTime(currentSelectedExam.dibuka_at);
+			const elClose = document.getElementById("infoExamClose");
+			if (elClose) elClose.textContent = formatWibTime(currentSelectedExam.ditutup_at);
+		}
+
+		async function loadMonitoringData() {
+			if (!currentSelectedExam) return;
+			const client = getSupabaseClient();
+
+			try {
+				// 1. Ambil daftar siswa yang terdaftar di kelas (tahun ajaran aktif)
+				let studentQuery = client
+					.from("siswa_kelas_tahun_ajaran")
+					.select(`
+						siswa_id,
+						kelas_tahun_ajaran_id,
+						kelas_tahun_ajaran ( id, jenjang, nama_kelas ),
+						data_siswa ( id, nis, nama, photo_path )
+					`);
+
+				if (activeAcademicYearId) {
+					studentQuery = studentQuery.eq("tahun_ajaran_id", activeAcademicYearId);
+				}
+				if (selectedClassId) {
+					studentQuery = studentQuery.eq("kelas_tahun_ajaran_id", selectedClassId);
+				}
+
+				const { data: studentsData, error: stuErr } = await studentQuery;
+				if (stuErr) throw stuErr;
+
+				// Format siswa
+				const studentList = (studentsData || [])
+					.map(s => ({
+						id: s.data_siswa?.id || s.siswa_id,
+						nis: s.data_siswa?.nis || "-",
+						nama: s.data_siswa?.nama || "Tanpa Nama",
+						photo_path: s.data_siswa?.photo_path,
+						classId: s.kelas_tahun_ajaran_id,
+						className: s.kelas_tahun_ajaran ? [s.kelas_tahun_ajaran.jenjang, s.kelas_tahun_ajaran.nama_kelas].filter(Boolean).join(" - ") : "-"
+					}))
+					.sort((a, b) => a.nama.localeCompare(b.nama));
+
+				allStudentsInYear = studentList;
+
+				// 2. Ambil data pengerjaan (percobaan_ujian) untuk ujian yang dipilih
+				const { data: attempts, error: attErr } = await client
+					.from("percobaan_ujian")
+					.select("id, ujian_id, siswa_id, status, mulai_at, dikumpulkan_at, nilai_total")
+					.eq("ujian_id", currentSelectedExam.id);
+
+				if (attErr) throw attErr;
+
+				attemptsMap.clear();
+				(attempts || []).forEach(att => {
+					attemptsMap.set(String(att.siswa_id), att);
+				});
+
+				renderMonitoringTable();
+				document.getElementById("lastUpdatedTime").textContent = `Pembaruan terakhir: ${new Date().toLocaleTimeString("id-ID")} WIB`;
+			} catch (err) {
+				console.error("Gagal memuat monitoring:", err);
+			}
+		}
+
+		function renderMonitoringTable() {
+			const tbody = document.getElementById("monitoringTableBody");
+			const filterStatus = document.getElementById("selectStatusFilter").value;
+			const now = Date.now();
+			const exam = currentSelectedExam;
+			const totalDurationSec = (exam.waktu_menit || 60) * 60;
+			const hardDeadlineMs = exam.ditutup_at ? new Date(exam.ditutup_at).getTime() : 0;
+			const officialEndMs = exam.dibuka_at ? new Date(exam.dibuka_at).getTime() + (totalDurationSec * 1000) : hardDeadlineMs;
+
+			let countTotal = allStudentsInYear.length;
+			let countActive = 0;
+			let countFinished = 0;
+			let countPending = 0;
+
+			// Gabungkan siswa dengan attempt-nya
+			const processedList = allStudentsInYear.map(s => {
+				const att = attemptsMap.get(String(s.id));
+				let statusCategory = "belum"; // 'berlangsung', 'selesai', 'belum'
+				let isOvertime = false;
+				let remainingSeconds = null;
+
+				if (att) {
+					if (att.status === "berlangsung") {
+						statusCategory = "berlangsung";
+						countActive++;
+
+						const startMs = new Date(att.mulai_at || att.created_at).getTime();
+						const studentTargetEndMs = startMs + (totalDurationSec * 1000);
+						const studentRemaining = Math.max(0, Math.floor((studentTargetEndMs - now) / 1000));
+						const hardRemaining = hardDeadlineMs > 0 ? Math.max(0, Math.floor((hardDeadlineMs - now) / 1000)) : studentRemaining;
+
+						remainingSeconds = Math.min(studentRemaining, hardRemaining);
+						isOvertime = (now > officialEndMs || studentRemaining <= 0) && hardRemaining > 0;
+					} else if (att.status === "dikumpulkan" || att.status === "dinilai") {
+						statusCategory = "selesai";
+						countFinished++;
+					}
+				} else {
+					countPending++;
+				}
+
+				return {
+					...s,
+					attempt: att,
+					statusCategory,
+					isOvertime,
+					remainingSeconds
+				};
+			});
+
+			const elStatTotal = document.getElementById("statTotalStudents");
+			if (elStatTotal) elStatTotal.textContent = countTotal;
+			const elStatActive = document.getElementById("statActiveStudents");
+			if (elStatActive) elStatActive.textContent = countActive;
+			const elStatFinished = document.getElementById("statFinishedStudents");
+			if (elStatFinished) elStatFinished.textContent = countFinished;
+			const elStatPending = document.getElementById("statPendingStudents");
+			if (elStatPending) elStatPending.textContent = countPending;
+
+			// Filter berdasarkan dropdown filter status
+			const filteredList = processedList.filter(item => {
+				if (!filterStatus) return true;
+				return item.statusCategory === filterStatus;
+			});
+
+			if (!filteredList.length) {
+				tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Tidak ada siswa yang sesuai dengan filter.</td></tr>';
+				return;
+			}
+
+			tbody.innerHTML = filteredList.map((item, index) => {
+				let statusBadge = "";
+				let timeCol = "-";
+				let remainingCol = "-";
+				let actionBtn = "";
+
+				if (item.statusCategory === "berlangsung") {
+					if (item.isOvertime) {
+						statusBadge = `<span class="badge badge-warning text-dark badge-status overtime-badge border border-danger"><i class="fas fa-exclamation-triangle text-danger mr-1"></i>Overtime</span>`;
+						remainingCol = `<span class="text-danger font-weight-bold"><i class="fas fa-clock mr-1"></i>${formatTimeCountdown(item.remainingSeconds)}</span> <span class="badge badge-light border small text-muted">Toleransi</span>`;
+					} else {
+						statusBadge = `<span class="badge badge-primary badge-status"><span class="pulse-indicator"></span>Sedang Mengerjakan</span>`;
+						remainingCol = `<span class="text-primary font-weight-bold"><i class="fas fa-stopwatch mr-1"></i>${formatTimeCountdown(item.remainingSeconds)}</span>`;
+					}
+					timeCol = formatWibTime(item.attempt.mulai_at);
+					actionBtn = `
+						<button class="btn btn-outline-danger btn-sm py-0 px-2 font-weight-bold" data-action="reset" data-attempt-id="${item.attempt.id}" data-student-name="${escapeHtml(item.nama)}" title="Reset pengerjaan jika siswa terkendala perangkat">
+							<i class="fas fa-redo-alt mr-1"></i>Reset
+						</button>
+					`;
+				} else if (item.statusCategory === "selesai") {
+					const isFinalized = item.attempt.status === "dinilai";
+					statusBadge = isFinalized 
+						? `<span class="badge badge-success badge-status"><i class="fas fa-check-double mr-1"></i>Sudah Dinilai</span>`
+						: `<span class="badge badge-info badge-status"><i class="fas fa-check-circle mr-1"></i>Dikumpulkan</span>`;
+					timeCol = formatWibTime(item.attempt.mulai_at);
+					remainingCol = `<span class="text-success font-weight-bold"><i class="fas fa-check mr-1"></i>Selesai (${formatWibTime(item.attempt.dikumpulkan_at)})</span>`;
+					actionBtn = `
+						<a href="../nilai-ujian/?kelas=${item.classId}" class="btn btn-outline-primary btn-sm py-0 px-2 font-weight-bold" title="Periksa lembar jawaban">
+							<i class="fas fa-search mr-1"></i>Lihat Nilai
+						</a>
+					`;
+				} else {
+					statusBadge = `<span class="badge badge-secondary badge-status"><i class="fas fa-clock mr-1"></i>Belum Mengerjakan</span>`;
+					timeCol = `<span class="text-muted">-</span>`;
+					remainingCol = `<span class="text-muted small">Belum membuka ujian</span>`;
+					actionBtn = `<span class="text-muted small">-</span>`;
+				}
+
+				return `
+					<tr>
+						<td style="text-align: center;" class="text-muted font-weight-bold">${index + 1}</td>
+						<td class="font-weight-bold">${escapeHtml(item.nis)}</td>
+						<td>
+							<div class="font-weight-bold text-gray-900">${escapeHtml(item.nama)}</div>
+						</td>
+						<td style="text-align: center;">
+							<span class="badge badge-light border text-gray-800">${escapeHtml(item.className)}</span>
+						</td>
+						<td style="text-align: center;">${statusBadge}</td>
+						<td style="text-align: center;">${timeCol}</td>
+						<td style="text-align: center;">${remainingCol}</td>
+						<td style="text-align: center;">${actionBtn}</td>
+					</tr>
+				`;
+			}).join('');
+		}
+
+		async function handleResetAttempt(attemptId, studentName) {
+			const confirmMsg = `Reset pengerjaan ujian untuk siswa "${studentName}"?\n\nPERINGATAN: Sesi pengerjaan siswa akan dihapus agar siswa dapat membuka kembali lembar ujian dari awal (misal akibat komputer mati atau browser freeze).`;
+			if (!window.confirm(confirmMsg)) return;
+
+			try {
+				const client = getSupabaseClient();
+				await client.from("jawaban_siswa").delete().eq("percobaan_id", attemptId);
+				const { error } = await client.from("percobaan_ujian").delete().eq("id", attemptId);
+				if (error) throw error;
+
+				showMessage(`Pengerjaan siswa "${studentName}" berhasil direset. Siswa kini dapat memulai kembali.`);
+				await loadMonitoringData();
+			} catch (err) {
+				alert("Gagal mereset: " + err.message);
+			}
+		}
+
+		function startAutoRefresh() {
+			if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+			autoRefreshInterval = setInterval(() => {
+				const isChecked = document.getElementById("toggleAutoRefresh").checked;
+				if (isChecked) {
+					loadMonitoringData();
+				}
+			}, 5000);
+		}
+
+		document.addEventListener("DOMContentLoaded", () => {
+			initMonitoring();
+
+			// Event listener dropdown Ujian
+			document.getElementById("selectExam").addEventListener("change", (e) => {
+				const selectedId = e.target.value;
+				currentSelectedExam = allExams.find(u => String(u.id) === String(selectedId)) || null;
+				updateExamInfoBanner();
+				loadMonitoringData();
+			});
+
+			// Event listener dropdown Kelas
+			document.getElementById("selectClass").addEventListener("change", (e) => {
+				selectedClassId = e.target.value;
+				loadMonitoringData();
+			});
+
+			// Event listener filter Status
+			document.getElementById("selectStatusFilter").addEventListener("change", () => {
+				renderMonitoringTable();
+			});
+
+			// Event listener tombol Manual Refresh
+			document.getElementById("btnManualRefresh").addEventListener("click", async () => {
+				const icon = document.getElementById("iconRefresh");
+				icon.classList.add("fa-spin");
+				await loadMonitoringData();
+				setTimeout(() => icon.classList.remove("fa-spin"), 600);
+			});
+
+			// Delegasi klik Reset Pengerjaan
+			document.getElementById("monitoringTableBody").addEventListener("click", (e) => {
+				const btn = e.target.closest("button[data-action='reset']");
+				if (btn) {
+					const attemptId = btn.dataset.attemptId;
+					const studentName = btn.dataset.studentName;
+					handleResetAttempt(attemptId, studentName);
+				}
+			});
+		});
+	</script>
+</body>
+</html>
