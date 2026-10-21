@@ -309,6 +309,7 @@ async function performAdminLogout(loginPath) {
           localStorage.removeItem(key);
         }
       }
+      localStorage.removeItem("ypn_remember_admin_flag");
       sessionStorage.clear();
     } catch (e) {}
     window.location.replace(loginPath);
@@ -385,6 +386,7 @@ window.adminSessionReady = new Promise((resolve) => {
 
       if (profileError || !["admin", "guru"].includes(profile?.role)) {
         await client.auth.signOut();
+        localStorage.removeItem("ypn_remember_admin_flag");
         window.location.replace(loginPath);
         resolve(false);
         return;

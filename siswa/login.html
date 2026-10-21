@@ -11,6 +11,19 @@
     <link href="../assets/img/logo.png" rel="icon">
     <link href="../assets/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="../assets/css/theme-green.css" rel="stylesheet">
+    <style>
+        html.session-checking body {
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+    </style>
+    <script>
+        const _isRemStudent = localStorage.getItem("ypn_remember_student_flag") === "true";
+        const _hasStudentNis = sessionStorage.getItem("ypn_student_nis") || localStorage.getItem("ypn_remember_student_nis");
+        if (_isRemStudent && _hasStudentNis) {
+            document.documentElement.classList.add("session-checking");
+        }
+    </script>
 </head>
 
 <body class="bg-gradient-primary">
@@ -59,6 +72,32 @@
     <script src="../supabase-config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        (function initStudentCheck() {
+            const savedNis = localStorage.getItem("ypn_remember_student_nis");
+            const isRemembered = localStorage.getItem("ypn_remember_student_flag") === "true";
+            const activeNis = sessionStorage.getItem("ypn_student_nis");
+
+            // Jika siswa sudah memiliki sesi aktif atau Remember Me aktif, langsung ke dashboard siswa
+            if (activeNis || (isRemembered && savedNis)) {
+                if (!activeNis && savedNis) {
+                    try {
+                        sessionStorage.setItem("ypn_student_nis", savedNis);
+                    } catch (_) {}
+                }
+                window.location.replace("./");
+                return;
+            }
+
+            document.documentElement.classList.remove("session-checking");
+
+            if (savedNis) {
+                const nisInput = document.getElementById("studentNis");
+                const check = document.getElementById("customCheck");
+                if (nisInput) nisInput.value = savedNis;
+                if (check && isRemembered) check.checked = true;
+            }
+        })();
+
         document.getElementById("studentLoginForm").addEventListener("submit", async (event) => {
             event.preventDefault();
             const form = event.currentTarget;
@@ -95,6 +134,16 @@
 
                 if (nisExists !== true) {
                     throw new Error("NIS tidak ditemukan. Silakan cek kembali NIS Anda.");
+                }
+
+                // Handle Remember Me Siswa
+                const rememberCheckbox = form.elements.remember;
+                if (rememberCheckbox && rememberCheckbox.checked) {
+                    localStorage.setItem("ypn_remember_student_nis", nis);
+                    localStorage.setItem("ypn_remember_student_flag", "true");
+                } else {
+                    localStorage.removeItem("ypn_remember_student_nis");
+                    localStorage.removeItem("ypn_remember_student_flag");
                 }
 
                 sessionStorage.setItem("ypn_student_nis", nis);

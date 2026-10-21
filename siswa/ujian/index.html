@@ -206,10 +206,12 @@
       <span class="badge badge-success px-3 py-2 text-uppercase font-weight-bold" id="examBadgeSubject">Mata Pelajaran</span>
     </div>
 
-    <!-- Actions Kanan: Timer, Modal Navigasi Soal, Identitas Siswa -->
+    <!-- Actions Kanan: Fullscreen Status, Timer, Identitas Siswa -->
     <div class="d-flex align-items-center ml-auto">
-      <!-- Badge Progres Jawaban -->
-      
+      <!-- Badge Fullscreen Aktif -->
+      <span id="fsStatusBadge" class="badge badge-success px-2 py-2 small mr-2 d-none font-weight-bold" title="Mode Fullscreen Aktif">
+        <i class="fas fa-expand mr-1"></i> Fullscreen
+      </span>
 
       <!-- Timer Countdown -->
       <div id="timerContainer" class="mr-2 mr-md-3 d-none">
@@ -243,7 +245,7 @@
           </div>
           <h5 class="font-weight-bold text-gray-800" id="messageTitle">Pemberitahuan</h5>
           <p class="text-muted" id="messageBody">Ujian tidak dapat dibuka.</p>
-          <a href="../" class="btn btn-primary px-4 mt-2">
+          <a href="../" class="btn btn-primary px-4 mt-2" id="btnBackFromMessage">
             <i class="fas fa-arrow-left mr-1"></i> Kembali ke Dashboard Siswa
           </a>
         </div>
@@ -265,7 +267,7 @@
           <span id="completedScoreText" class="font-weight-bold text-success">-</span>
         </div> -->
         <div>
-          <a href="../" class="btn btn-primary px-4 py-2 font-weight-bold">
+          <a href="../" class="btn btn-primary px-4 py-2 font-weight-bold" id="btnBackFromCompleted">
             <i class="fas fa-home mr-1"></i> Kembali ke Dashboard Siswa
           </a>
         </div>
@@ -364,7 +366,7 @@
               <div class="d-flex justify-content-between align-items-center flex-wrap">
                 <!-- Tombol Sebelumnya -->
                 <button type="button" class="btn btn-secondary px-3 mb-2 mb-sm-0" id="btnPrevQuestion">
-                  <i class="fas fa-chevron-left mr-1"></i>
+                  <i class="fas fa-chevron-left mr-1"></i> Sebelumnya
                 </button>
 
                 <!-- Tombol Navigasi Modal (Daftar Soal) & Ragu-Ragu -->
@@ -380,10 +382,10 @@
                 <!-- Tombol Berikutnya / Selesai -->
                 <div class="d-flex">
                   <button type="button" class="btn btn-primary px-4" id="btnNextQuestion">
-                    <i class="fas fa-chevron-right ml-1"></i>
+                    Berikutnya <i class="fas fa-chevron-right ml-1"></i> 
                   </button>
                   <button type="button" class="btn btn-success px-4 ml-2 d-none" id="btnFinishExamInline">
-                    <i class="fas fa-check-circle mr-1"></i>
+                    Selesai <i class="fas fa-check-circle mr-1"></i>
                   </button>
                 </div>
               </div>
@@ -507,8 +509,8 @@
         <div class="modal-body text-center p-2 bg-dark">
           <img id="lightboxModalImage" src="" class="img-fluid rounded border" style="max-height: 75vh; object-fit: contain; background: #fff;" alt="Zoom Gambar">
         </div>
-        <div class="modal-footer border-0 py-2 justify-content-between">
-          <a id="lightboxOriginalLink" href="#" target="_blank" class="btn btn-sm btn-outline-light"><i class="fas fa-external-link-alt mr-1"></i>Buka di Tab Baru</a>
+        <div class="modal-footer border-0 py-2 justify-content-end">
+          <a id="lightboxOriginalLink" href="#" target="_blank" class="btn btn-sm btn-outline-light d-none"><i class="fas fa-external-link-alt mr-1"></i>Buka di Tab Baru</a>
           <button type="button" class="btn btn-sm btn-light font-weight-bold" data-dismiss="modal">Tutup</button>
         </div>
       </div>
@@ -531,6 +533,8 @@
     let studentAnswers = {};
     let examTimerInterval = null;
     let currentStudentNis = "";
+    let isExamActive = false;
+    let isExamSubmitted = false;
 
     function getSupabaseClient() {
       if (!window.SUPABASE_CONFIG?.url || !window.SUPABASE_CONFIG?.anonKey) {
@@ -546,7 +550,15 @@
     }
 
     function ensureStudentSession() {
-      const nis = sessionStorage.getItem("ypn_student_nis");
+      let nis = sessionStorage.getItem("ypn_student_nis");
+      if (!nis) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const qNis = urlParams.get("nis");
+        if (qNis) {
+          try { sessionStorage.setItem("ypn_student_nis", qNis); } catch (_) {}
+          nis = qNis;
+        }
+      }
       if (!nis) {
         window.location.replace("../login.html");
         return null;
@@ -657,11 +669,105 @@
       return [];
     }
 
+    function isFullscreenActive() {
+      const isParentFullscreen = !!(window.parent && window.parent !== window && window.parent.document?.fullscreenElement);
+      return isParentFullscreen || !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+    }
+
+    async function requestFullScreenSafe(element = document.documentElement) {
+      try {
+        if (window.parent && window.parent !== window) {
+          try {
+            const parentContainer = window.parent.document.getElementById("cbtExamContainer");
+            if (parentContainer && !window.parent.document.fullscreenElement) {
+              if (parentContainer.requestFullscreen) {
+                await parentContainer.requestFullscreen();
+                return;
+              } else if (window.parent.document.documentElement.requestFullscreen) {
+                await window.parent.document.documentElement.requestFullscreen();
+                return;
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (element.requestFullscreen) {
+          await element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+          await element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+          await element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) {
+          await element.msRequestFullscreen();
+        }
+      } catch (err) {
+        console.warn("Fullscreen request warning:", err);
+      }
+    }
+
+    async function lockKeyboardEsc() {
+      if (navigator.keyboard && typeof navigator.keyboard.lock === "function") {
+        try {
+          await navigator.keyboard.lock(["Escape"]);
+          console.log("[CBT Fullscreen] Keyboard Lock untuk 'Escape' berhasil diaktifkan.");
+        } catch (err) {
+          try {
+            await navigator.keyboard.lock();
+            console.log("[CBT Fullscreen] Keyboard Lock semua tombol berhasil diaktifkan.");
+          } catch (e2) {
+            console.warn("[CBT Fullscreen] navigator.keyboard.lock gagal:", e2);
+          }
+        }
+      } else {
+        console.warn("[CBT Fullscreen] navigator.keyboard.lock tidak didukung di browser ini atau context bukan secure context (https/localhost).");
+      }
+    }
+
+    function unlockKeyboardEsc() {
+      if (navigator.keyboard && typeof navigator.keyboard.unlock === "function") {
+        try {
+          navigator.keyboard.unlock();
+          console.log("[CBT Fullscreen] Keyboard unlocked.");
+        } catch (_) {}
+      }
+    }
+
+    async function handleFullscreenChange() {
+      const fsBadge = document.getElementById("fsStatusBadge");
+
+      if (isFullscreenActive()) {
+        console.log("[CBT Fullscreen] Masuk mode Fullscreen.");
+        if (fsBadge) fsBadge.classList.remove("d-none");
+        await lockKeyboardEsc();
+      } else {
+        console.log("[CBT Fullscreen] Keluar dari mode Fullscreen.");
+        if (fsBadge) fsBadge.classList.add("d-none");
+        unlockKeyboardEsc();
+      }
+    }
+
     function showView(viewId) {
       ["loadingView", "messageView", "completedView", "examMainView"].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle("d-none", id !== viewId);
       });
+
+      if (viewId === "completedView" || viewId === "messageView") {
+        isExamActive = false;
+        isExamSubmitted = true;
+        unlockKeyboardEsc();
+        if (isFullscreenActive()) {
+          if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen().catch(() => {});
+          else if (document.mozCancelFullScreen) document.mozCancelFullScreen().catch(() => {});
+          else if (document.msExitFullscreen) document.msExitFullscreen().catch(() => {});
+        }
+      }
     }
 
     function showMessage(title, text) {
@@ -1089,6 +1195,16 @@
       $("#confirmSubmitModal").modal("hide");
       clearInterval(examTimerInterval);
 
+      isExamActive = false;
+      isExamSubmitted = true;
+      unlockKeyboardEsc();
+      if (isFullscreenActive()) {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen().catch(() => {});
+        else if (document.mozCancelFullScreen) document.mozCancelFullScreen().catch(() => {});
+        else if (document.msExitFullscreen) document.msExitFullscreen().catch(() => {});
+      }
+
       const submitBtn = document.getElementById("btnSubmitFinal");
       if (submitBtn) submitBtn.disabled = true;
 
@@ -1271,11 +1387,15 @@
           console.warn("Notice: start_student_exam fallback:", startEx);
         }
 
-        initExamTimer(activeExam, serverStartTime);
         renderGridButtons();
         renderCurrentQuestion();
 
+        isExamActive = true;
+        initExamTimer(activeExam, serverStartTime);
         showView("examMainView");
+
+        // Langsung panggil fullscreen saat ujian dimuat
+        requestFullScreenSafe();
       } catch (err) {
         console.error(err);
         showMessage("Terjadi Kesalahan", err.message || "Gagal memuat ujian.");
@@ -1284,6 +1404,168 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       initExam();
+
+      // Failsafe Otomatis: Setiap kali terdeteksi tidak fullscreen saat ujian aktif,
+      // setiap klik atau interaksi apapun dari siswa langsung otomatis mengembalikan layar ke Fullscreen!
+      function autoFullscreenFailsafe() {
+        if (isExamActive && !isExamSubmitted && !isFullscreenActive()) {
+          requestFullScreenSafe();
+        }
+      }
+
+      window.addEventListener("click", autoFullscreenFailsafe, true);
+      window.addEventListener("pointerdown", autoFullscreenFailsafe, true);
+      window.addEventListener("keydown", autoFullscreenFailsafe, true);
+
+      // Event Listener Fullscreen Browser (Standard & Vendor Prefixes)
+      ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach((evt) => {
+        document.addEventListener(evt, handleFullscreenChange);
+      });
+      function restoreExamFullscreen() {
+        if (
+          isExamActive &&
+          !isExamSubmitted &&
+          !isFullscreenActive()
+        ) {
+          const fsBadge = document.getElementById("fsStatusBadge");
+
+          if (fsBadge) {
+            fsBadge.classList.add("d-none");
+          }
+
+          // Browser dapat menolak permintaan fullscreen
+          // jika tidak dipicu oleh interaksi pengguna.
+          console.warn(
+            "[CBT] Fullscreen terlepas selama ujian."
+          );
+        }
+      }
+
+      document.addEventListener(
+        "fullscreenchange",
+        restoreExamFullscreen
+      );
+
+      document.addEventListener(
+        "webkitfullscreenchange",
+        restoreExamFullscreen
+      );
+
+      // Mencegah Klik Kanan (Context Menu)
+      document.addEventListener("contextmenu", (e) => {
+        if (isExamActive && !isExamSubmitted) {
+          e.preventDefault();
+          return false;
+        }
+      });
+
+      // Mencegah Tombol Pintas Berbahaya (F11, Escape, DevTools, Reload, Back, Print, Copy)
+      function handleSecurityKey(e) {
+        if (!isExamActive || isExamSubmitted) return;
+
+        // F11: jika sedang tidak fullscreen, langsung masuk fullscreen!
+        // jika sedang fullscreen, cegah browser keluar dari fullscreen.
+        if (
+          e.key === "F11" ||
+          e.keyCode === 122 ||
+          e.code === "F11"
+        ) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+
+          // Jika fullscreen sudah terlepas, coba aktifkan kembali.
+          if (isExamActive && !isExamSubmitted && !isFullscreenActive()) {
+            requestFullScreenSafe();
+          }
+
+          return false;
+        }
+
+        // Escape: cegah keluar fullscreen
+        if (e.key === "Escape" || e.keyCode === 27 || e.code === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          console.log("[CBT Security] Escape ditekan - dicegah!");
+          return false;
+        }
+
+        // F12 atau DevTools (Ctrl+Shift+I / J / C)
+        if (e.key === "F12" || e.keyCode === 123 || (e.ctrlKey && e.shiftKey && ["I", "i", "J", "j", "C", "c"].includes(e.key))) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          return false;
+        }
+
+        // F5 atau Ctrl+R (Reload)
+        if (e.key === "F5" || (e.ctrlKey && (e.key === "r" || e.key === "R"))) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+
+        // Ctrl+U (Lihat Source)
+        if (e.ctrlKey && (e.key === "u" || e.key === "U")) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+
+        // Ctrl+P (Print), Ctrl+S (Simpan Halaman)
+        if (e.ctrlKey && ["p", "P", "s", "S"].includes(e.key)) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+
+        // Alt + Arrow Left/Right (Navigasi history browser)
+        if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }
+
+      window.addEventListener("keydown", handleSecurityKey, { capture: true, passive: false });
+      window.addEventListener("keyup", handleSecurityKey, { capture: true, passive: false });
+
+      // Peringatan saat mencoba menutup tab / browser
+      window.addEventListener("beforeunload", (e) => {
+        if (isExamActive && !isExamSubmitted) {
+          e.preventDefault();
+          e.returnValue = "Ujian sedang berlangsung! Keluar dari halaman dapat membatalkan pengerjaan Anda.";
+          return e.returnValue;
+        }
+      });
+
+      // Mencegah tombol Back / Gestur Usap Kembali di HP Android
+      try {
+        history.pushState(null, "", window.location.href);
+      } catch (_) {}
+
+      window.addEventListener("popstate", () => {
+        if (isExamActive && !isExamSubmitted) {
+          try {
+            history.pushState(null, "", window.location.href);
+          } catch (_) {}
+          if (!isFullscreenActive()) {
+            requestFullScreenSafe();
+          }
+        }
+      });
+
+      // Mencegah link brand logo mengarahkan keluar halaman saat ujian aktif
+      const brandLogo = document.querySelector(".navbar-brand");
+      if (brandLogo) {
+        brandLogo.addEventListener("click", (e) => {
+          if (isExamActive && !isExamSubmitted) {
+            e.preventDefault();
+            alert("Ujian sedang aktif. Selesaikan atau kumpulkan ujian terlebih dahulu sebelum kembali.");
+          }
+        });
+      }
 
       document.querySelectorAll(".cbt-option").forEach((opt) => {
         opt.addEventListener("click", () => {
@@ -1322,7 +1604,8 @@
         const title = img.dataset.zoomTitle || "Foto Soal";
         document.getElementById("lightboxModalTitle").textContent = title;
         document.getElementById("lightboxModalImage").src = src;
-        document.getElementById("lightboxOriginalLink").href = src;
+        const origLink = document.getElementById("lightboxOriginalLink");
+        if (origLink) origLink.href = src;
         $("#imageLightboxModal").modal("show");
       });
 
@@ -1350,6 +1633,23 @@
         btnFontSm.classList.remove("active");
         btnFontMd.classList.remove("active");
         btnFontLg.classList.add("active");
+      });
+
+      // Tombol Kembali ke Dashboard (kompatibel saat berjalan di dalam fullscreen iframe)
+      ["btnBackFromMessage", "btnBackFromCompleted"].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+          btn.addEventListener("click", (e) => {
+            if (window.parent && window.parent !== window) {
+              e.preventDefault();
+              try {
+                window.parent.postMessage({ action: "closeExam" }, "*");
+              } catch (_) {
+                window.location.href = "../";
+              }
+            }
+          });
+        }
       });
     });
   </script>

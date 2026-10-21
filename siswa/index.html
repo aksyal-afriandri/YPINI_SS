@@ -295,10 +295,13 @@
                         doneBadge.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Sudah Dikerjakan';
                         row.append(details, doneBadge);
                     } else {
-                        const link = document.createElement("a");
-                        link.className = "btn btn-primary btn-sm mt-2 mt-md-0 ml-md-3";
-                        link.href = `ujian/index.html?id=${encodeURIComponent(exam.id)}`;
+                        const link = document.createElement("button");
+                        link.type = "button";
+                        link.className = "btn btn-primary btn-sm mt-2 mt-md-0 ml-md-3 font-weight-bold";
                         link.innerHTML = '<i class="fas fa-arrow-right mr-1" aria-hidden="true"></i> Pilih ujian';
+                        link.addEventListener("click", () => {
+                            openExamInFullscreen(exam.id);
+                        });
                         row.append(details, link);
                     }
 
@@ -311,7 +314,65 @@
             }
         }
 
+        function openExamInFullscreen(examId) {
+            const nis = sessionStorage.getItem("ypn_student_nis");
+            const container = document.getElementById("cbtExamContainer");
+            const frame = document.getElementById("cbtExamFrame");
+            if (!container || !frame) return;
+
+            frame.src = `ujian/index.html?id=${encodeURIComponent(examId)}&nis=${encodeURIComponent(nis || "")}`;
+            container.classList.remove("d-none");
+
+            try {
+                if (container.requestFullscreen) {
+                    container.requestFullscreen().catch(() => {});
+                } else if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen().catch(() => {});
+                }
+            } catch (err) {
+                console.warn("Fullscreen request error:", err);
+            }
+        }
+
+        window.closeCbtExam = function() {
+            const container = document.getElementById("cbtExamContainer");
+            const frame = document.getElementById("cbtExamFrame");
+            if (document.fullscreenElement) {
+                if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+            }
+            if (container) container.classList.add("d-none");
+            if (frame) frame.src = "about:blank";
+            loadAvailableExams();
+        };
+
+        window.addEventListener("message", (event) => {
+            if (event.data?.action === "closeExam") {
+                window.closeCbtExam();
+            }
+        });
+
+        document.addEventListener("fullscreenchange", () => {
+            if (document.fullscreenElement && navigator.keyboard && typeof navigator.keyboard.lock === "function") {
+                try {
+                    navigator.keyboard.lock(["Escape"]).catch(() => {});
+                } catch (_) {}
+            }
+        });
+
+        // Mencegah tombol Back di HP Android saat ujian aktif di fullscreen container
+        window.addEventListener("popstate", () => {
+            const container = document.getElementById("cbtExamContainer");
+            if (container && !container.classList.contains("d-none")) {
+                try { history.pushState(null, "", window.location.href); } catch (_) {}
+            }
+        });
+
         loadAvailableExams();
     </script>
+
+    <!-- Container Iframe Ujian Fullscreen (Tanpa Pindah Halaman agar Fullscreen Tidak Reset) -->
+    <div id="cbtExamContainer" class="d-none" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999999; background: #f4f6f9;">
+        <iframe id="cbtExamFrame" src="about:blank" style="width: 100%; height: 100%; border: none;" allow="fullscreen"></iframe>
+    </div>
 </body>
 </html>

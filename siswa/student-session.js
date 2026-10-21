@@ -1,6 +1,17 @@
 window.studentSessionReady = new Promise((resolve) => {
   const loginPath = document.body.dataset.loginPath || "login.html";
-  const nis = sessionStorage.getItem("ypn_student_nis");
+  let nis = sessionStorage.getItem("ypn_student_nis");
+
+  // Jika tidak ada di sessionStorage, cek apakah Remember Me aktif di localStorage
+  if (!nis && localStorage.getItem("ypn_remember_student_flag") === "true") {
+    const rememberedNis = localStorage.getItem("ypn_remember_student_nis");
+    if (rememberedNis) {
+      nis = rememberedNis;
+      try {
+        sessionStorage.setItem("ypn_student_nis", nis);
+      } catch (_) {}
+    }
+  }
 
   if (!nis) {
     window.location.replace(loginPath);
@@ -14,6 +25,8 @@ window.studentSessionReady = new Promise((resolve) => {
   function performStudentLogout() {
     sessionStorage.removeItem("ypn_student_nis");
     sessionStorage.clear();
+    // Hilangkan flag auto-login agar tidak redirect otomatis, tapi biarkan NIS tersimpan untuk prefill form login
+    localStorage.removeItem("ypn_remember_student_flag");
     window.location.replace(loginPath);
   }
 

@@ -22,6 +22,21 @@
     <link href="assets/css/sb-admin-2.min.css" rel="stylesheet">
     <link href="assets/css/theme-green.css" rel="stylesheet">
 
+    <style>
+        html.session-checking body {
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+    </style>
+    <script>
+        // Cek cepat apakah Remember Me aktif untuk mencegah kedipan login form
+        const _isRemAdmin = localStorage.getItem("ypn_remember_admin_flag") === "true";
+        const _isRemStudent = localStorage.getItem("ypn_remember_student_flag") === "true";
+        const _hasStudentNis = sessionStorage.getItem("ypn_student_nis") || localStorage.getItem("ypn_remember_student_nis");
+        if (_isRemAdmin || (_isRemStudent && _hasStudentNis)) {
+            document.documentElement.classList.add("session-checking");
+        }
+    </script>
 </head>
 
 <body class="bg-gradient-primary">
@@ -83,6 +98,54 @@
     <script src="supabase-config.js"></script>
     <script src="api.js"></script>
     <script>
+    (async function initSessionCheck() {
+        const isRememberedAdmin = localStorage.getItem("ypn_remember_admin_flag") === "true";
+        const isRememberedStudent = localStorage.getItem("ypn_remember_student_flag") === "true";
+        const rememberedStudentNis = localStorage.getItem("ypn_remember_student_nis");
+        const activeStudentNis = sessionStorage.getItem("ypn_student_nis");
+
+        // 1. Cek sesi Siswa jika Remember Me siswa aktif atau sesi siswa masih aktif
+        if (activeStudentNis || (isRememberedStudent && rememberedStudentNis)) {
+            if (!activeStudentNis && rememberedStudentNis) {
+                try {
+                    sessionStorage.setItem("ypn_student_nis", rememberedStudentNis);
+                } catch (_) {}
+            }
+            window.location.replace("siswa/");
+            return;
+        }
+
+        // 2. Cek sesi Admin / Guru jika Remember Me admin aktif
+        if (isRememberedAdmin) {
+            try {
+                const client = typeof getSupabaseClient === "function" ? getSupabaseClient() : null;
+                if (client && client.auth) {
+                    const { data: { session } } = await client.auth.getSession();
+                    if (session && session.user) {
+                        window.location.replace("admin/dashboard/");
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn("Auto-redirect check error:", err);
+            }
+        }
+
+        // Hilangkan class anti-flicker jika belum login / sesi tidak ditemukan
+        document.documentElement.classList.remove("session-checking");
+
+        // Prefill username/NIP pada form login jika ada data tersimpan
+        const savedUser = localStorage.getItem("ypn_remember_admin_user");
+        if (savedUser) {
+            const userInput = document.getElementById("exampleInputName");
+            const check = document.getElementById("customCheck");
+            const passInput = document.getElementById("exampleInputPassword");
+            if (userInput) userInput.value = savedUser;
+            if (check && isRememberedAdmin) check.checked = true;
+            if (passInput) passInput.focus();
+        }
+    })();
+
     document.getElementById("loginForm").addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = event.currentTarget;
@@ -92,7 +155,8 @@
         submitButton.disabled = true;
 
         try {
-            let identifier = form.elements.email.value.trim();
+            const rawIdentifier = form.elements.email.value.trim();
+            let identifier = rawIdentifier;
             if (identifier && !identifier.includes("@")) {
                 identifier = `${identifier}@gmail.com`;
             }
@@ -101,6 +165,17 @@
                 email: identifier,
                 password: form.elements.password.value,
             });
+
+            // Handle Remember Me
+            const rememberCheckbox = form.elements.remember;
+            if (rememberCheckbox && rememberCheckbox.checked) {
+                localStorage.setItem("ypn_remember_admin_user", rawIdentifier);
+                localStorage.setItem("ypn_remember_admin_flag", "true");
+            } else {
+                localStorage.removeItem("ypn_remember_admin_user");
+                localStorage.removeItem("ypn_remember_admin_flag");
+            }
+
             window.location.href = "admin/dashboard/";
         } catch (error) {
             errorBox.textContent = error.message;
