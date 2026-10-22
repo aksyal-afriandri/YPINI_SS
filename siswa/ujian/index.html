@@ -191,6 +191,28 @@
       border-top: 1px solid #eaecf4;
       padding-top: 18px;
     }
+
+    /* anti screen modal */
+    #antiCheatModal .modal-content {
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* Efek blur pada halaman utama saat modal anti-cheat terbuka */
+    body.modal-open-blur #examMainView,
+    body.modal-open-blur nav.cbt-topbar {
+        filter: blur(8px);
+        transition: filter 0.3s ease;
+        pointer-events: none; /* Mencegah interaksi di latar belakang */
+        user-select: none;
+    }
+
+    /* Styling tambahan untuk modal anti-cheat agar kontras dan jelas */
+    #antiCheatModal .modal-content {
+        border-radius: 12px;
+        border: none;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
   </style>
 </head>
 <body id="page-top">
@@ -517,6 +539,41 @@
     </div>
   </div>
 
+  <!-- Modal Anti-Cheat & Password Admin -->
+  <div class="modal fade" id="antiCheatModal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-danger text-white py-3">
+          <h5 class="modal-title font-weight-bold">
+            <i class="fas fa-exclamation-triangle mr-2"></i> Peringatan: Ujian Dijeda!
+          </h5>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-3">
+            <i class="fas fa-shield-alt text-danger fa-3x"></i>
+          </div>
+          <p class="text-gray-800 font-weight-bold mb-2">
+            Anda terdeteksi keluar dari mode layar penuh (*fullscreen*).
+          </p>
+          <p class="text-muted small mb-4">
+            Tindakan ini melanggar aturan ujian. Harap panggil pengawas/admin ruangan untuk memasukkan password agar Anda dapat melanjutkan ujian.
+          </p>
+          
+          <div class="form-group text-left">
+            <label for="adminPasswordInput" class="small font-weight-bold text-gray-700">Password Admin:</label>
+            <input type="password" id="adminPasswordInput" class="form-control" placeholder="Masukkan password admin...">
+            <small id="passwordErrorMsg" class="text-danger font-weight-bold mt-1 d-none"></small>
+          </div>
+        </div>
+        <div class="modal-footer bg-light justify-content-center">
+          <button type="button" class="btn btn-success px-4 font-weight-bold shadow-sm" id="btnUnlockExam">
+            <i class="fas fa-lock-open mr-1"></i> Lanjutkan Ujian
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Vendor Scripts -->
   <script src="../../assets/vendor/jquery/jquery.min.js"></script>
   <script src="../../assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
@@ -669,8 +726,19 @@
       return [];
     }
 
+    // Status fullscreen terakhir yang diketahui (dipakai agar handler tidak jalan 2x untuk 1 perubahan)
+    let lastFullscreenState = false;
+
     function isFullscreenActive() {
-      const isParentFullscreen = !!(window.parent && window.parent !== window && window.parent.document?.fullscreenElement);
+      let isParentFullscreen = false;
+      try {
+        if (window.parent && window.parent !== window) {
+          const pd = window.parent.document;
+          isParentFullscreen = !!(pd.fullscreenElement || pd.webkitFullscreenElement);
+        }
+      } catch (_) {
+        // parent beda origin -> tidak bisa dibaca, abaikan
+      }
       return isParentFullscreen || !!(
         document.fullscreenElement ||
         document.webkitFullscreenElement ||
@@ -680,18 +748,19 @@
     }
 
     async function requestFullScreenSafe(element = document.documentElement) {
+      if (isFullscreenActive()) return;
       try {
+        // Jika halaman ini berjalan di dalam iframe, fullscreen-kan container milik parent
         if (window.parent && window.parent !== window) {
           try {
-            const parentContainer = window.parent.document.getElementById("cbtExamContainer");
-            if (parentContainer && !window.parent.document.fullscreenElement) {
-              if (parentContainer.requestFullscreen) {
-                await parentContainer.requestFullscreen();
-                return;
-              } else if (window.parent.document.documentElement.requestFullscreen) {
-                await window.parent.document.documentElement.requestFullscreen();
-                return;
-              }
+            const pd = window.parent.document;
+            const target = pd.getElementById("cbtExamContainer") || pd.documentElement;
+            if (target.requestFullscreen) {
+              await target.requestFullscreen();
+              return;
+            } else if (target.webkitRequestFullscreen) {
+              await target.webkitRequestFullscreen();
+              return;
             }
           } catch (_) {}
         }
@@ -737,18 +806,54 @@
       }
     }
 
-    async function handleFullscreenChange() {
+    function showAntiCheatModal() {
+      const $modal = $("#antiCheatModal");
+      if (!$modal.length || $modal.hasClass("show")) return; // sudah tampil, jangan reset input password
+
+      const pwd = document.getElementById("adminPasswordInput");
+      if (pwd) pwd.value = "";
+      const errorMsg = document.getElementById("passwordErrorMsg");
+      if (errorMsg) errorMsg.classList.add("d-none");
+
+      document.body.classList.add("modal-open-blur");
+      $modal.modal("show");
+    }
+
+    // SATU-SATUNYA handler perubahan fullscreen
+    function handleFullscreenChange() {
+      const active = isFullscreenActive();
+      if (active === lastFullscreenState) return; // event ganda (document iframe + document parent) -> abaikan
+      lastFullscreenState = active;
+
       const fsBadge = document.getElementById("fsStatusBadge");
 
-      if (isFullscreenActive()) {
+      if (active) {
         console.log("[CBT Fullscreen] Masuk mode Fullscreen.");
         if (fsBadge) fsBadge.classList.remove("d-none");
-        await lockKeyboardEsc();
+        lockKeyboardEsc();
       } else {
         console.log("[CBT Fullscreen] Keluar dari mode Fullscreen.");
         if (fsBadge) fsBadge.classList.add("d-none");
         unlockKeyboardEsc();
+        if (isExamActive && !isExamSubmitted) {
+          showAntiCheatModal();
+        }
       }
+    }
+
+    // Pasang listener sekali saja, di document iframe DAN document parent.
+    // (Jika yang di-fullscreen adalah container milik parent, event hanya terkirim ke document parent.)
+    function bindFullscreenListeners() {
+      const events = ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"];
+      const targets = [document];
+      try {
+        if (window.parent && window.parent !== window && window.parent.document) {
+          targets.push(window.parent.document);
+        }
+      } catch (_) {}
+
+      lastFullscreenState = isFullscreenActive();
+      targets.forEach((t) => events.forEach((evt) => t.addEventListener(evt, handleFullscreenChange)));
     }
 
     function showView(viewId) {
@@ -1413,43 +1518,12 @@
         }
       }
 
-      window.addEventListener("click", autoFullscreenFailsafe, true);
-      window.addEventListener("pointerdown", autoFullscreenFailsafe, true);
-      window.addEventListener("keydown", autoFullscreenFailsafe, true);
+      // window.addEventListener("click", autoFullscreenFailsafe, true);
+      // window.addEventListener("pointerdown", autoFullscreenFailsafe, true);
+      // window.addEventListener("keydown", autoFullscreenFailsafe, true);
 
-      // Event Listener Fullscreen Browser (Standard & Vendor Prefixes)
-      ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach((evt) => {
-        document.addEventListener(evt, handleFullscreenChange);
-      });
-      function restoreExamFullscreen() {
-        if (
-          isExamActive &&
-          !isExamSubmitted &&
-          !isFullscreenActive()
-        ) {
-          const fsBadge = document.getElementById("fsStatusBadge");
-
-          if (fsBadge) {
-            fsBadge.classList.add("d-none");
-          }
-
-          // Browser dapat menolak permintaan fullscreen
-          // jika tidak dipicu oleh interaksi pengguna.
-          console.warn(
-            "[CBT] Fullscreen terlepas selama ujian."
-          );
-        }
-      }
-
-      document.addEventListener(
-        "fullscreenchange",
-        restoreExamFullscreen
-      );
-
-      document.addEventListener(
-        "webkitfullscreenchange",
-        restoreExamFullscreen
-      );
+      // Daftarkan listener fullscreen (sekali saja)
+      bindFullscreenListeners();
 
       // Mencegah Klik Kanan (Context Menu)
       document.addEventListener("contextmenu", (e) => {
@@ -1458,6 +1532,22 @@
           return false;
         }
       });
+
+      document.addEventListener("visibilitychange", function() {
+        if (document.hidden && typeof isExamActive !== 'undefined' && isExamActive && !isExamSubmitted) {
+            const antiCheatModal = $('#antiCheatModal');
+            if (antiCheatModal.length) {
+                const passwordInput = document.getElementById('adminPasswordInput');
+                const errorMsg = document.getElementById('passwordErrorMsg');
+                
+                if (passwordInput) passwordInput.value = '';
+                if (errorMsg) errorMsg.classList.add('d-none');
+                
+                document.body.classList.add('modal-open-blur');
+                antiCheatModal.modal('show');
+            }
+        }
+    });
 
       // Mencegah Tombol Pintas Berbahaya (F11, Escape, DevTools, Reload, Back, Print, Copy)
       function handleSecurityKey(e) {
@@ -1595,6 +1685,41 @@
 
       const btnSubmitFinal = document.getElementById("btnSubmitFinal");
       if (btnSubmitFinal) btnSubmitFinal.addEventListener("click", () => submitExamAction(false));
+
+      const btnUnlock = document.getElementById('btnUnlockExam');
+          if (btnUnlock) {
+              btnUnlock.addEventListener('click', function() {
+                  const passwordInput = document.getElementById('adminPasswordInput');
+                  const passwordErrorMsg = document.getElementById('passwordErrorMsg');
+                  let enteredPassword = passwordInput.value.trim();
+                  
+                  // Password admin (bisa diganti sesuai kebutuhan atau divalidasi ke database)
+                  let correctPassword = "admin123"; 
+
+                  if (enteredPassword === "") {
+                      passwordErrorMsg.textContent = "Password tidak boleh kosong!";
+                      passwordErrorMsg.classList.remove('d-none');
+                      passwordInput.focus();
+                      return;
+                  }
+
+                  if (enteredPassword === correctPassword) {
+                      passwordErrorMsg.classList.add('d-none');
+                      // HAPUS EFEK BLUR DARI BODY
+                      document.body.classList.remove('modal-open-blur');
+                      $('#antiCheatModal').modal('hide');
+                      passwordInput.value = '';
+                      
+                      // Karena tombol ini diklik oleh pengguna, browser mengizinkan masuk fullscreen kembali
+                      requestFullScreenSafe();
+                  } else {
+                      passwordErrorMsg.textContent = "Password admin salah!";
+                      passwordErrorMsg.classList.remove('d-none');
+                      passwordInput.value = '';
+                      passwordInput.focus();
+                  }
+              });
+          }
 
       // Lightbox modal saat gambar soal diklik
       document.getElementById("questionImagesList").addEventListener("click", (e) => {
