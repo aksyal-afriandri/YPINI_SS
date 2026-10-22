@@ -193,6 +193,7 @@
     }
 
     /* anti screen modal */
+    #antiCheatWarningModal .modal-content,
     #antiCheatModal .modal-content {
       border-radius: 12px;
       overflow: hidden;
@@ -212,6 +213,12 @@
         border-radius: 12px;
         border: none;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    #antiCheatCountdown {
+      font-size: 2.6rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      font-variant-numeric: tabular-nums;
     }
   </style>
 </head>
@@ -539,35 +546,70 @@
     </div>
   </div>
 
-  <!-- Modal Anti-Cheat & Password Admin -->
+  <!-- Modal Peringatan Anti-Cheat (pop up peringatan 1..N) -->
+  <div class="modal fade" id="antiCheatWarningModal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+      <div class="modal-content shadow-lg border-0">
+        <div class="modal-header bg-warning text-dark py-3">
+          <h5 class="modal-title font-weight-bold">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            Peringatan <span id="acWarnNumber">1</span> dari <span id="acWarnMax">3</span>
+          </h5>
+        </div>
+        <div class="modal-body p-4 text-center">
+          <div class="mb-3"><i class="fas fa-user-shield text-warning fa-3x"></i></div>
+          <p class="text-gray-800 font-weight-bold mb-2" id="acWarnReason"></p>
+          <p class="text-muted small mb-0" id="acWarnInfo"></p>
+        </div>
+        <div class="modal-footer bg-light justify-content-center">
+          <button type="button" class="btn btn-warning px-4 font-weight-bold shadow-sm" id="btnAckWarning">
+            <i class="fas fa-check mr-1"></i> Saya Mengerti, Kembali ke Ujian
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Kunci Ujian + Password Admin -->
   <div class="modal fade" id="antiCheatModal" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
       <div class="modal-content shadow-lg border-0">
         <div class="modal-header bg-danger text-white py-3">
           <h5 class="modal-title font-weight-bold">
-            <i class="fas fa-exclamation-triangle mr-2"></i> Peringatan: Ujian Dijeda!
+            <i class="fas fa-lock mr-2"></i> Ujian Dikunci!
           </h5>
         </div>
         <div class="modal-body p-4 text-center">
           <div class="mb-3">
             <i class="fas fa-shield-alt text-danger fa-3x"></i>
           </div>
-          <p class="text-gray-800 font-weight-bold mb-2">
-            Anda terdeteksi keluar dari mode layar penuh (*fullscreen*).
+          <p class="text-gray-800 font-weight-bold mb-1" id="acLockReason"></p>
+          <p class="text-muted small mb-3">
+            Batas peringatan terlampaui. Ujian dikunci sementara.
           </p>
-          <p class="text-muted small mb-4">
-            Tindakan ini melanggar aturan ujian. Harap panggil pengawas/admin ruangan untuk memasukkan password agar Anda dapat melanjutkan ujian.
-          </p>
-          
-          <div class="form-group text-left">
-            <label for="adminPasswordInput" class="small font-weight-bold text-gray-700">Password Admin:</label>
-            <input type="password" id="adminPasswordInput" class="form-control" placeholder="Masukkan password admin...">
+
+          <div id="acCountdownBox" class="mb-3">
+            <div class="small text-muted">Sisa waktu kunci</div>
+            <div id="antiCheatCountdown" class="text-danger">00:00</div>
+          </div>
+
+          <div id="acExpiredBox" class="d-none mb-3">
+            <p class="text-success font-weight-bold mb-2" id="acExpiredText">Waktu kunci selesai.</p>
+            <button type="button" class="btn btn-success px-4 font-weight-bold shadow-sm" id="btnResumeAfterLock">
+              <i class="fas fa-play mr-1"></i> Lanjutkan Ujian
+            </button>
+          </div>
+
+          <hr>
+          <div class="form-group text-left mb-0">
+            <label for="adminPasswordInput" class="small font-weight-bold text-gray-700">Buka kunci oleh Admin/Pengawas (password):</label>
+            <input type="password" id="adminPasswordInput" class="form-control" placeholder="Masukkan password admin..." autocomplete="off">
             <small id="passwordErrorMsg" class="text-danger font-weight-bold mt-1 d-none"></small>
           </div>
         </div>
         <div class="modal-footer bg-light justify-content-center">
-          <button type="button" class="btn btn-success px-4 font-weight-bold shadow-sm" id="btnUnlockExam">
-            <i class="fas fa-lock-open mr-1"></i> Lanjutkan Ujian
+          <button type="button" class="btn btn-outline-danger px-4 font-weight-bold shadow-sm" id="btnUnlockExam">
+            <i class="fas fa-lock-open mr-1"></i> Buka Kunci
           </button>
         </div>
       </div>
@@ -592,6 +634,22 @@
     let currentStudentNis = "";
     let isExamActive = false;
     let isExamSubmitted = false;
+
+    //  Config
+    const ANTI_CHEAT_CONFIG = {
+      maxWarnings: 2,              // jumlah peringatan (pop up).
+      lockMinutes: 5,              // lama kunci (menit)
+      adminPassword: "admin123",   // password admin untuk membuka kunci lebih awal
+      autoUnlockAfterLock: true,   // true  = setelah waktu kunci habis siswa boleh klik "Lanjutkan"
+                                   // false = tetap harus pakai password admin walau waktu habis
+      resetWarningsAfterUnlock: true, // true = hitungan peringatan kembali 0 setelah kunci dibuka
+      cooldownMs: 1500,            // 1 aksi (mis. minimize) bisa memicu beberapa event -> dihitung 1 pelanggaran
+      detect: {
+        fullscreen: true,          // keluar dari fullscreen
+        tabHidden: true,           // pindah tab / minimize
+        windowBlur: true           // pindah ke aplikasi/jendela lain (fokus hilang)
+      }
+    };
 
     function getSupabaseClient() {
       if (!window.SUPABASE_CONFIG?.url || !window.SUPABASE_CONFIG?.anonKey) {
@@ -806,17 +864,239 @@
       }
     }
 
-    function showAntiCheatModal() {
-      const $modal = $("#antiCheatModal");
-      if (!$modal.length || $modal.hasClass("show")) return; // sudah tampil, jangan reset input password
+    // =====================================================================
+    //  ENGINE ANTI-CHEAT: peringatan bertingkat -> kunci -> password admin
+    // =====================================================================
+    const acState = {
+      warnings: 0,
+      locked: false,
+      lockUntil: 0,
+      ignoreUntil: 0,
+      paused: false,
+      timer: null
+    };
 
+    function acKey() {
+      return `ypn_cbt_anticheat_${activeExam ? activeExam.id : "x"}_${currentStudentNis}`;
+    }
+
+    function acSave() {
+      try {
+        localStorage.setItem(acKey(), JSON.stringify({
+          warnings: acState.warnings,
+          lockUntil: acState.locked ? acState.lockUntil : 0
+        }));
+      } catch (_) {}
+    }
+
+    function acClearStorage() {
+      try { localStorage.removeItem(acKey()); } catch (_) {}
+    }
+
+    function acSetText(id, text) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = text;
+    }
+
+    function acClearBlur() {
+      document.body.classList.remove("modal-open-blur");
+    }
+
+    // Buka modal target; modal lain yang sedang terbuka ditutup dulu agar tidak bertumpuk
+    function openModalExclusive(selector) {
+      const $target = $(selector);
+      const $others = $(".modal.show").not($target);
+      const show = () => {
+        document.body.classList.add("modal-open-blur");
+        $target.modal("show");
+      };
+      if (!$others.length) return show();
+      let pending = $others.length;
+      $others.one("hidden.bs.modal", () => { if (--pending === 0) show(); }).modal("hide");
+    }
+
+    // Jeda deteksi sementara (mis. saat alert() muncul, karena alert memicu blur)
+    function pauseDetection(fn) {
+      acState.paused = true;
+      try { return fn(); }
+      finally {
+        acState.paused = false;
+        acState.ignoreUntil = Date.now() + 800;
+      }
+    }
+
+    // Dipanggil setiap ada pelanggaran terdeteksi
+    function registerViolation(reason, type) {
+      if (!isExamActive || isExamSubmitted) return;
+      if (type && ANTI_CHEAT_CONFIG.detect[type] === false) return;
+
+      const now = Date.now();
+      if (acState.locked || acState.paused || now < acState.ignoreUntil) return;
+      acState.ignoreUntil = now + ANTI_CHEAT_CONFIG.cooldownMs;
+
+      acState.warnings += 1;
+      acSave();
+      console.warn(`[CBT Anti-Cheat] Pelanggaran ${acState.warnings}: ${reason}`);
+
+      if (acState.warnings > ANTI_CHEAT_CONFIG.maxWarnings) {
+        lockExam(reason);
+      } else {
+        showWarning(reason);
+      }
+    }
+
+    function showWarning(reason) {
+      const max = ANTI_CHEAT_CONFIG.maxWarnings;
+      const left = max - acState.warnings;
+
+      acSetText("acWarnNumber", String(acState.warnings));
+      acSetText("acWarnMax", String(max));
+      acSetText("acWarnReason", reason);
+      acSetText(
+        "acWarnInfo",
+        left > 0
+          ? `Tindakan ini melanggar aturan ujian. Sisa peringatan: ${left}. Jika terjadi lagi melebihi batas, ujian akan dikunci selama ${ANTI_CHEAT_CONFIG.lockMinutes} menit.`
+          : `Ini PERINGATAN TERAKHIR. Pelanggaran berikutnya akan mengunci ujian selama ${ANTI_CHEAT_CONFIG.lockMinutes} menit dan membutuhkan admin/pengawas.`
+      );
+
+      if (!$("#antiCheatWarningModal").hasClass("show")) {
+        openModalExclusive("#antiCheatWarningModal");
+      }
+    }
+
+    // Tombol "Saya Mengerti" pada pop up peringatan (klik = user gesture, boleh minta fullscreen)
+    function acknowledgeWarning() {
+      acState.ignoreUntil = Date.now() + ANTI_CHEAT_CONFIG.cooldownMs;
+      acClearBlur();
+      $("#antiCheatWarningModal").modal("hide");
+      if (!isFullscreenActive()) requestFullScreenSafe();
+    }
+
+    function lockExam(reason, remainingMs) {
+      const ms = (typeof remainingMs === "number")
+        ? Math.max(0, remainingMs)
+        : ANTI_CHEAT_CONFIG.lockMinutes * 60 * 1000;
+
+      acState.locked = true;
+      acState.lockUntil = Date.now() + ms;
+      acSave();
+
+      acSetText("acLockReason", reason);
       const pwd = document.getElementById("adminPasswordInput");
       if (pwd) pwd.value = "";
-      const errorMsg = document.getElementById("passwordErrorMsg");
-      if (errorMsg) errorMsg.classList.add("d-none");
+      const err = document.getElementById("passwordErrorMsg");
+      if (err) err.classList.add("d-none");
+      document.getElementById("acExpiredBox").classList.add("d-none");
+      document.getElementById("acCountdownBox").classList.remove("d-none");
 
-      document.body.classList.add("modal-open-blur");
-      $modal.modal("show");
+      openModalExclusive("#antiCheatModal");
+      startLockCountdown();
+    }
+
+    function formatMMSS(ms) {
+      const total = Math.max(0, Math.ceil(ms / 1000));
+      const m = String(Math.floor(total / 60)).padStart(2, "0");
+      const sec = String(total % 60).padStart(2, "0");
+      return `${m}:${sec}`;
+    }
+
+    function startLockCountdown() {
+      clearInterval(acState.timer);
+      const tick = () => {
+        const remain = acState.lockUntil - Date.now();
+        if (remain > 0) {
+          acSetText("antiCheatCountdown", formatMMSS(remain));
+          return;
+        }
+        acSetText("antiCheatCountdown", "00:00");
+        clearInterval(acState.timer);
+
+        const box = document.getElementById("acExpiredBox");
+        if (ANTI_CHEAT_CONFIG.autoUnlockAfterLock) {
+          acSetText("acExpiredText", "Waktu kunci selesai. Silakan lanjutkan ujian.");
+          if (box) box.classList.remove("d-none");
+        } else {
+          acSetText("acExpiredText", "Waktu kunci selesai, namun ujian hanya dapat dibuka oleh admin (password).");
+          const btn = document.getElementById("btnResumeAfterLock");
+          if (btn) btn.classList.add("d-none");
+          if (box) box.classList.remove("d-none");
+        }
+      };
+      tick();
+      acState.timer = setInterval(tick, 500);
+    }
+
+    // Membuka kunci (dari password admin atau tombol Lanjutkan setelah waktu habis)
+    function unlockExam() {
+      clearInterval(acState.timer);
+      acState.locked = false;
+      acState.lockUntil = 0;
+      if (ANTI_CHEAT_CONFIG.resetWarningsAfterUnlock) acState.warnings = 0;
+      acState.ignoreUntil = Date.now() + ANTI_CHEAT_CONFIG.cooldownMs;
+      acSave();
+
+      acClearBlur();
+      $("#antiCheatModal").modal("hide");
+      requestFullScreenSafe(); // dipanggil dari klik user -> diizinkan browser
+    }
+
+    function tryAdminUnlock() {
+      const input = document.getElementById("adminPasswordInput");
+      const errEl = document.getElementById("passwordErrorMsg");
+      const entered = (input.value || "").trim();
+
+      if (!entered) {
+        errEl.textContent = "Password tidak boleh kosong!";
+        errEl.classList.remove("d-none");
+        input.focus();
+        return;
+      }
+      if (entered === ANTI_CHEAT_CONFIG.adminPassword) {
+        errEl.classList.add("d-none");
+        input.value = "";
+        unlockExam();
+      } else {
+        errEl.textContent = "Password admin salah!";
+        errEl.classList.remove("d-none");
+        input.value = "";
+        input.focus();
+      }
+    }
+
+    // Pulihkan hitungan peringatan & kunci setelah halaman di-reload (supaya tidak bisa di-reset dengan F5)
+    function restoreAntiCheatState() {
+      let data = null;
+      try { data = JSON.parse(localStorage.getItem(acKey()) || "null"); } catch (_) {}
+      if (!data) return;
+
+      acState.warnings = Number(data.warnings) || 0;
+      if (data.lockUntil) {
+        lockExam("Halaman dimuat ulang saat ujian sedang dikunci.", data.lockUntil - Date.now());
+      }
+    }
+
+    // Deteksi pindah tab / minimize / pindah jendela
+    function bindAntiCheatListeners() {
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          registerViolation("Terdeteksi berpindah tab atau meminimalkan jendela browser.", "tabHidden");
+        }
+      });
+      window.addEventListener("blur", () => {
+        registerViolation("Terdeteksi berpindah ke aplikasi atau jendela lain.", "windowBlur");
+      });
+
+      const btnAck = document.getElementById("btnAckWarning");
+      if (btnAck) btnAck.addEventListener("click", acknowledgeWarning);
+
+      const btnResume = document.getElementById("btnResumeAfterLock");
+      if (btnResume) btnResume.addEventListener("click", unlockExam);
+
+      const btnUnlock = document.getElementById("btnUnlockExam");
+      if (btnUnlock) btnUnlock.addEventListener("click", tryAdminUnlock);
+
+      const pwd = document.getElementById("adminPasswordInput");
+      if (pwd) pwd.addEventListener("keydown", (e) => { if (e.key === "Enter") tryAdminUnlock(); });
     }
 
     // SATU-SATUNYA handler perubahan fullscreen
@@ -836,7 +1116,7 @@
         if (fsBadge) fsBadge.classList.add("d-none");
         unlockKeyboardEsc();
         if (isExamActive && !isExamSubmitted) {
-          showAntiCheatModal();
+          registerViolation("Terdeteksi keluar dari mode layar penuh (fullscreen).", "fullscreen");
         }
       }
     }
@@ -953,10 +1233,10 @@
           if (countdownText) countdownText.textContent = "00:00:00";
           timerBadge.className = "badge badge-danger cbt-timer-badge shadow-sm";
           clearInterval(examTimerInterval);
-          alert(isOvertime
+          pauseDetection(() => alert(isOvertime
             ? "Batas waktu toleransi (overtime) ujian telah berakhir! Lembar jawaban Anda akan otomatis dikumpulkan sekarang."
             : "Waktu ujian telah habis! Lembar jawaban Anda akan otomatis dikumpulkan sekarang."
-          );
+          ));
           submitExamAction(true);
           return;
         }
@@ -1340,6 +1620,7 @@
           localStorage.setItem(`ypn_cbt_completed_${activeExam.id}_${currentStudentNis}`, "true");
           localStorage.removeItem(getStorageKeyTimer(activeExam.id));
           localStorage.removeItem(getStorageKeyOptions(activeExam.id));
+          acClearStorage();
         } catch (_) {}
 
         const scoreBox = document.getElementById("completedScoreBox");
@@ -1501,6 +1782,9 @@
 
         // Langsung panggil fullscreen saat ujian dimuat
         requestFullScreenSafe();
+
+        // Pulihkan peringatan/kunci jika halaman di-reload
+        restoreAntiCheatState();
       } catch (err) {
         console.error(err);
         showMessage("Terjadi Kesalahan", err.message || "Gagal memuat ujian.");
@@ -1524,6 +1808,7 @@
 
       // Daftarkan listener fullscreen (sekali saja)
       bindFullscreenListeners();
+      bindAntiCheatListeners();
 
       // Mencegah Klik Kanan (Context Menu)
       document.addEventListener("contextmenu", (e) => {
@@ -1532,22 +1817,6 @@
           return false;
         }
       });
-
-      document.addEventListener("visibilitychange", function() {
-        if (document.hidden && typeof isExamActive !== 'undefined' && isExamActive && !isExamSubmitted) {
-            const antiCheatModal = $('#antiCheatModal');
-            if (antiCheatModal.length) {
-                const passwordInput = document.getElementById('adminPasswordInput');
-                const errorMsg = document.getElementById('passwordErrorMsg');
-                
-                if (passwordInput) passwordInput.value = '';
-                if (errorMsg) errorMsg.classList.add('d-none');
-                
-                document.body.classList.add('modal-open-blur');
-                antiCheatModal.modal('show');
-            }
-        }
-    });
 
       // Mencegah Tombol Pintas Berbahaya (F11, Escape, DevTools, Reload, Back, Print, Copy)
       function handleSecurityKey(e) {
@@ -1652,7 +1921,7 @@
         brandLogo.addEventListener("click", (e) => {
           if (isExamActive && !isExamSubmitted) {
             e.preventDefault();
-            alert("Ujian sedang aktif. Selesaikan atau kumpulkan ujian terlebih dahulu sebelum kembali.");
+            pauseDetection(() => alert("Ujian sedang aktif. Selesaikan atau kumpulkan ujian terlebih dahulu sebelum kembali."));
           }
         });
       }
@@ -1685,41 +1954,6 @@
 
       const btnSubmitFinal = document.getElementById("btnSubmitFinal");
       if (btnSubmitFinal) btnSubmitFinal.addEventListener("click", () => submitExamAction(false));
-
-      const btnUnlock = document.getElementById('btnUnlockExam');
-          if (btnUnlock) {
-              btnUnlock.addEventListener('click', function() {
-                  const passwordInput = document.getElementById('adminPasswordInput');
-                  const passwordErrorMsg = document.getElementById('passwordErrorMsg');
-                  let enteredPassword = passwordInput.value.trim();
-                  
-                  // Password admin (bisa diganti sesuai kebutuhan atau divalidasi ke database)
-                  let correctPassword = "admin123"; 
-
-                  if (enteredPassword === "") {
-                      passwordErrorMsg.textContent = "Password tidak boleh kosong!";
-                      passwordErrorMsg.classList.remove('d-none');
-                      passwordInput.focus();
-                      return;
-                  }
-
-                  if (enteredPassword === correctPassword) {
-                      passwordErrorMsg.classList.add('d-none');
-                      // HAPUS EFEK BLUR DARI BODY
-                      document.body.classList.remove('modal-open-blur');
-                      $('#antiCheatModal').modal('hide');
-                      passwordInput.value = '';
-                      
-                      // Karena tombol ini diklik oleh pengguna, browser mengizinkan masuk fullscreen kembali
-                      requestFullScreenSafe();
-                  } else {
-                      passwordErrorMsg.textContent = "Password admin salah!";
-                      passwordErrorMsg.classList.remove('d-none');
-                      passwordInput.value = '';
-                      passwordInput.focus();
-                  }
-              });
-          }
 
       // Lightbox modal saat gambar soal diklik
       document.getElementById("questionImagesList").addEventListener("click", (e) => {
