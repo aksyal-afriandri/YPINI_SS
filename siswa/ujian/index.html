@@ -281,6 +281,24 @@
       </div>
     </div>
 
+    <!-- Gagal Mengirim Jawaban (bisa dicoba ulang, jawaban tetap aman di perangkat) -->
+    <div id="submitFailedView" class="d-none">
+      <div class="card shadow border-left-danger mb-4">
+        <div class="card-body p-4 text-center">
+          <div class="mb-3"><i class="fas fa-exclamation-triangle text-danger fa-3x"></i></div>
+          <h5 class="font-weight-bold text-gray-800">Jawaban Belum Terkirim ke Server</h5>
+          <p class="text-muted mb-2">
+            Jawaban Anda masih tersimpan aman di perangkat ini. Pastikan internet aktif lalu tekan tombol di bawah.
+            <strong>Jangan menutup atau me-refresh halaman ini.</strong>
+          </p>
+          <p class="small text-danger mb-3" id="submitFailedDetail"></p>
+          <button type="button" class="btn btn-danger px-4 py-2 font-weight-bold" id="btnRetrySubmit" onclick="retrySubmitAnswers()">
+            <i class="fas fa-redo mr-1"></i> Kirim Ulang Jawaban
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Completed / Result View -->
     <div id="completedView" class="d-none">
       <div class="card shadow border-left-success mb-4 text-center p-5">
@@ -1137,7 +1155,7 @@
     }
 
     function showView(viewId) {
-      ["loadingView", "messageView", "completedView", "examMainView"].forEach((id) => {
+      ["loadingView", "messageView", "completedView", "examMainView", "submitFailedView"].forEach((id) => {
         const el = document.getElementById(id);
         if (el) el.classList.toggle("d-none", id !== viewId);
       });
@@ -1576,6 +1594,82 @@
       $("#confirmSubmitModal").modal("show");
     }
 
+    // Kirim jawaban ke Supabase. Mencoba maksimal 3x; mengembalikan {ok, data, message}
+    async function sendExamAnswers() {
+      const payload = questionsList.map((q) => ({
+        soal_id: q.id,
+        answer: studentAnswers[q.id]?.answer || "",
+        is_doubt: !!studentAnswers[q.id]?.doubt,
+      }));
+
+      const MAX_TRIES = 3;
+      let lastMessage = "Tidak diketahui";
+
+      for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+        try {
+          const { data, error } = await getSupabaseClient().rpc("submit_student_exam", {
+            p_nis: currentStudentNis,
+            p_ujian_id: activeExam.id,
+            p_answers: payload,
+          });
+
+          if (error) {
+            lastMessage = error.message || error.details || "Kesalahan database";
+            console.error(`[submit] percobaan ${attempt} gagal (RPC error):`, error);
+          } else if (!data || data.success !== true) {
+            lastMessage = (data && data.message) || "Server menolak jawaban.";
+            console.error(`[submit] percobaan ${attempt} ditolak server:`, data);
+          } else {
+            return { ok: true, data };
+          }
+        } catch (ex) {
+          lastMessage = ex && ex.message ? ex.message : String(ex);
+          console.error(`[submit] percobaan ${attempt} gagal (jaringan):`, ex);
+        }
+
+        if (attempt < MAX_TRIES) {
+          await new Promise((r) => setTimeout(r, 1000 * attempt));
+        }
+      }
+      return { ok: false, message: lastMessage };
+    }
+
+    // Dipanggil HANYA setelah server benar-benar menyimpan jawaban
+    function finalizeSubmitSuccess(submissionResult) {
+      try {
+        localStorage.setItem(`ypn_cbt_completed_${activeExam.id}_${currentStudentNis}`, "true");
+        localStorage.removeItem(getStorageKeyTimer(activeExam.id));
+        localStorage.removeItem(getStorageKeyOptions(activeExam.id));
+        localStorage.removeItem(getStorageKeyAnswers(activeExam.id));
+        if (typeof acClearStorage === "function") acClearStorage();
+      } catch (_) {}
+
+      const scoreBox = document.getElementById("completedScoreBox");
+      if (scoreBox) {
+        if (submissionResult?.nilai_pg !== undefined && submissionResult.total_pg > 0) {
+          scoreBox.classList.remove("d-none");
+          safeSetText("completedScoreText", `${submissionResult.nilai_pg} (Benar ${submissionResult.pg_benar} dari ${submissionResult.total_pg} soal PG)`);
+        } else {
+          scoreBox.classList.add("d-none");
+        }
+      }
+      showView("completedView");
+    }
+
+    function showSubmitFailed(message) {
+      safeSetText("submitFailedDetail", `Detail: ${message}`);
+      showView("submitFailedView");
+    }
+
+    async function retrySubmitAnswers() {
+      const btn = document.getElementById("btnRetrySubmit");
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Mengirim...'; }
+      const result = await sendExamAnswers();
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-redo mr-1"></i> Kirim Ulang Jawaban'; }
+      if (result.ok) finalizeSubmitSuccess(result.data);
+      else showSubmitFailed(result.message);
+    }
+
     async function submitExamAction(isAuto = false) {
       $("#confirmSubmitModal").modal("hide");
       clearInterval(examTimerInterval);
@@ -1593,48 +1687,14 @@
       const submitBtn = document.getElementById("btnSubmitFinal");
       if (submitBtn) submitBtn.disabled = true;
 
+      showView("loadingView");
       try {
-        const payload = questionsList.map((q) => ({
-          soal_id: q.id,
-          answer: studentAnswers[q.id]?.answer || "",
-        }));
-
-        let submissionResult = null;
-
-        try {
-          const { data, error } = await getSupabaseClient()
-            .rpc("submit_student_exam", {
-              p_nis: currentStudentNis,
-              p_ujian_id: activeExam.id,
-              p_answers: payload,
-            });
-
-          if (!error && data?.success) {
-            submissionResult = data;
-          }
-        } catch (rpcErr) {
-          console.warn("RPC submit_student_exam error/fallback:", rpcErr);
-        }
-
-        try {
-          localStorage.setItem(`ypn_cbt_completed_${activeExam.id}_${currentStudentNis}`, "true");
-          localStorage.removeItem(getStorageKeyTimer(activeExam.id));
-          localStorage.removeItem(getStorageKeyOptions(activeExam.id));
-          acClearStorage();
-        } catch (_) {}
-
-        const scoreBox = document.getElementById("completedScoreBox");
-        if (submissionResult?.nilai_pg !== undefined && submissionResult.total_pg > 0) {
-          if (scoreBox) scoreBox.classList.remove("d-none");
-          safeSetText("completedScoreText", `${submissionResult.nilai_pg} (Benar ${submissionResult.pg_benar} dari ${submissionResult.total_pg} soal PG)`);
-        } else {
-          if (scoreBox) scoreBox.classList.add("d-none");
-        }
-
-        showView("completedView");
+        const result = await sendExamAnswers();
+        if (result.ok) finalizeSubmitSuccess(result.data);
+        else showSubmitFailed(result.message);
       } catch (err) {
         console.error("Gagal submit:", err);
-        showView("completedView");
+        showSubmitFailed(err && err.message ? err.message : String(err));
       } finally {
         if (submitBtn) submitBtn.disabled = false;
       }
