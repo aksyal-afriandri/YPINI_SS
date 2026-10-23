@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
 	<meta charset="utf-8">
@@ -306,9 +306,25 @@
 						<button id="newExamButton" class="btn btn-primary mt-3 mt-md-0" type="button"><i class="fas fa-plus mr-2"></i>Buat ujian</button>
 					</div>
 					<section class="card shadow-sm mb-4">
-						<div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-							<h2 class="h6 mb-0 font-weight-bold text-primary">Daftar ujian</h2>
-							<button id="refreshExamsButton" class="btn btn-sm btn-outline-secondary" type="button" title="Muat ulang"><i class="fas fa-sync-alt"></i></button>
+						<div class="card-header bg-white py-3">
+							<div class="d-flex justify-content-between align-items-center mb-2">
+								<h2 class="h6 mb-0 font-weight-bold text-primary">Daftar ujian</h2>
+								<button id="refreshExamsButton" class="btn btn-sm btn-outline-secondary" type="button" title="Muat ulang"><i class="fas fa-sync-alt"></i></button>
+							</div>
+							<ul class="nav nav-tabs card-header-tabs" id="examTabNav" role="tablist">
+								<li class="nav-item">
+									<a class="nav-link active" id="tab-aktif" data-toggle="tab" href="#" data-exam-tab="aktif" role="tab">
+										<i class="fas fa-clipboard-list mr-1"></i>Ujian Aktif
+										<span class="badge badge-primary ml-1" id="badgeAktif">0</span>
+									</a>
+								</li>
+								<li class="nav-item">
+									<a class="nav-link" id="tab-arsip" data-toggle="tab" href="#" data-exam-tab="arsip" role="tab">
+										<i class="fas fa-archive mr-1"></i>Arsip
+										<span class="badge badge-secondary ml-1" id="badgeArsip">0</span>
+									</a>
+								</li>
+							</ul>
 						</div>
 						<div class="card-body">
 							<div class="table-responsive">
@@ -568,6 +584,7 @@
 		let selectedExam = null;
 		let editingExamId = null;
 		let editingQuestion = null;
+		let currentExamTab = 'aktif'; // 'aktif' | 'arsip'
 
 		function escapeHtml(value) {
 			return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -622,28 +639,46 @@
 				.select("*, data_pelajaran(nama_pelajaran)").order("created_at", { ascending: false });
 			if (error) throw error;
 			exams = data || [];
-			if (!exams.length) {
-				examRows.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Belum ada ujian. Buat ujian pertama untuk mulai mengatur jadwal dan soal.</td></tr>';
+
+			const aktifList = exams.filter(e => !e.is_archived);
+			const arsipList = exams.filter(e => e.is_archived);
+
+			// Update tab badges
+			const badgeAktif = document.getElementById("badgeAktif");
+			const badgeArsip = document.getElementById("badgeArsip");
+			if (badgeAktif) badgeAktif.textContent = aktifList.length;
+			if (badgeArsip) badgeArsip.textContent = arsipList.length;
+
+			const filteredExams = currentExamTab === 'arsip' ? arsipList : aktifList;
+
+			if (!filteredExams.length) {
+				const emptyMsg = currentExamTab === 'arsip'
+					? 'Tidak ada ujian yang diarsipkan.'
+					: 'Belum ada ujian. Buat ujian pertama untuk mulai mengatur jadwal dan soal.';
+				examRows.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">${emptyMsg}</td></tr>`;
 				return;
 			}
-			examRows.innerHTML = exams.map((exam) => {
+			examRows.innerHTML = filteredExams.map((exam) => {
 				const status = examStatus(exam);
 				const subjectName = exam.data_pelajaran?.nama_pelajaran || subjects.find((subject) => subject.id === exam.pelajaran_id)?.nama_pelajaran || "-";
-				return `<tr>
-					<td class="font-weight-bold">${escapeHtml(exam.nama_ujian)}</td>
+				const isArchived = exam.is_archived;
+				return `<tr class="${isArchived ? 'table-secondary' : ''}">
+					<td class="font-weight-bold">${escapeHtml(exam.nama_ujian)}${isArchived ? ' <span class="badge badge-secondary ml-1"><i class="fas fa-archive mr-1"></i>Arsip</span>' : ''}</td>
 					<td>${escapeHtml(subjectName)}</td>
 					<td class="small">${escapeHtml(formatDate(exam.dibuka_at))}<br><span class="text-muted">s.d. ${escapeHtml(formatDate(exam.ditutup_at))}</span></td>
 					<td>${exam.waktu_menit} menit</td>
 					<td>
 						<span class="badge badge-${status.style} mb-2">${status.label}</span>
-						<div class="custom-control custom-switch">
+						${!isArchived ? `<div class="custom-control custom-switch">
 							<input class="custom-control-input" type="checkbox" id="exam-active-${exam.id}" data-exam-active="${exam.id}" aria-label="${exam.aktif ? "Nonaktifkan" : "Aktifkan"} ${escapeHtml(exam.nama_ujian)}" ${exam.aktif ? "checked" : ""}>
 							<label class="custom-control-label small" for="exam-active-${exam.id}">${exam.aktif ? "Aktif" : "Nonaktif"}</label>
-						</div>
+						</div>` : '<span class="small text-muted">Diarsipkan</span>'}
 					</td>
 					<td class="text-nowrap">
-						<button class="btn btn-sm btn-outline-primary" data-action="questions" data-id="${exam.id}" title="Atur soal"><i class="fas fa-list-ol"></i></button>
+						${!isArchived ? `<button class="btn btn-sm btn-outline-primary" data-action="questions" data-id="${exam.id}" title="Atur soal"><i class="fas fa-list-ol"></i></button>
 						<button class="btn btn-sm btn-outline-secondary" data-action="edit-exam" data-id="${exam.id}" title="Edit ujian"><i class="fas fa-edit"></i></button>
+						<button class="btn btn-sm btn-outline-warning" data-action="archive-exam" data-id="${exam.id}" title="Arsipkan ujian"><i class="fas fa-archive"></i></button>` 
+						: `<button class="btn btn-sm btn-outline-success" data-action="restore-exam" data-id="${exam.id}" title="Pulihkan dari arsip"><i class="fas fa-undo"></i></button>`}
 						<button class="btn btn-sm btn-outline-danger" data-action="delete-exam" data-id="${exam.id}" title="Hapus ujian"><i class="fas fa-trash"></i></button>
 					</td>
 				</tr>`;
@@ -1379,6 +1414,19 @@
 			}
 		}
 
+		// Tab switching: Aktif / Arsip
+		document.querySelectorAll("[data-exam-tab]").forEach(tabLink => {
+			tabLink.addEventListener("click", async (e) => {
+				e.preventDefault();
+				document.querySelectorAll("[data-exam-tab]").forEach(t => t.classList.remove("active"));
+				tabLink.classList.add("active");
+				currentExamTab = tabLink.dataset.examTab;
+				// Show/hide the "Buat ujian" button: only show on aktif tab
+				const newExamButton = document.getElementById("newExamButton");
+				if (newExamButton) newExamButton.classList.toggle("d-none", currentExamTab === 'arsip');
+				await loadExams().catch(err => showMessage(err.message, "danger"));
+			});
+		});
 		document.getElementById("newExamButton").addEventListener("click", openNewExam);
 		document.getElementById("refreshExamsButton").addEventListener("click", () => loadExams().catch((error) => showMessage(error.message, "danger")));
 		document.getElementById("newQuestionButton").addEventListener("click", openNewQuestion);
@@ -1543,6 +1591,18 @@
 			if (!exam) return;
 			try {
 				if (button.dataset.action === "edit-exam") openEditExam(exam);
+				if (button.dataset.action === "archive-exam" && window.confirm(`Arsipkan ujian "${exam.nama_ujian}"? Ujian akan disembunyikan dari daftar utama, soal-soal tetap tersimpan.`)) {
+					const { error: archiveError } = await client.from("ujian").update({ is_archived: true, aktif: false }).eq("id", exam.id);
+					if (archiveError) throw archiveError;
+					showMessage(`Ujian "${exam.nama_ujian}" berhasil diarsipkan.`);
+					await loadExams();
+				}
+				if (button.dataset.action === "restore-exam" && window.confirm(`Pulihkan ujian "${exam.nama_ujian}" dari arsip?`)) {
+					const { error: restoreError } = await client.from("ujian").update({ is_archived: false }).eq("id", exam.id);
+					if (restoreError) throw restoreError;
+					showMessage(`Ujian "${exam.nama_ujian}" berhasil dipulihkan dari arsip.`);
+					await loadExams();
+				}
 				if (button.dataset.action === "questions") {
 					selectedExam = exam;
 					examListView.classList.add("d-none");
