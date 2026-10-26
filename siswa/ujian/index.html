@@ -670,6 +670,24 @@
       }
     };
 
+    async function syncGlobalUnlockPassword() {
+      try {
+        const sbClient = getSupabaseClient();
+        const { data, error } = await sbClient.from("pengaturan_cbt").select("password_unlock").eq("id", 1).maybeSingle();
+        if (!error && data?.password_unlock) {
+          ANTI_CHEAT_CONFIG.adminPassword = data.password_unlock;
+          try { localStorage.setItem("ypn_cbt_global_unlock_password", data.password_unlock); } catch (_) {}
+          return;
+        }
+      } catch (err) {
+        console.warn("Info: gagal sinkron password unlock dari DB:", err);
+      }
+      try {
+        const cached = localStorage.getItem("ypn_cbt_global_unlock_password");
+        if (cached) ANTI_CHEAT_CONFIG.adminPassword = cached;
+      } catch (_) {}
+    }
+
     function getSupabaseClient() {
       if (!window.SUPABASE_CONFIG?.url || !window.SUPABASE_CONFIG?.anonKey) {
         throw new Error("Supabase config belum diisi di supabase-config.js.");
@@ -1059,7 +1077,7 @@
       requestFullScreenSafe(); // dipanggil dari klik user -> diizinkan browser
     }
 
-    function tryAdminUnlock() {
+    async function tryAdminUnlock() {
       const input = document.getElementById("adminPasswordInput");
       const errEl = document.getElementById("passwordErrorMsg");
       const entered = (input.value || "").trim();
@@ -1070,6 +1088,7 @@
         input.focus();
         return;
       }
+      await syncGlobalUnlockPassword();
       if (entered === ANTI_CHEAT_CONFIG.adminPassword) {
         errEl.classList.add("d-none");
         input.value = "";
@@ -1219,15 +1238,23 @@
       }
 
       // Waktu target selesai normal siswa: waktu mulai + durasi pengerjaan
-      const studentTargetEndMs = startTime + (totalDurationSec * 1000);
+      const toleranceMinutes = Number(exam.toleransi_menit != null ? exam.toleransi_menit : 15);
+      const toleranceSec = toleranceMinutes * 60;
+      const studentNormalEndMs = startTime + (totalDurationSec * 1000);
+      const studentToleranceEndMs = studentNormalEndMs + (toleranceSec * 1000);
+      const scheduledCloseMs = exam.ditutup_at ? new Date(exam.ditutup_at).getTime() : studentToleranceEndMs;
+      const hardDeadlineMs = exam.ditutup_at
+        ? Math.max(scheduledCloseMs + (toleranceSec * 1000), studentNormalEndMs)
+        : studentToleranceEndMs;
+      const absoluteEndMs = Math.min(studentToleranceEndMs, hardDeadlineMs);
 
       // Batas waktu mutlak sistem ditutup (ditutup_at)
-      const hardDeadlineMs = exam.ditutup_at ? new Date(exam.ditutup_at).getTime() : studentTargetEndMs;
+
 
       // Jadwal resmi ujian selesai normal (dibuka_at + waktu_menit)
-      const officialScheduledEndMs = exam.dibuka_at
-        ? new Date(exam.dibuka_at).getTime() + (totalDurationSec * 1000)
-        : hardDeadlineMs;
+
+
+
 
       let overtimeBannerShown = false;
 
@@ -1235,37 +1262,38 @@
         const now = Date.now();
 
         // 1. Sisa waktu pengerjaan normal siswa
-        const studentRemainingSec = Math.max(0, Math.floor((studentTargetEndMs - now) / 1000));
+        const studentNormalRemainingSec = Math.max(0, Math.floor((studentNormalEndMs - now) / 1000));
+        const totalRemainingSec = Math.max(0, Math.floor((absoluteEndMs - now) / 1000));
 
         // 2. Sisa waktu absolut ke batas jadwal 'ditutup_at'
-        const hardRemainingSec = Math.max(0, Math.floor((hardDeadlineMs - now) / 1000));
+
 
         // Waktu tersisa riil adalah mana yang lebih cepat habis
-        const remainingSec = Math.min(studentRemainingSec, hardRemainingSec);
+
 
         // Deteksi apakah sedang dalam masa Overtime:
         // Terjadi jika jam sekarang telah melewati target jadwal normal ATAU sisa durasi normal habis,
         // namun masih berada di dalam jendela waktu toleransi (sebelum hardDeadlineMs / ditutup_at).
-        const isOvertime = (now > officialScheduledEndMs || studentRemainingSec <= 0) && hardRemainingSec > 0;
+        const isOvertime = studentNormalRemainingSec <= 0 && totalRemainingSec > 0;
 
-        if (remainingSec <= 0 || hardRemainingSec <= 0) {
+        if (totalRemainingSec <= 0) {
           if (countdownText) countdownText.textContent = "00:00:00";
           timerBadge.className = "badge badge-danger cbt-timer-badge shadow-sm";
           clearInterval(examTimerInterval);
           pauseDetection(() => alert(isOvertime
-            ? "Batas waktu toleransi (overtime) ujian telah berakhir! Lembar jawaban Anda akan otomatis dikumpulkan sekarang."
+            ? `Batas waktu toleransi tambahan (${toleranceMinutes} menit) telah berakhir! Lembar jawaban Anda akan otomatis dikumpulkan sekarang.`
             : "Waktu ujian telah habis! Lembar jawaban Anda akan otomatis dikumpulkan sekarang."
           ));
           submitExamAction(true);
           return;
         }
 
-        const formatted = formatTime(remainingSec);
+        const formatted = formatTime(isOvertime ? totalRemainingSec : studentNormalRemainingSec);
         if (countdownText) countdownText.textContent = formatted;
 
         if (isOvertime) {
           timerBadge.className = "badge badge-warning text-dark cbt-timer-badge shadow-sm border border-danger font-weight-bold";
-          timerBadge.innerHTML = `<i class="fas fa-exclamation-triangle text-danger mr-1"></i> <span class="badge badge-danger text-uppercase mr-1" style="font-size:0.75rem;">Overtime</span> <span id="timerCountdown">${formatted}</span>`;
+          timerBadge.innerHTML = `<i class="fas fa-exclamation-triangle text-danger mr-1"></i> <span class="badge badge-danger text-uppercase mr-1" style="font-size:0.75rem;">Overtime +${toleranceMinutes}m</span> <span id="timerCountdown">${formatted}</span>`;
 
           // Tampilkan banner info overtime di bawah header jika belum ada
           let banner = document.getElementById("cbtOvertimeAlertBanner");
@@ -1277,7 +1305,7 @@
             banner.innerHTML = `
               <div class="small">
                 <i class="fas fa-info-circle text-danger mr-1"></i>
-                <strong>Masa Toleransi Tambahan (Overtime):</strong> Jam normal ujian telah terlewati. Anda sedang menggunakan waktu toleransi sistem. Pastikan jawaban dikumpulkan sebelum batas akhir ditutup.
+                <strong>Masa Toleransi Tambahan (${toleranceMinutes} Menit):</strong> Durasi normal ujian telah habis. Anda sedang menggunakan waktu toleransi tambahan. Pastikan jawaban dikumpulkan sebelum batas toleransi habis.
               </div>
               <span class="badge badge-danger px-2 py-1 ml-2">Overtime</span>
             `;
@@ -1286,10 +1314,10 @@
               headerCard.parentNode.insertBefore(banner, headerCard.nextSibling);
             }
           }
-        } else if (remainingSec <= 300) {
+        } else if (studentNormalRemainingSec <= 300) {
           timerBadge.className = "badge badge-danger cbt-timer-badge shadow-sm";
           timerBadge.innerHTML = `<i class="fas fa-stopwatch mr-1"></i> <span id="timerCountdown">${formatted}</span>`;
-        } else if (remainingSec <= 600) {
+        } else if (studentNormalRemainingSec <= 600) {
           timerBadge.className = "badge badge-warning text-dark cbt-timer-badge shadow-sm";
           timerBadge.innerHTML = `<i class="fas fa-stopwatch mr-1"></i> <span id="timerCountdown">${formatted}</span>`;
         } else {
@@ -1719,6 +1747,7 @@
           return;
         }
 
+        await syncGlobalUnlockPassword();
         const selectedExamId = new URLSearchParams(window.location.search).get("id");
         if (!selectedExamId) {
           showMessage("Ujian Belum Dipilih", "Silakan pilih salah satu ujian dari dashboard siswa terlebih dahulu.");

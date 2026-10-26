@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
 	<meta charset="utf-8">
@@ -303,7 +303,14 @@
 							<h1 class="h3 mb-1 text-gray-800">Ujian</h1>
 							<p class="mb-0 text-muted">Atur mata pelajaran, jadwal, status, dan soal ujian.</p>
 						</div>
-						<button id="newExamButton" class="btn btn-primary mt-3 mt-md-0" type="button"><i class="fas fa-plus mr-2"></i>Buat ujian</button>
+						<div class="d-flex flex-wrap align-items-center mt-3 mt-md-0">
+							<button id="btnGlobalSecuritySettings" class="btn btn-outline-dark mr-2 shadow-sm" type="button" title="Atur password buka kunci fullscreen untuk semua ujian">
+								<i class="fas fa-key mr-2"></i>Password
+							</button>
+							<button id="newExamButton" class="btn btn-primary shadow-sm" type="button">
+								<i class="fas fa-plus mr-2"></i>Buat ujian
+							</button>
+						</div>
 					</div>
 					<section class="card shadow-sm mb-4">
 						<div class="card-header bg-white py-3">
@@ -378,9 +385,10 @@
 						<div class="form-group col-md-5"><label for="examSubject">Mata pelajaran</label><select id="examSubject" name="pelajaran_id" class="form-control" required><option value="">Pilih mata pelajaran</option></select></div>
 					</div>
 					<div class="form-row">
-						<div class="form-group col-md-4"><label for="examDuration">Durasi (menit)</label><input id="examDuration" name="waktu_menit" type="number" class="form-control" min="1" step="1" required></div>
-						<div class="form-group col-md-4"><label for="examOpenAt">Mulai dibuka</label><input id="examOpenAt" name="dibuka_at" type="datetime-local" class="form-control" required></div>
-						<div class="form-group col-md-4"><label for="examCloseAt">Ditutup</label><input id="examCloseAt" name="ditutup_at" type="datetime-local" class="form-control" required></div>
+						<div class="form-group col-md-3"><label for="examDuration">Durasi (menit)</label><input id="examDuration" name="waktu_menit" type="number" class="form-control" min="1" step="1" required></div>
+						<div class="form-group col-md-3"><label for="examTolerance">Toleransi (menit)</label><input id="examTolerance" name="toleransi_menit" type="number" class="form-control" min="0" step="1" value="15" placeholder="Default 15" required><small class="text-muted">Ekstra waktu pengerjaan</small></div>
+						<div class="form-group col-md-3"><label for="examOpenAt">Mulai dibuka</label><input id="examOpenAt" name="dibuka_at" type="datetime-local" class="form-control" required></div>
+						<div class="form-group col-md-3"><label for="examCloseAt">Ditutup</label><input id="examCloseAt" name="ditutup_at" type="datetime-local" class="form-control" required></div>
 					</div>
 					<div class="form-row border-top pt-3">
 						<div class="form-group col-md-4"><div class="custom-control custom-switch"><input id="examActive" name="aktif" type="checkbox" class="custom-control-input"><label class="custom-control-label" for="examActive">Ujian aktif</label></div></div>
@@ -392,6 +400,50 @@
 				<div class="modal-footer"><button class="btn btn-light" type="button" data-dismiss="modal">Batal</button><button id="saveExamButton" class="btn btn-primary" type="submit">Simpan ujian</button></div>
 			</form>
 		</div></div>
+	</div>
+
+	<!-- Modal Pengaturan Keamanan Global CBT -->
+	<div class="modal fade" id="globalSecurityModal" tabindex="-1" role="dialog" aria-labelledby="globalSecurityModalTitle" aria-hidden="true">
+		<div class="modal-dialog" role="document">
+			<div class="modal-content">
+				<form id="globalSecurityForm">
+					<div class="modal-header bg-dark text-white">
+						<h5 class="modal-title font-weight-bold" id="globalSecurityModalTitle">
+							<i class="fas fa-shield-alt text-warning mr-2"></i>Keamanan CBT & Password Kunci
+						</h5>
+						<button class="close text-white" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+					</div>
+					<div class="modal-body">
+						<div id="globalSecurityAlert" class="alert alert-info py-2 small">
+							<i class="fas fa-info-circle mr-1"></i> Pengaturan di bawah ini berlaku <strong>secara global untuk seluruh ujian</strong>. Password digunakan pengawas/guru untuk membuka layar siswa yang terkunci fullscreen.
+						</div>
+						<div class="form-group">
+							<label for="globalUnlockPassword" class="font-weight-bold text-dark">Password Buka Kunci Layar Siswa</label>
+							<div class="input-group">
+								<input type="password" id="globalUnlockPassword" class="form-control" placeholder="Masukkan password buka kunci..." required>
+								<div class="input-group-append">
+									<button class="btn btn-outline-secondary" type="button" id="togglePasswordVisibility">
+										<i class="fas fa-eye" id="togglePasswordIcon"></i>
+									</button>
+								</div>
+							</div>
+							<small class="form-text text-muted">Ketika siswa terdeteksi keluar dari fullscreen lebih dari toleransi pelanggaran, ujian siswa terkunci dan hanya pengawas yang dapat membukanya dengan password ini.</small>
+						</div>
+						<div class="form-group">
+							<label for="globalDefaultTolerance" class="font-weight-bold text-dark">Default Toleransi Tambahan Ujian Baru (menit)</label>
+							<input type="number" id="globalDefaultTolerance" class="form-control" min="0" step="1" value="15" required>
+							<small class="form-text text-muted">Nilai awal toleransi waktu ekstra saat membuat ujian baru (bisa disesuaikan per masing-masing ujian).</small>
+						</div>
+					</div>
+					<div class="modal-footer">
+						<button class="btn btn-light" type="button" data-dismiss="modal">Batal</button>
+						<button class="btn btn-primary" type="submit" id="saveGlobalSecurityBtn">
+							<i class="fas fa-save mr-1"></i> Simpan Pengaturan Global
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
 	</div>
 
 	<div class="modal fade" id="questionModal" tabindex="-1" role="dialog" aria-labelledby="questionModalTitle" aria-hidden="true">
@@ -585,6 +637,37 @@
 		let editingExamId = null;
 		let editingQuestion = null;
 		let currentExamTab = 'aktif'; // 'aktif' | 'arsip'
+		let globalCbtSettings = {
+			password_unlock: "admin123",
+			toleransi_menit_default: 15
+		};
+
+		async function loadGlobalCbtSettings() {
+			try {
+				const { data, error } = await client.from("pengaturan_cbt").select("*").eq("id", 1).maybeSingle();
+				if (!error && data) {
+					globalCbtSettings = {
+						password_unlock: data.password_unlock || "admin123",
+						toleransi_menit_default: data.toleransi_menit_default != null ? data.toleransi_menit_default : 15
+					};
+					localStorage.setItem("ypn_cbt_global_unlock_password", globalCbtSettings.password_unlock);
+					localStorage.setItem("ypn_cbt_global_tolerance_default", String(globalCbtSettings.toleransi_menit_default));
+					return;
+				}
+			} catch (e) {
+				console.warn("Tabel pengaturan_cbt belum ada di database, menggunakan memori lokal:", e);
+			}
+			const cachedPass = localStorage.getItem("ypn_cbt_global_unlock_password");
+			const cachedTol = localStorage.getItem("ypn_cbt_global_tolerance_default");
+			if (cachedPass) globalCbtSettings.password_unlock = cachedPass;
+			if (cachedTol) globalCbtSettings.toleransi_menit_default = Number(cachedTol) || 15;
+		}
+
+		function openGlobalSecurityModal() {
+			document.getElementById("globalUnlockPassword").value = globalCbtSettings.password_unlock || "admin123";
+			document.getElementById("globalDefaultTolerance").value = globalCbtSettings.toleransi_menit_default || 15;
+			$("#globalSecurityModal").modal("show");
+		}
 
 		function escapeHtml(value) {
 			return String(value ?? "").replace(/[&<>"']/g, (character) => ({
@@ -666,7 +749,7 @@
 					<td class="font-weight-bold">${escapeHtml(exam.nama_ujian)}${isArchived ? ' <span class="badge badge-secondary ml-1"><i class="fas fa-archive mr-1"></i>Arsip</span>' : ''}</td>
 					<td>${escapeHtml(subjectName)}</td>
 					<td class="small">${escapeHtml(formatDate(exam.dibuka_at))}<br><span class="text-muted">s.d. ${escapeHtml(formatDate(exam.ditutup_at))}</span></td>
-					<td>${exam.waktu_menit} menit</td>
+					<td>${exam.waktu_menit} menit<br><span class="badge badge-light border text-muted" title="Toleransi waktu pengerjaan">+${exam.toleransi_menit != null ? exam.toleransi_menit : 15}m toleransi</span></td>
 					<td>
 						<span class="badge badge-${status.style} mb-2">${status.label}</span>
 						${!isArchived ? `<div class="custom-control custom-switch">
@@ -793,6 +876,7 @@
 			document.getElementById("examOpenAt").value = toLocalInput(now);
 			document.getElementById("examCloseAt").value = toLocalInput(later);
 			document.getElementById("examDuration").value = 60;
+			document.getElementById("examTolerance").value = globalCbtSettings.toleransi_menit_default || 15;
 			$("#examModal").modal("show");
 		}
 
@@ -804,6 +888,7 @@
 			examForm.elements.nama_ujian.value = exam.nama_ujian;
 			examForm.elements.pelajaran_id.value = String(exam.pelajaran_id);
 			examForm.elements.waktu_menit.value = exam.waktu_menit;
+			examForm.elements.toleransi_menit.value = exam.toleransi_menit != null ? exam.toleransi_menit : 15;
 			examForm.elements.dibuka_at.value = toLocalInput(exam.dibuka_at);
 			examForm.elements.ditutup_at.value = toLocalInput(exam.ditutup_at);
 			examForm.elements.aktif.checked = exam.aktif;
@@ -908,6 +993,7 @@
 				nama_ujian: form.elements.nama_ujian.value.trim(),
 				pelajaran_id: subjectId,
 				waktu_menit: duration,
+				toleransi_menit: Number(form.elements.toleransi_menit ? form.elements.toleransi_menit.value : 15) || 15,
 				dibuka_at: openedAt.toISOString(),
 				ditutup_at: closedAt.toISOString(),
 				acak_soal: form.elements.acak_soal.checked,
@@ -918,7 +1004,16 @@
 				const query = editingExamId
 					? client.from("ujian").update(values).eq("id", editingExamId)
 					: client.from("ujian").insert(values);
-				const { error } = await query;
+				let { error } = await query;
+				if (error && error.message && error.message.includes("toleransi_menit")) {
+					console.warn("Kolom toleransi_menit belum ada, menyimpan tanpa toleransi_menit:", error);
+					delete values.toleransi_menit;
+					const fallbackQuery = editingExamId
+						? client.from("ujian").update(values).eq("id", editingExamId)
+						: client.from("ujian").insert(values);
+					const fallbackRes = await fallbackQuery;
+					error = fallbackRes.error;
+				}
 				if (error) {
 					if (error.code === "42P01" || error.message.includes("does not exist")) {
 						throw new Error("Tabel 'ujian' belum dibuat di Supabase. Silakan jalankan skrip 'sql/supabase-complete-exam-system.sql' di SQL Editor Supabase.");
@@ -1661,9 +1756,74 @@
 			}
 		});
 
+		// Event listener Keamanan CBT Global
+		document.getElementById("btnGlobalSecuritySettings")?.addEventListener("click", openGlobalSecurityModal);
+
+		document.getElementById("togglePasswordVisibility")?.addEventListener("click", () => {
+			const passInput = document.getElementById("globalUnlockPassword");
+			const icon = document.getElementById("togglePasswordIcon");
+			if (passInput.type === "password") {
+				passInput.type = "text";
+				icon.className = "fas fa-eye-slash";
+			} else {
+				passInput.type = "password";
+				icon.className = "fas fa-eye";
+			}
+		});
+
+		document.getElementById("globalSecurityForm")?.addEventListener("submit", async (e) => {
+			e.preventDefault();
+			const passVal = document.getElementById("globalUnlockPassword").value.trim();
+			const tolVal = Number(document.getElementById("globalDefaultTolerance").value) || 15;
+			const btn = document.getElementById("saveGlobalSecurityBtn");
+
+			if (!passVal) {
+				alert("Password tidak boleh kosong.");
+				return;
+			}
+
+			btn.disabled = true;
+			btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...';
+
+			try {
+				globalCbtSettings.password_unlock = passVal;
+				globalCbtSettings.toleransi_menit_default = tolVal;
+				localStorage.setItem("ypn_cbt_global_unlock_password", passVal);
+				localStorage.setItem("ypn_cbt_global_tolerance_default", String(tolVal));
+
+				let warning = null;
+				try {
+					const { error } = await client.from("pengaturan_cbt").upsert({
+						id: 1,
+						password_unlock: passVal,
+						toleransi_menit_default: tolVal,
+						updated_at: new Date().toISOString()
+					});
+					if (error) {
+						warning = "Tersimpan di browser ini. Agar berlaku di seluruh perangkat komputer lain, jalankan skrip sql/ADD-cbt-tolerance-and-unlock-password.sql di SQL Editor Supabase.";
+					}
+				} catch (err) {
+					warning = "Tersimpan di browser ini. Jalankan sql/ADD-cbt-tolerance-and-unlock-password.sql di Supabase.";
+				}
+
+				$("#globalSecurityModal").modal("hide");
+				if (warning) {
+					showMessage(warning, "warning");
+				} else {
+					showMessage("Pengaturan keamanan CBT berhasil disimpan.");
+				}
+			} catch (err) {
+				alert("Gagal menyimpan: " + err.message);
+			} finally {
+				btn.disabled = false;
+				btn.innerHTML = '<i class="fas fa-save mr-1"></i> Simpan Pengaturan Global';
+			}
+		});
+
 		document.addEventListener("DOMContentLoaded", async () => {
 			if (!await window.adminSessionReady) return;
 			try {
+				await loadGlobalCbtSettings();
 				await loadSubjects();
 				await loadExams();
 			} catch (error) {

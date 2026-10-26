@@ -447,7 +447,7 @@
 			const elSubject = document.getElementById("infoExamSubject");
 			if (elSubject) elSubject.textContent = currentSelectedExam.data_pelajaran?.nama_pelajaran || "-";
 			const elDuration = document.getElementById("infoExamDuration");
-			if (elDuration) elDuration.textContent = `${currentSelectedExam.waktu_menit} Menit`;
+			if (elDuration) elDuration.textContent = `${currentSelectedExam.waktu_menit} Menit (+${currentSelectedExam.toleransi_menit != null ? currentSelectedExam.toleransi_menit : 15}m Toleransi)`;
 			const elOpen = document.getElementById("infoExamOpen");
 			if (elOpen) elOpen.textContent = formatWibTime(currentSelectedExam.dibuka_at);
 			const elClose = document.getElementById("infoExamClose");
@@ -519,8 +519,9 @@
 			const now = Date.now();
 			const exam = currentSelectedExam;
 			const totalDurationSec = (exam.waktu_menit || 60) * 60;
-			const hardDeadlineMs = exam.ditutup_at ? new Date(exam.ditutup_at).getTime() : 0;
-			const officialEndMs = exam.dibuka_at ? new Date(exam.dibuka_at).getTime() + (totalDurationSec * 1000) : hardDeadlineMs;
+			const toleranceSec = (Number(exam.toleransi_menit != null ? exam.toleransi_menit : 15)) * 60;
+			const scheduledCloseMs = exam.ditutup_at ? new Date(exam.ditutup_at).getTime() : 0;
+
 
 			let countTotal = allStudentsInYear.length;
 			let countActive = 0;
@@ -540,12 +541,19 @@
 						countActive++;
 
 						const startMs = new Date(att.mulai_at || att.created_at).getTime();
-						const studentTargetEndMs = startMs + (totalDurationSec * 1000);
-						const studentRemaining = Math.max(0, Math.floor((studentTargetEndMs - now) / 1000));
-						const hardRemaining = hardDeadlineMs > 0 ? Math.max(0, Math.floor((hardDeadlineMs - now) / 1000)) : studentRemaining;
+						const studentNormalEndMs = startMs + (totalDurationSec * 1000);
+						const studentToleranceEndMs = studentNormalEndMs + (toleranceSec * 1000);
+						const hardDeadlineMs = scheduledCloseMs > 0 ? (scheduledCloseMs + (toleranceSec * 1000)) : studentToleranceEndMs;
+						const absoluteEndMs = Math.min(studentToleranceEndMs, hardDeadlineMs);
+						const studentNormalRemaining = Math.max(0, Math.floor((studentNormalEndMs - now) / 1000));
+						const totalRemaining = Math.max(0, Math.floor((absoluteEndMs - now) / 1000));
+						isOvertime = studentNormalRemaining <= 0 && totalRemaining > 0;
+						remainingSeconds = isOvertime ? totalRemaining : studentNormalRemaining;
 
-						remainingSeconds = Math.min(studentRemaining, hardRemaining);
-						isOvertime = (now > officialEndMs || studentRemaining <= 0) && hardRemaining > 0;
+
+
+
+
 					} else if (att.status === "dikumpulkan" || att.status === "dinilai") {
 						statusCategory = "selesai";
 						countFinished++;
@@ -592,7 +600,7 @@
 				if (item.statusCategory === "berlangsung") {
 					if (item.isOvertime) {
 						statusBadge = `<span class="badge badge-warning text-dark badge-status overtime-badge border border-danger"><i class="fas fa-exclamation-triangle text-danger mr-1"></i>Overtime</span>`;
-						remainingCol = `<span class="text-danger font-weight-bold"><i class="fas fa-clock mr-1"></i>${formatTimeCountdown(item.remainingSeconds)}</span> <span class="badge badge-light border small text-muted">Toleransi</span>`;
+						remainingCol = `<span class="text-danger font-weight-bold"><i class="fas fa-clock mr-1"></i>${formatTimeCountdown(item.remainingSeconds)}</span> <span class="badge badge-warning border small text-dark">+${exam.toleransi_menit != null ? exam.toleransi_menit : 15}m Toleransi</span>`;
 					} else {
 						statusBadge = `<span class="badge badge-primary badge-status"><span class="pulse-indicator"></span>Sedang Mengerjakan</span>`;
 						remainingCol = `<span class="text-primary font-weight-bold"><i class="fas fa-stopwatch mr-1"></i>${formatTimeCountdown(item.remainingSeconds)}</span>`;
