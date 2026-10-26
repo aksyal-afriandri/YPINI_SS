@@ -400,7 +400,7 @@
 
 				selectExam.innerHTML = allExams.map(u => {
 					const isOngoing = new Date() >= new Date(u.dibuka_at) && new Date() <= new Date(u.ditutup_at);
-					const statusLabel = isOngoing ? "🟢 SEDANG BERLANGSUNG" : (new Date() < new Date(u.dibuka_at) ? "Terjadwal" : "Selesai");
+					const statusLabel = isOngoing ? "Sedang Berlangsung" : (new Date() < new Date(u.dibuka_at) ? "Terjadwal" : "Selesai");
 					return `<option value="${u.id}">${escapeHtml(u.nama_ujian)} (${u.data_pelajaran?.nama_pelajaran || '-'}) - ${statusLabel}</option>`;
 				}).join('');
 

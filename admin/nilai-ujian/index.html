@@ -20,11 +20,67 @@
 		.essay-reference-box { background: #fffdf5; border-left: 4px solid #f6c23e; border-radius: 4px; padding: 10px 14px; font-size: 0.88rem; line-height: 1.4; white-space: pre-wrap; }
 		.question-image-thumb { max-height: 180px; max-width: 100%; border-radius: 6px; border: 1px solid #e3e6f0; object-fit: contain; cursor: pointer; transition: transform .2s; }
 		.question-image-thumb:hover { transform: scale(1.02); }
+		@media screen {
+			#printArea { display: none !important; }
+		}
 		@media print {
-			body * { visibility: hidden; }
-			#printArea, #printArea * { visibility: visible; }
-			#printArea { position: absolute; left: 0; top: 0; width: 100%; }
-			.no-print { display: none !important; }
+			/* Hilangkan header & footer otomatis browser (seperti link URL di bagian bawah kertas) */
+			@page {
+				size: A4 portrait;
+				margin: 0 !important;
+			}
+			html, body {
+				background: #fff !important;
+				color: #000 !important;
+				font-family: Arial, "Helvetica Neue", Helvetica, sans-serif !important;
+				font-size: 11pt !important;
+				margin: 0 !important;
+				padding: 0 !important;
+				-webkit-print-color-adjust: exact !important;
+				print-color-adjust: exact !important;
+			}
+			/* Hilangkan seluruh elemen tampilan web dan link URL bawaan bootstrap */
+			#wrapper, .modal, .modal-backdrop, .scroll-to-top, .navbar, .sticky-footer, .sidebar, #pageAlertBox, .no-print {
+				display: none !important;
+			}
+			a[href]:after {
+				content: "" !important;
+			}
+			a {
+				text-decoration: none !important;
+				color: inherit !important;
+			}
+			/* Area cetak diberi padding sebagai pengganti margin kertas agar bersih tanpa link di bawah */
+			#printArea {
+				display: block !important;
+				visibility: visible !important;
+				position: static !important;
+				width: 100% !important;
+				box-sizing: border-box !important;
+				margin: 0 !important;
+				padding: 15mm 15mm 15mm 15mm !important;
+			}
+			#printArea * {
+				visibility: visible !important;
+			}
+			.print-table {
+				width: 100% !important;
+				border-collapse: collapse !important;
+				page-break-inside: auto;
+			}
+			.print-table tr {
+				page-break-inside: avoid !important;
+				page-break-after: auto;
+			}
+			.print-table thead {
+				display: table-header-group !important;
+			}
+			.print-table tfoot {
+				display: table-footer-group !important;
+			}
+			.print-signature-area {
+				page-break-inside: avoid !important;
+			}
 		}
 	</style>
 </head>
@@ -323,11 +379,14 @@
 						<div>
 							<h1 class="h3 mb-1 text-gray-800 font-weight-bold" id="examResultClassHeading">Hasil & Penilaian Ujian Siswa</h1>
 						</div>
-						<div class="mt-2 mt-sm-0">
-							<button class="btn btn-sm btn-outline-primary shadow-sm mr-1" id="btnRefreshData">
+						<div class="mt-2 mt-sm-0 d-flex flex-wrap align-items-center">
+							<button class="btn btn-sm btn-outline-primary shadow-sm mr-2 mb-1" id="btnRefreshData" title="Muat ulang data nilai">
 								<i class="fas fa-sync-alt fa-sm mr-1"></i>Refresh
 							</button>
-							<button class="btn btn-sm btn-primary shadow-sm" id="btnPrintReport">
+							<button class="btn btn-sm btn-success shadow-sm mr-2 mb-1" id="btnExportExcel" title="Export rekap nilai yang difilter ke file Excel">
+								<i class="fas fa-file-excel fa-sm mr-1"></i>Export Excel
+							</button>
+							<button class="btn btn-sm btn-primary shadow-sm mb-1" id="btnPrintReport" title="Cetak rekap nilai yang difilter">
 								<i class="fas fa-print fa-sm mr-1"></i>Cetak Rekap Nilai
 							</button>
 						</div>
@@ -399,19 +458,25 @@
 						</div>
 						<div class="card-body">
 							<div class="row">
-								<div class="col-md-3 col-sm-6 mb-2">
+								<div class="col-lg-3 col-md-6 col-sm-6 mb-2">
 									<label class="small font-weight-bold text-gray-700">Filter Kelas</label>
 									<select id="filterClass" class="form-control form-control-sm">
 										<option value="">Semua Kelas</option>
 									</select>
 								</div>
-								<div class="col-md-3 col-sm-6 mb-2">
+								<div class="col-lg-3 col-md-6 col-sm-6 mb-2">
+									<label class="small font-weight-bold text-gray-700">Filter Mata Pelajaran</label>
+									<select id="filterSubject" class="form-control form-control-sm">
+										<option value="">Semua Mata Pelajaran</option>
+									</select>
+								</div>
+								<div class="col-lg-2 col-md-4 col-sm-6 mb-2">
 									<label class="small font-weight-bold text-gray-700">Filter Ujian</label>
 									<select id="filterExam" class="form-control form-control-sm">
 										<option value="">Semua Ujian</option>
 									</select>
 								</div>
-								<div class="col-md-3 col-sm-6 mb-2">
+								<div class="col-lg-2 col-md-4 col-sm-6 mb-2">
 									<label class="small font-weight-bold text-gray-700">Status Penilaian</label>
 									<select id="filterStatus" class="form-control form-control-sm">
 										<option value="">Semua Status</option>
@@ -420,10 +485,10 @@
 										<option value="berlangsung">Sedang Berlangsung</option>
 									</select>
 								</div>
-								<div class="col-md-3 col-sm-6 mb-2">
+								<div class="col-lg-2 col-md-4 col-sm-12 mb-2">
 									<label class="small font-weight-bold text-gray-700">Cari Siswa</label>
 									<div class="input-group input-group-sm">
-										<input type="text" id="searchKeyword" class="form-control" placeholder="Nama siswa atau NIS...">
+										<input type="text" id="searchKeyword" class="form-control" placeholder="Nama atau NIS...">
 										<div class="input-group-append">
 											<span class="input-group-text"><i class="fas fa-search"></i></span>
 										</div>
@@ -591,55 +656,8 @@
 		</div>
 	</div>
 
-	<!-- Printable Area (Hidden on screen, visible during print) -->
-	<div id="printArea" class="d-none">
-		<div style="font-family: Arial, sans-serif; padding: 20px; color: #000;">
-			<div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px;">
-				<h3 style="margin: 0; font-weight: bold; text-transform: uppercase;">YPINI SCHOOL SYSTEM</h3>
-				<h4 style="margin: 4px 0 0 0; font-weight: bold;">REKAPITULASI HASIL & NILAI UJIAN SISWA</h4>
-				<p style="margin: 4px 0 0 0; font-size: 13px;" id="printHeaderSubtitle">Tahun Ajaran Aktif</p>
-			</div>
-
-			<table style="width: 100%; margin-bottom: 15px; font-size: 13px;">
-				<tr>
-					<td style="width: 15%; font-weight: bold;">Mata Pelajaran</td>
-					<td style="width: 35%;" id="printMetaSubject">: -</td>
-					<td style="width: 15%; font-weight: bold;">Kelas</td>
-					<td style="width: 35%;" id="printMetaClass">: -</td>
-				</tr>
-				<tr>
-					<td style="font-weight: bold;">Nama Ujian</td>
-					<td id="printMetaExam">: -</td>
-					<td style="font-weight: bold;">Tanggal Cetak</td>
-					<td id="printMetaDate">: -</td>
-				</tr>
-			</table>
-
-			<table style="width: 100%; border-collapse: collapse; font-size: 12px;" border="1" cellpadding="6">
-				<thead>
-					<tr style="background-color: #f2f2f2; text-align: center;">
-						<th style="width: 35px;">No</th>
-						<th style="width: 120px;">NIS</th>
-						<th style="text-align: left;">Nama Siswa</th>
-						<th style="width: 100px;">Kelas</th>
-						<th style="width: 100px;">Nilai Akhir</th>
-						<th style="width: 120px;">Status</th>
-					</tr>
-				</thead>
-				<tbody id="printTableBody">
-					<!-- Populated dynamically -->
-				</tbody>
-			</table>
-
-			<div style="margin-top: 30px; display: flex; justify-content: flex-end;">
-				<div style="text-align: center; width: 220px; font-size: 13px;">
-					<p style="margin-bottom: 60px;">Guru Pengampu / Wali Kelas,</p>
-					<p style="margin: 0; font-weight: bold; text-decoration: underline;" id="printTeacherName">( ........................................ )</p>
-					<p style="margin: 0; font-size: 11px;">NIP: ........................................</p>
-				</div>
-			</div>
-		</div>
-	</div>
+	<!-- Printable Area (Konten & susunan layout dicetak secara dinamis dari JavaScript) -->
+	<div id="printArea"></div>
 
 	<!-- Scroll to Top Button-->
 	<a class="scroll-to-top rounded" href="#page-top">
@@ -674,6 +692,9 @@
 	<script src="../../assets/vendor/jquery-easing/jquery.easing.min.js"></script>
 	<script src="../../assets/js/sb-admin-2.min.js"></script>
 
+	<!-- Library SheetJS untuk Export Excel -->
+	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
 	<!-- Supabase API & Session -->
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 	<script src="../../supabase-config.js"></script>
@@ -685,6 +706,7 @@
 		let allSubmissions = [];
 		let filteredSubmissions = [];
 		let allClasses = [];
+		let allSubjects = [];
 		let allExams = [];
 		let activeAcademicYearId = null;
 		let currentSelectedAttempt = null;
@@ -766,18 +788,53 @@
 			}
 		}
 
-		async function loadExams() {
+		async function loadSubjects() {
+			try {
+				let subjects = [];
+				try {
+					const res = await apiGet("/data/pelajaran");
+					subjects = res.data || [];
+				} catch (_) {
+					const client = getSupabaseClient();
+					const { data } = await client.from("data_pelajaran").select("id, nama_pelajaran").order("nama_pelajaran");
+					subjects = data || [];
+				}
+				allSubjects = subjects;
+				const select = document.getElementById("filterSubject");
+				if (!select) return;
+				select.innerHTML = '<option value="">Semua Mata Pelajaran</option>';
+				allSubjects.forEach(s => {
+					const opt = document.createElement("option");
+					opt.value = String(s.id);
+					opt.textContent = s.nama_pelajaran;
+					select.appendChild(opt);
+				});
+			} catch (err) {
+				console.error("Gagal memuat mata pelajaran:", err);
+			}
+		}
+
+		async function loadExams(selectedSubjectId = null) {
 			try {
 				const client = getSupabaseClient();
-				const { data, error } = await client
-					.from("ujian")
-					.select("id, nama_ujian, pelajaran_id, aktif, data_pelajaran(nama_pelajaran)")
-					.order("id", { ascending: false });
-				if (error) throw error;
-				allExams = data || [];
+				if (!allExams || allExams.length === 0) {
+					const { data, error } = await client
+						.from("ujian")
+						.select("id, nama_ujian, pelajaran_id, aktif, data_pelajaran(nama_pelajaran)")
+						.order("id", { ascending: false });
+					if (error) throw error;
+					allExams = data || [];
+				}
+
 				const select = document.getElementById("filterExam");
+				const previousVal = select.value;
 				select.innerHTML = '<option value="">Semua Ujian</option>';
-				allExams.forEach(e => {
+
+				const filteredExams = selectedSubjectId
+					? allExams.filter(e => String(e.pelajaran_id) === String(selectedSubjectId))
+					: allExams;
+
+				filteredExams.forEach(e => {
 					const opt = document.createElement("option");
 					opt.value = String(e.id);
 					const subject = e.data_pelajaran?.nama_pelajaran ? ` (${e.data_pelajaran.nama_pelajaran})` : '';
@@ -785,6 +842,13 @@
 					opt.textContent = `${e.nama_ujian}${subject} ${statusText}`;
 					select.appendChild(opt);
 				});
+
+				// Pertahankan pilihan ujian jika masih cocok dengan mata pelajaran yang dipilih
+				if (filteredExams.some(e => String(e.id) === previousVal)) {
+					select.value = previousVal;
+				} else {
+					select.value = "";
+				}
 			} catch (err) {
 				console.error("Gagal memuat ujian:", err);
 			}
@@ -862,6 +926,7 @@
 						studentPhoto: att.data_siswa?.photo_path || null,
 						examName: att.ujian?.nama_ujian || "Ujian Tidak Diketahui",
 						subjectName: att.ujian?.data_pelajaran?.nama_pelajaran || "-",
+						subjectId: att.ujian?.pelajaran_id || null,
 						className: placement?.className || "Belum ada kelas",
 						classId: placement?.classYearId || null,
 					};
@@ -874,21 +939,45 @@
 			}
 		}
 
+		window.updateExamResultHeading = function() {
+			const headingEl = document.getElementById("examResultClassHeading");
+			if (!headingEl) return;
+			const className = headingEl.dataset.className;
+			if (className) {
+				headingEl.textContent = `Hasil Ujian Kelas ${className}`;
+			}
+		};
+
 		function applyFilters() {
 			const filterClassVal = document.getElementById("filterClass").value;
+			const filterSubjectVal = document.getElementById("filterSubject")?.value || "";
 			const filterExamVal = document.getElementById("filterExam").value;
 			const filterStatusVal = document.getElementById("filterStatus").value;
 			const searchKeyword = document.getElementById("searchKeyword").value.trim().toLowerCase();
 
+			// Perbarui judul heading halaman sesuai kelas yang dipilih
+			const headingEl = document.getElementById("examResultClassHeading");
+			const classSelect = document.getElementById("filterClass");
+			if (headingEl && classSelect) {
+				if (filterClassVal) {
+					const selectedClassText = classSelect.options[classSelect.selectedIndex]?.text || "";
+					headingEl.textContent = `Hasil Ujian Kelas ${selectedClassText}`;
+				} else {
+					headingEl.textContent = "Hasil & Penilaian Ujian Siswa";
+				}
+			}
+
 			filteredSubmissions = allSubmissions.filter(item => {
 				if (filterClassVal && String(item.classId) !== filterClassVal) return false;
+				if (filterSubjectVal && String(item.subjectId) !== filterSubjectVal) return false;
 				if (filterExamVal && String(item.ujian_id) !== filterExamVal) return false;
 				if (filterStatusVal && item.status !== filterStatusVal) return false;
 				if (searchKeyword) {
 					const matchName = item.studentName.toLowerCase().includes(searchKeyword);
 					const matchNis = item.studentNis.toLowerCase().includes(searchKeyword);
 					const matchExam = item.examName.toLowerCase().includes(searchKeyword);
-					if (!matchName && !matchNis && !matchExam) return false;
+					const matchSubject = (item.subjectName || "").toLowerCase().includes(searchKeyword);
+					if (!matchName && !matchNis && !matchExam && !matchSubject) return false;
 				}
 				return true;
 			});
@@ -1441,66 +1530,574 @@
 			}
 		}
 
+		/* ==========================================================================
+		   PANDUAN & PENGATURAN CETAK (PRINT CONFIGURATION)
+		   ==========================================================================
+		   PETUNJUK:
+		   - Seluruh nilai di bawah ini sengaja dikosongkan ("") agar dapat Anda isi sesuai kebutuhan.
+		   - Jika dikosongkan (""), sistem akan menyesuaikan secara otomatis dan rapi.
+		   - Anda juga dapat menambah kolom atau teks pengumuman baru dengan mudah.
+		   ========================================================================== */
+		const PRINT_CONFIG = {
+			// 1. KOP SURAT (Kosongkan string "" jika tidak ingin ditampilkan)
+			kop: {
+				namaSekolah: "",       // [PETUNJUK] Isi nama sekolah/lembaga, contoh: "SMK YPINI JAKARTA"
+				judulDokumen: "",      // [PETUNJUK] Isi judul rekap nilai, contoh: "REKAPITULASI HASIL & NILAI UJIAN"
+				subJudul: "",          // [PETUNJUK] Isi semester / tahun ajaran, contoh: "Tahun Ajaran 2026/2027"
+				alamatSekolah: "",     // [PETUNJUK] Isi alamat sekolah (opsional), contoh: "Jl. Pendidikan No. 1, Jakarta"
+				tampilkanGarisKop: false, // true = tampilkan garis bawah kop tebal | false = tanpa garis
+			},
+
+			// 2. POSISI & TANDA TANGAN PENANGGUNG JAWAB
+			// Pilihan posisi yang tersedia:
+			//   "kanan"     -> 1 Tanda tangan di sebelah Kanan (Guru Pengampu / Wali Kelas)
+			//   "kiri"      -> 1 Tanda tangan di sebelah Kiri
+			//   "tengah"    -> 1 Tanda tangan di Tengah
+			//   "dua_kolom" -> 2 Tanda tangan (Kiri: Kepala Sekolah, Kanan: Guru Pengampu)
+			tandaTangan: {
+				posisi: "", // <-- [UBAH POSISI DI SINI]: "kanan", "kiri", "tengah", atau "dua_kolom"
+				kota: "",        // [PETUNJUK] Nama kota, contoh: "Jakarta" (otomatis: "Jakarta, 26 Oktober 2026")
+
+				// Penandatangan Utama (Kanan):
+				jabatanKanan: "", // [PETUNJUK] Ubah jabatan penandatangan kanan
+				namaKanan: "",    // [PETUNJUK] Isi jika ingin nama manual, jika dikosongkan "" otomatis memakai nama akun guru login
+				nipKanan: "",     // [PETUNJUK] Isi NIP, contoh: "NIP: 19800101 200501 1 001" (atau kosongkan "")
+
+				// Penandatangan Tambahan (Kiri - Hanya aktif jika posisi = "dua_kolom"):
+				jabatanKiri: "",
+				namaKiri: "",     // [PETUNJUK] Contoh: "( Drs. H. Nama Kepala Sekolah, M.Pd )"
+				nipKiri: "",      // [PETUNJUK] Contoh: "NIP: 19750202 200003 1 002"
+			},
+
+			// 3. PENGATURAN KOLOM TABEL CETAK (true = tampil, false = sembunyikan)
+			kolom: {
+				nomor: true,      // Kolom No Urut (1, 2, 3, ...)
+				nis: true,        // Kolom NIS Siswa
+				namaSiswa: true,  // Kolom Nama Siswa
+				kelas: true,      // Kolom Kelas
+				ujianMapel: true, // Kolom Ujian & Mapel (otomatis tampil jika memilih "Semua Ujian")
+				nilaiAkhir: true, // Kolom Nilai Akhir
+				status: true,     // Kolom Status Penilaian (Sudah Dinilai / Belum)
+			},
+
+			// 4. RINGKASAN NILAI DI BAWAH TABEL
+			// Menampilkan kotak: Total Peserta, Rata-rata Nilai, Nilai Tertinggi, Nilai Terendah
+			tampilkanStatistik: true, // true = tampilkan, false = sembunyikan
+
+			// 5. CATATAN / PENGUMUMAN TAMBAHAN (PETUNJUK MENAMBAH HAL BARU DI BAWAH HALAMAN)
+			// Anda dapat menambahkan catatan kaki, teks pengumuman, atau informasi remedial di sini.
+			// Kosongkan "" jika tidak diperlukan.
+			catatanTambahan: "", // [PETUNJUK] Contoh: "* Batas kelulusan (KKM) adalah 75. Siswa di bawah 75 wajib mengikuti remedial."
+		};
+
+		/**
+		 * FUNGSI MEMBUAT TAMPILAN HALAMAN CETAK
+		 * Di sini seluruh bagian HTML dirakit sesuai konfigurasi di atas.
+		 */
+		function generatePrintHtml(submissions, meta) {
+			const {
+				selectedClassText,
+				selectedExamText,
+				selectedStatusText,
+				subjectText,
+				isAllExams,
+				printDateFormatted,
+				teacherName
+			} = meta;
+
+			// Perhitungan statistik nilai jika ada data
+			const scores = (submissions || [])
+				.filter(s => s.nilai_total !== null && s.nilai_total !== undefined)
+				.map(s => Number(s.nilai_total));
+
+			const totalSiswa = submissions.length;
+			const avgScore = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : "0.00";
+			const maxScore = scores.length > 0 ? Math.max(...scores).toFixed(2) : "-";
+			const minScore = scores.length > 0 ? Math.min(...scores).toFixed(2) : "-";
+
+			// --- BAGIAN 1: KOP SURAT ---
+			const schoolName = PRINT_CONFIG.kop.namaSekolah ? PRINT_CONFIG.kop.namaSekolah.trim() : "";
+			const docTitle = PRINT_CONFIG.kop.judulDokumen ? PRINT_CONFIG.kop.judulDokumen.trim() : "";
+			const subTitle = PRINT_CONFIG.kop.subJudul ? PRINT_CONFIG.kop.subJudul.trim() : "";
+			const address = PRINT_CONFIG.kop.alamatSekolah ? PRINT_CONFIG.kop.alamatSekolah.trim() : "";
+
+			let kopHtml = `
+				<div style="text-align: center; margin-bottom: 16px; ${PRINT_CONFIG.kop.tampilkanGarisKop ? 'border-bottom: 3px double #000; padding-bottom: 10px;' : ''}">
+					${schoolName ? `<h2 style="margin: 0; font-size: 16pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">${escapeHtml(schoolName)}</h2>` : ''}
+					<h3 style="margin: 4px 0 0 0; font-size: 13pt; font-weight: bold; letter-spacing: 0.5px;">${escapeHtml(docTitle)}</h3>
+					${subTitle ? `<p style="margin: 3px 0 0 0; font-size: 10pt; color: #333;">${escapeHtml(subTitle)}</p>` : ''}
+					${address ? `<p style="margin: 2px 0 0 0; font-size: 9pt; color: #555;">${escapeHtml(address)}</p>` : ''}
+				</div>
+			`;
+
+			// --- BAGIAN 2: INFORMASI KELAS & UJIAN ---
+			let metaHtml = `
+				<table style="width: 100%; margin-bottom: 15px; font-size: 10.5pt; line-height: 1.5; border-collapse: collapse;">
+					<tr>
+						<td style="width: 16%; font-weight: bold; vertical-align: top;">Mata Pelajaran</td>
+						<td style="width: 34%; vertical-align: top;">: ${escapeHtml(subjectText)}</td>
+						<td style="width: 16%; font-weight: bold; vertical-align: top;">Kelas</td>
+						<td style="width: 34%; vertical-align: top;">: ${escapeHtml(selectedClassText)}</td>
+					</tr>
+					<tr>
+						<td style="font-weight: bold; vertical-align: top;">Nama Ujian</td>
+						<td style="vertical-align: top;">: ${escapeHtml(selectedExamText)}</td>
+						<td style="font-weight: bold; vertical-align: top;">Tanggal Cetak</td>
+						<td style="vertical-align: top;">: ${escapeHtml(printDateFormatted)}</td>
+					</tr>
+					${meta.filterStatusVal ? `
+					<tr>
+						<td style="font-weight: bold; vertical-align: top;">Status Nilai</td>
+						<td style="vertical-align: top;">: ${escapeHtml(selectedStatusText)}</td>
+						<td style="font-weight: bold; vertical-align: top;">Total Siswa</td>
+						<td style="vertical-align: top;">: ${totalSiswa} Siswa</td>
+					</tr>
+					` : ''}
+				</table>
+			`;
+
+			// --- BAGIAN 3: TABEL DATA SISWA ---
+			let showUjianCol = PRINT_CONFIG.kolom.ujianMapel && isAllExams;
+
+			let tableRows = '';
+			if (!submissions || submissions.length === 0) {
+				const colCount = 5 + (showUjianCol ? 1 : 0);
+				tableRows = `
+					<tr>
+						<td colspan="${colCount}" style="text-align: center; padding: 25px; color: #666; font-style: italic;">
+							Tidak ada data nilai ujian yang cocok dengan filter yang dipilih.
+						</td>
+					</tr>
+				`;
+			} else {
+				tableRows = submissions.map((s, idx) => {
+					const nilaiDisplay = (s.nilai_total !== null && s.nilai_total !== undefined)
+						? Number(s.nilai_total).toFixed(2)
+						: "-";
+					
+					let statusDisplay = "Sedang Berlangsung";
+					if (s.status === 'dinilai') statusDisplay = "Sudah Dinilai";
+					else if (s.status === 'dikumpulkan') statusDisplay = "Perlu Dinilai";
+
+					return `
+						<tr style="${idx % 2 === 1 ? 'background-color: #fafafa;' : ''}">
+							${PRINT_CONFIG.kolom.nomor ? `<td style="text-align: center; padding: 6px 4px; border: 1px solid #333;">${idx + 1}</td>` : ''}
+							${PRINT_CONFIG.kolom.nis ? `<td style="text-align: center; padding: 6px 6px; border: 1px solid #333;">${escapeHtml(s.studentNis)}</td>` : ''}
+							${PRINT_CONFIG.kolom.namaSiswa ? `<td style="padding: 6px 8px; border: 1px solid #333; font-weight: 500;">${escapeHtml(s.studentName)}</td>` : ''}
+							${PRINT_CONFIG.kolom.kelas ? `<td style="text-align: center; padding: 6px 6px; border: 1px solid #333;">${escapeHtml(s.className)}</td>` : ''}
+							${showUjianCol ? `<td style="padding: 6px 8px; border: 1px solid #333; font-size: 9.5pt;">${escapeHtml(s.examName)} (${escapeHtml(s.subjectName)})</td>` : ''}
+							${PRINT_CONFIG.kolom.nilaiAkhir ? `<td style="text-align: center; padding: 6px 6px; border: 1px solid #333; font-weight: bold; font-size: 11pt;">${nilaiDisplay}</td>` : ''}
+							${PRINT_CONFIG.kolom.status ? `<td style="text-align: center; padding: 6px 6px; border: 1px solid #333; font-size: 9.5pt;">${escapeHtml(statusDisplay)}</td>` : ''}
+						</tr>
+					`;
+				}).join('');
+			}
+
+			let tableHtml = `
+				<table class="print-table" style="width: 100%; border-collapse: collapse; font-size: 10.5pt; margin-top: 6px;" border="1" cellpadding="5">
+					<thead>
+						<tr style="background-color: #f0f0f0; text-align: center; font-weight: bold;">
+							${PRINT_CONFIG.kolom.nomor ? `<th style="width: 38px; padding: 7px 4px; border: 1px solid #333;">No</th>` : ''}
+							${PRINT_CONFIG.kolom.nis ? `<th style="width: 110px; padding: 7px 6px; border: 1px solid #333;">NIS</th>` : ''}
+							${PRINT_CONFIG.kolom.namaSiswa ? `<th style="text-align: left; padding: 7px 8px; border: 1px solid #333;">Nama Siswa</th>` : ''}
+							${PRINT_CONFIG.kolom.kelas ? `<th style="width: 100px; padding: 7px 6px; border: 1px solid #333;">Kelas</th>` : ''}
+							${showUjianCol ? `<th style="width: 180px; padding: 7px 6px; border: 1px solid #333;">Ujian / Mata Pelajaran</th>` : ''}
+							${PRINT_CONFIG.kolom.nilaiAkhir ? `<th style="width: 90px; padding: 7px 6px; border: 1px solid #333;">Nilai Akhir</th>` : ''}
+							${PRINT_CONFIG.kolom.status ? `<th style="width: 115px; padding: 7px 6px; border: 1px solid #333;">Status</th>` : ''}
+						</tr>
+					</thead>
+					<tbody>
+						${tableRows}
+					</tbody>
+				</table>
+			`;
+
+			// --- BAGIAN 4: RINGKASAN STATISTIK (OPSIONAL) ---
+			let statsHtml = '';
+			if (PRINT_CONFIG.tampilkanStatistik && submissions.length > 0) {
+				statsHtml = `
+					<div style="margin-top: 10px; font-size: 10pt; border: 1px dashed #555; padding: 8px 12px; background: #fafafa; display: flex; justify-content: space-around; flex-wrap: wrap;">
+						<div><strong>Total Peserta:</strong> ${totalSiswa} Siswa</div>
+						<div><strong>Rata-rata Nilai:</strong> ${avgScore}</div>
+						<div><strong>Nilai Tertinggi:</strong> ${maxScore}</div>
+						<div><strong>Nilai Terendah:</strong> ${minScore}</div>
+					</div>
+				`;
+			}
+
+			// --- BAGIAN 5: CATATAN TAMBAHAN (JIKA DIISI) ---
+			let notesHtml = '';
+			if (PRINT_CONFIG.catatanTambahan && PRINT_CONFIG.catatanTambahan.trim()) {
+				notesHtml = `
+					<div style="margin-top: 10px; font-size: 9.5pt; color: #222; padding: 6px 8px; background: #fffdf5; border-left: 3px solid #f6c23e;">
+						${escapeHtml(PRINT_CONFIG.catatanTambahan.trim())}
+					</div>
+				`;
+			}
+
+			// --- BAGIAN 6: AREA TANDA TANGAN ---
+			const dateLine = PRINT_CONFIG.tandaTangan.kota && PRINT_CONFIG.tandaTangan.kota.trim()
+				? `${PRINT_CONFIG.tandaTangan.kota.trim()}, ${printDateFormatted}`
+				: printDateFormatted;
+
+			const signRightJabatan = PRINT_CONFIG.tandaTangan.jabatanKanan || "";
+			const signRightNama = PRINT_CONFIG.tandaTangan.namaKanan && PRINT_CONFIG.tandaTangan.namaKanan.trim()
+				? PRINT_CONFIG.tandaTangan.namaKanan.trim()
+				: (teacherName || "");
+			const signRightNip = PRINT_CONFIG.tandaTangan.nipKanan && PRINT_CONFIG.tandaTangan.nipKanan.trim()
+				? PRINT_CONFIG.tandaTangan.nipKanan.trim()
+				: "";
+
+			const signLeftJabatan = PRINT_CONFIG.tandaTangan.jabatanKiri || "Mengetahui,\nKepala Sekolah,";
+			const signLeftNama = PRINT_CONFIG.tandaTangan.namaKiri && PRINT_CONFIG.tandaTangan.namaKiri.trim()
+				? PRINT_CONFIG.tandaTangan.namaKiri.trim()
+				: "";
+			const signLeftNip = PRINT_CONFIG.tandaTangan.nipKiri && PRINT_CONFIG.tandaTangan.nipKiri.trim()
+				? PRINT_CONFIG.tandaTangan.nipKiri.trim()
+				: "";
+
+			let signatureHtml = '';
+			const pos = PRINT_CONFIG.tandaTangan.posisi || "kanan";
+
+			if (pos === "dua_kolom") {
+				// Dua Kolom: Kiri (Kepala Sekolah) & Kanan (Guru Pengampu)
+				signatureHtml = `
+					<div class="print-signature-area" style="margin-top: 25px; display: flex; justify-content: space-between; font-size: 10.5pt;">
+						<div style="text-align: center; width: 230px;">
+							<p style="margin: 0; white-space: pre-line;">${escapeHtml(signLeftJabatan)}</p>
+							<div style="height: 65px;"></div>
+							<p style="margin: 0; font-weight: bold; text-decoration: underline;">${escapeHtml(signLeftNama)}</p>
+							<p style="margin: 2px 0 0 0; font-size: 9.5pt;">${escapeHtml(signLeftNip)}</p>
+						</div>
+						<div style="text-align: center; width: 230px;">
+							<p style="margin: 0;">${escapeHtml(dateLine)}</p>
+							<p style="margin: 2px 0 0 0; white-space: pre-line;">${escapeHtml(signRightJabatan)}</p>
+							<div style="height: 65px;"></div>
+							<p style="margin: 0; font-weight: bold; text-decoration: underline;">${signRightNama.startsWith('(') ? escapeHtml(signRightNama) : `( ${escapeHtml(signRightNama)} )`}</p>
+							<p style="margin: 2px 0 0 0; font-size: 9.5pt;">${escapeHtml(signRightNip)}</p>
+						</div>
+					</div>
+				`;
+			} else if (pos === "kiri") {
+				signatureHtml = `
+					<div class="print-signature-area" style="margin-top: 25px; display: flex; justify-content: flex-start; font-size: 10.5pt;">
+						<div style="text-align: center; width: 230px;">
+							<p style="margin: 0;">${escapeHtml(dateLine)}</p>
+							<p style="margin: 2px 0 0 0; white-space: pre-line;">${escapeHtml(signRightJabatan)}</p>
+							<div style="height: 65px;"></div>
+							<p style="margin: 0; font-weight: bold; text-decoration: underline;">${signRightNama.startsWith('(') ? escapeHtml(signRightNama) : `( ${escapeHtml(signRightNama)} )`}</p>
+							<p style="margin: 2px 0 0 0; font-size: 9.5pt;">${escapeHtml(signRightNip)}</p>
+						</div>
+					</div>
+				`;
+			} else if (pos === "tengah") {
+				signatureHtml = `
+					<div class="print-signature-area" style="margin-top: 25px; display: flex; justify-content: center; font-size: 10.5pt;">
+						<div style="text-align: center; width: 230px;">
+							<p style="margin: 0;">${escapeHtml(dateLine)}</p>
+							<p style="margin: 2px 0 0 0; white-space: pre-line;">${escapeHtml(signRightJabatan)}</p>
+							<div style="height: 65px;"></div>
+							<p style="margin: 0; font-weight: bold; text-decoration: underline;">${signRightNama.startsWith('(') ? escapeHtml(signRightNama) : `( ${escapeHtml(signRightNama)} )`}</p>
+							<p style="margin: 2px 0 0 0; font-size: 9.5pt;">${escapeHtml(signRightNip)}</p>
+						</div>
+					</div>
+				`;
+			} else {
+				// Default "kanan"
+				signatureHtml = `
+					<div class="print-signature-area" style="margin-top: 25px; display: flex; justify-content: flex-end; font-size: 10.5pt;">
+						<div style="text-align: center; width: 230px;">
+							<p style="margin: 0;">${escapeHtml(dateLine)}</p>
+							<p style="margin: 2px 0 0 0; white-space: pre-line;">${escapeHtml(signRightJabatan)}</p>
+							<div style="height: 65px;"></div>
+							<p style="margin: 0; font-weight: bold; text-decoration: underline;">${signRightNama.startsWith('(') ? escapeHtml(signRightNama) : `( ${escapeHtml(signRightNama)} )`}</p>
+							<p style="margin: 2px 0 0 0; font-size: 9.5pt;">${escapeHtml(signRightNip)}</p>
+						</div>
+					</div>
+				`;
+			}
+
+			return `
+				<div style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; color: #000; width: 100%; box-sizing: border-box;">
+					${kopHtml}
+					${metaHtml}
+					${tableHtml}
+					${statsHtml}
+					${notesHtml}
+					${signatureHtml}
+				</div>
+			`;
+		}
+
+		/**
+		 * Handler Tombol "Cetak Rekap Nilai"
+		 * Mengambil data filter saat ini, menyusun template cetak, dan membuka dialog cetak browser.
+		 */
 		function printReport() {
 			const filterClassVal = document.getElementById("filterClass").value;
+			const filterSubjectVal = document.getElementById("filterSubject")?.value;
 			const filterExamVal = document.getElementById("filterExam").value;
+			const filterStatusVal = document.getElementById("filterStatus").value;
 
 			const classSelect = document.getElementById("filterClass");
 			const selectedClassText = classSelect.options[classSelect.selectedIndex]?.text || "Semua Kelas";
 
+			const subjectSelect = document.getElementById("filterSubject");
+			const selectedSubjectText = subjectSelect?.options[subjectSelect.selectedIndex]?.text || "Semua Mata Pelajaran";
+
 			const examSelect = document.getElementById("filterExam");
 			const selectedExamText = examSelect.options[examSelect.selectedIndex]?.text || "Semua Ujian";
 
-			document.getElementById("printMetaClass").textContent = `: ${selectedClassText}`;
-			document.getElementById("printMetaExam").textContent = `: ${selectedExamText}`;
-			document.getElementById("printMetaDate").textContent = `: ${new Date().toLocaleDateString("id-ID", { day: '2-digit', month: 'long', year: 'numeric' })}`;
+			const statusSelect = document.getElementById("filterStatus");
+			const selectedStatusText = statusSelect.options[statusSelect.selectedIndex]?.text || "Semua Status";
 
-			// Nama guru penandatangan
-			const currentTeacher = window.currentUserProfile?.name || "Administrator";
-			document.getElementById("printTeacherName").textContent = `( ${currentTeacher} )`;
-
-			// Tentukan mata pelajaran
+			// Tentukan nama mata pelajaran
 			let subjectText = "-";
-			if (filteredSubmissions.length > 0) {
+			if (filterSubjectVal && selectedSubjectText !== "Semua Mata Pelajaran") {
+				subjectText = selectedSubjectText;
+			} else if (filteredSubmissions.length > 0) {
 				const sample = filteredSubmissions.find(s => s.subjectName && s.subjectName !== '-');
 				if (sample) subjectText = sample.subjectName;
+			} else if (filterExamVal) {
+				const foundExam = allExams.find(e => String(e.id) === filterExamVal);
+				if (foundExam?.data_pelajaran?.nama_pelajaran) {
+					subjectText = foundExam.data_pelajaran.nama_pelajaran;
+				}
 			}
-			document.getElementById("printMetaSubject").textContent = `: ${subjectText}`;
 
-			const printTbody = document.getElementById("printTableBody");
-			if (filteredSubmissions.length === 0) {
-				printTbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">Tidak ada data pengerjaan ujian.</td></tr>';
+			const teacherName = window.currentUserProfile?.name || PRINT_CONFIG.tandaTangan.namaKananDefault;
+			const printDateFormatted = new Date().toLocaleDateString("id-ID", {
+				day: '2-digit',
+				month: 'long',
+				year: 'numeric'
+			});
+
+			const meta = {
+				filterClassVal,
+				selectedClassText,
+				filterSubjectVal,
+				selectedSubjectText,
+				filterExamVal,
+				selectedExamText,
+				filterStatusVal,
+				selectedStatusText,
+				subjectText,
+				isAllExams: !filterExamVal,
+				printDateFormatted,
+				teacherName
+			};
+
+			const printContainer = document.getElementById("printArea");
+			if (!printContainer) {
+				alert("Elemen printArea tidak ditemukan.");
+				return;
+			}
+
+			// Render HTML ke printArea
+			printContainer.innerHTML = generatePrintHtml(filteredSubmissions, meta);
+
+			// Berikan jeda sejenak agar browser selesai me-render sebelum dialog cetak terbuka
+			setTimeout(() => {
+				window.print();
+			}, 100);
+		}
+
+		/**
+		 * Helper: Membuat satu Worksheet Excel untuk satu Mata Pelajaran tertentu.
+		 * Kolom dan format tetap konsisten sesuai permintaan.
+		 */
+		function buildSubjectExcelSheet(items, subjectName, examFilterText, selectedClassText, exportDateStr, selectedStatusText) {
+			const excelSchool = PRINT_CONFIG.kop.namaSekolah || "SEKOLAH / YAYASAN";
+			const excelTitle = PRINT_CONFIG.kop.judulDokumen || "REKAPITULASI HASIL & NILAI UJIAN SISWA";
+			const excelSub = PRINT_CONFIG.kop.subJudul || "Tahun Ajaran Aktif";
+
+			const excelRows = [
+				[excelSchool],
+				[excelTitle],
+				[excelSub],
+				[],
+				["Filter Kelas", selectedClassText, "", "Mata Pelajaran", subjectName],
+				["Filter Ujian", examFilterText, "", "Tanggal Ekspor", exportDateStr],
+				["Status Nilai", selectedStatusText, "", "Total Peserta", `${items.length} Siswa`],
+				[],
+				// Baris Judul Kolom Tabel (Tetap Sesuai Konsep Asli)
+				["No", "NIS", "Nama Siswa", "Kelas", "Nama Ujian", "Mata Pelajaran", "Nilai Akhir", "Status Penilaian", "Waktu Pengumpulan"]
+			];
+
+			// Baris Data Siswa
+			items.forEach((s, idx) => {
+				let statusDisplay = "Sedang Berlangsung";
+				if (s.status === 'dinilai') statusDisplay = "Sudah Dinilai";
+				else if (s.status === 'dikumpulkan') statusDisplay = "Perlu Dinilai";
+
+				const nilaiVal = (s.nilai_total !== null && s.nilai_total !== undefined)
+					? Number(Number(s.nilai_total).toFixed(2))
+					: "-";
+
+				excelRows.push([
+					idx + 1,
+					s.studentNis || "-",
+					s.studentName || "-",
+					s.className || "-",
+					s.examName || "-",
+					s.subjectName || subjectName || "-",
+					nilaiVal,
+					statusDisplay,
+					formatWibDate(s.dikumpulkan_at)
+				]);
+			});
+
+			// Ringkasan Statistik Nilai per Mapel di Bagian Bawah
+			const scores = items
+				.filter(s => s.nilai_total !== null && s.nilai_total !== undefined)
+				.map(s => Number(s.nilai_total));
+
+			if (scores.length > 0) {
+				const avg = Number((scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2));
+				const max = Math.max(...scores);
+				const min = Math.min(...scores);
+
+				excelRows.push([]);
+				excelRows.push(["", "", "Total Siswa:", items.length, "", "", "", "", ""]);
+				excelRows.push(["", "", "Rata-rata Nilai:", avg, "", "", "", "", ""]);
+				excelRows.push(["", "", "Nilai Tertinggi:", max, "", "", "", "", ""]);
+				excelRows.push(["", "", "Nilai Terendah:", min, "", "", "", "", ""]);
+			}
+
+			const worksheet = XLSX.utils.aoa_to_sheet(excelRows);
+
+			// Atur Lebar Kolom
+			worksheet["!cols"] = [
+				{ wch: 6 },  // No
+				{ wch: 16 }, // NIS
+				{ wch: 30 }, // Nama Siswa
+				{ wch: 18 }, // Kelas
+				{ wch: 25 }, // Nama Ujian
+				{ wch: 22 }, // Mata Pelajaran
+				{ wch: 14 }, // Nilai Akhir
+				{ wch: 18 }, // Status Penilaian
+				{ wch: 22 }, // Waktu Pengumpulan
+			];
+
+			return worksheet;
+		}
+
+		/**
+		 * Handler Tombol "Export Excel"
+		 * Mengekspor data nilai siswa per kelas ke format Excel (.xlsx).
+		 * Jika difilter "Semua Mata Pelajaran", otomatis membuat sheet (page) terpisah per nama mata pelajaran.
+		 */
+		function exportToExcel() {
+			if (!window.XLSX) {
+				alert("Library SheetJS Excel belum selesai dimuat. Harap periksa koneksi internet atau muat ulang halaman.");
+				return;
+			}
+
+			if (!filteredSubmissions || filteredSubmissions.length === 0) {
+				alert("Tidak ada data nilai yang cocok dengan filter saat ini untuk diekspor.");
+				return;
+			}
+
+			const classSelect = document.getElementById("filterClass");
+			const selectedClassText = classSelect.options[classSelect.selectedIndex]?.text || "Semua Kelas";
+
+			const filterSubjectVal = document.getElementById("filterSubject")?.value;
+			const subjectSelect = document.getElementById("filterSubject");
+			const selectedSubjectText = subjectSelect?.options[subjectSelect.selectedIndex]?.text || "Semua Mata Pelajaran";
+
+			const filterExamVal = document.getElementById("filterExam").value;
+			const examSelect = document.getElementById("filterExam");
+			const selectedExamText = examSelect.options[examSelect.selectedIndex]?.text || "Semua Ujian";
+
+			const statusSelect = document.getElementById("filterStatus");
+			const selectedStatusText = statusSelect.options[statusSelect.selectedIndex]?.text || "Semua Status";
+
+			const exportDateStr = new Date().toLocaleDateString("id-ID", { day: '2-digit', month: 'long', year: 'numeric' });
+
+			const workbook = XLSX.utils.book_new();
+			const usedSheetNames = new Set();
+
+			// Fungsi sanitasi nama sheet Excel (maksimal 31 karakter & tanpa simbol ilegal)
+			function sanitizeSheetName(name) {
+				let clean = (name || "Mapel").replace(/[\\/?*[\]:]/g, "_").trim();
+				if (clean.length > 28) clean = clean.substring(0, 28).trim();
+				let candidate = clean || "Mapel";
+				let counter = 1;
+				while (usedSheetNames.has(candidate.toLowerCase())) {
+					counter++;
+					const suffix = ` (${counter})`;
+					candidate = clean.substring(0, 31 - suffix.length) + suffix;
+				}
+				usedSheetNames.add(candidate.toLowerCase());
+				return candidate;
+			}
+
+			// JIKA DIFILTER 1 MATA PELAJARAN TERTENTU
+			if (filterSubjectVal) {
+				const sample = filteredSubmissions[0];
+				const subjectName = sample?.subjectName || selectedSubjectText;
+				const sheet = buildSubjectExcelSheet(filteredSubmissions, subjectName, selectedExamText, selectedClassText, exportDateStr, selectedStatusText);
+				const sheetName = sanitizeSheetName(subjectName);
+				XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
 			} else {
-				printTbody.innerHTML = filteredSubmissions.map((s, idx) => `
-					<tr>
-						<td style="text-align: center;">${idx + 1}</td>
-						<td style="text-align: center;">${escapeHtml(s.studentNis)}</td>
-						<td>${escapeHtml(s.studentName)}</td>
-						<td style="text-align: center;">${escapeHtml(s.className)}</td>
-						<td style="text-align: center; font-weight: bold;">${s.nilai_total !== null ? Number(s.nilai_total).toFixed(2) : '-'}</td>
-						<td style="text-align: center;">${s.status === 'dinilai' ? 'Sudah Dinilai' : (s.status === 'dikumpulkan' ? 'Dikumpulkan' : 'Berlangsung')}</td>
-					</tr>
-				`).join('');
+				// JIKA DIFILTER "SEMUA MATA PELAJARAN":
+				// Kelompokkan pengerjaan siswa berdasarkan nama mata pelajaran, dan buat 1 sheet (page) per mapel
+				const subjectGroups = new Map();
+				filteredSubmissions.forEach(sub => {
+					const key = String(sub.subjectId || sub.subjectName || "unknown");
+					if (!subjectGroups.has(key)) {
+						subjectGroups.set(key, {
+							subjectName: sub.subjectName && sub.subjectName !== '-' ? sub.subjectName : "Mata Pelajaran",
+							items: []
+						});
+					}
+					subjectGroups.get(key).items.push(sub);
+				});
+
+				subjectGroups.forEach(group => {
+					const sheet = buildSubjectExcelSheet(group.items, group.subjectName, selectedExamText, selectedClassText, exportDateStr, selectedStatusText);
+					const sheetName = sanitizeSheetName(group.subjectName);
+					XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+				});
 			}
 
-			window.print();
+			// Format nama file Excel
+			const safeClass = selectedClassText.replace(/[^a-zA-Z0-9_-]/g, "_").replace(/^_+|_+$/g, "");
+			const safeSubject = filterSubjectVal
+				? selectedSubjectText.replace(/[^a-zA-Z0-9_-]/g, "_").replace(/^_+|_+$/g, "")
+				: "Semua_Mapel";
+			const dateStamp = new Date().toISOString().slice(0, 10);
+			const fileName = `Rekap_Nilai_${safeClass}_${safeSubject}_${dateStamp}.xlsx`;
+
+			XLSX.writeFile(workbook, fileName);
+			showMessage(`Berhasil mengekspor data ke file Excel "${fileName}" dengan sheet per mata pelajaran.`, "success");
 		}
 
 		document.addEventListener("DOMContentLoaded", async () => {
 			if (!await window.adminSessionReady) return;
 
 			await loadClasses();
+			await loadSubjects();
 			await loadExams();
 			await loadAllSubmissions();
 
 			document.getElementById("btnRefreshData").addEventListener("click", loadAllSubmissions);
+			document.getElementById("btnExportExcel").addEventListener("click", exportToExcel);
+			document.getElementById("btnPrintReport").addEventListener("click", printReport);
 			document.getElementById("filterClass").addEventListener("change", applyFilters);
+			document.getElementById("filterSubject").addEventListener("change", () => {
+				const subVal = document.getElementById("filterSubject").value;
+				loadExams(subVal);
+				applyFilters();
+			});
 			document.getElementById("filterExam").addEventListener("change", applyFilters);
 			document.getElementById("filterStatus").addEventListener("change", applyFilters);
 			document.getElementById("searchKeyword").addEventListener("input", applyFilters);
 
 			document.getElementById("btnResetFilters").addEventListener("click", () => {
 				document.getElementById("filterClass").value = "";
+				document.getElementById("filterSubject").value = "";
+				loadExams();
 				document.getElementById("filterExam").value = "";
 				document.getElementById("filterStatus").value = "";
 				document.getElementById("searchKeyword").value = "";
@@ -1523,8 +2120,6 @@
 			document.getElementById("btnResetStudentAttemptModal").addEventListener("click", () => {
 				if (currentSelectedAttempt) resetStudentAttempt(currentSelectedAttempt.id);
 			});
-
-			document.getElementById("btnPrintReport").addEventListener("click", printReport);
 		});
 	</script>
 </body>
