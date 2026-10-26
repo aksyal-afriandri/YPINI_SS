@@ -251,7 +251,11 @@
       </div>
 
       <!-- Siswa NIS -->
-      <span id="studentName" class="badge badge-light border text-muted px-2 py-2 small d-none d-sm-inline font-weight-bold">NIS</span>
+      <!-- Siswa Info (Foto & Nama/NIS) -->
+      <div class="d-inline-flex align-items-center">
+        <img id="studentAvatar" class="rounded-circle mr-2 border shadow-sm d-none" src="" alt="Foto Siswa" style="width: 30px; height: 30px; object-fit: cover;">
+        <span id="studentName" class="badge badge-light border text-muted px-2 py-2 small d-none d-sm-inline font-weight-bold">NIS</span>
+      </div>
     </div>
   </nav>
 
@@ -719,8 +723,59 @@
       const studentLabel = document.getElementById("studentName");
       if (studentLabel) {
         studentLabel.textContent = `NIS: ${nis}`;
+        applyStudentProfileUI(nis);
       }
       return nis;
+    }
+
+    function applyStudentProfileUI(nis) {
+      const studentLabel = document.getElementById("studentName");
+      const avatarEl = document.getElementById("studentAvatar");
+
+      // Coba dari cache sesi lebih dahulu
+      try {
+        const cached = sessionStorage.getItem("ypn_student_profile_" + nis);
+        if (cached) {
+          const p = JSON.parse(cached);
+          if (p.nama && studentLabel) studentLabel.textContent = `${p.nama} (${nis})`;
+          if (p.photo_url && avatarEl) {
+            avatarEl.src = p.photo_url;
+            avatarEl.classList.remove("d-none");
+            avatarEl.onerror = () => avatarEl.classList.add("d-none");
+          }
+        }
+      } catch (_) {}
+
+      // Refresh profil dari Supabase
+      setTimeout(async () => {
+        try {
+          const client = getSupabaseClient();
+          const { data: res, error: rpcErr } = await client.rpc("get_student_profile", { p_nis: nis });
+          if (!rpcErr && res?.success) {
+            let photoUrl = null;
+            if (res.photo_path) {
+              if (res.photo_path.startsWith("http://") || res.photo_path.startsWith("https://") || res.photo_path.startsWith("data:")) {
+                photoUrl = res.photo_path;
+              } else if (window.SUPABASE_CONFIG?.url) {
+                photoUrl = `${window.SUPABASE_CONFIG.url.replace(/\/+$/, "")}/storage/v1/object/public/student-photos/${res.photo_path.replace(/^\/+/, "")}`;
+              }
+            }
+            const profile = {
+              nama: res.nama,
+              nis: res.nis,
+              photo_path: res.photo_path,
+              photo_url: photoUrl
+            };
+            try { sessionStorage.setItem("ypn_student_profile_" + nis, JSON.stringify(profile)); } catch (_) {}
+            if (profile.nama && studentLabel) studentLabel.textContent = `${profile.nama} (${nis})`;
+            if (profile.photo_url && avatarEl) {
+              avatarEl.src = profile.photo_url;
+              avatarEl.classList.remove("d-none");
+              avatarEl.onerror = () => avatarEl.classList.add("d-none");
+            }
+          }
+        } catch (_) {}
+      }, 50);
     }
 
     function getStorageKeyAnswers(examId) {
