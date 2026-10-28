@@ -32,7 +32,14 @@ window.studentSessionReady = new Promise((resolve) => {
     if (profile.nama) {
       document.querySelectorAll("#studentName").forEach((el) => {
         el.textContent = profile.nama;
-        el.title = `NIS: ${profile.nis || nis}`;
+        const classPart = profile.nama_kelas ? ` · Kelas ${profile.nama_kelas}` : "";
+        el.title = `NIS: ${profile.nis || nis}${classPart}`;
+      });
+    }
+
+    if (profile.nama_kelas) {
+      document.querySelectorAll("#studentClassName").forEach((el) => {
+        el.textContent = `Kelas ${profile.nama_kelas}`;
       });
     }
 
@@ -95,6 +102,9 @@ window.studentSessionReady = new Promise((resolve) => {
             nis: res.nis,
             photo_path: res.photo_path,
             photo_url: getStudentPhotoUrl(res.photo_path),
+            kelas_id: res.kelas_id || null,
+            nama_kelas: res.nama_kelas || "",
+            jenjang: res.jenjang || "",
           };
         }
       } catch (_) {}
@@ -109,7 +119,36 @@ window.studentSessionReady = new Promise((resolve) => {
               nis: resHist.siswa.nis,
               photo_path: null,
               photo_url: null,
+              kelas_id: null,
+              nama_kelas: "",
+              jenjang: "",
             };
+          }
+        } catch (_) {}
+      }
+
+      // Jika nama_kelas belum ada (misal skrip migrasi RPC baru belum dijalankan di SQL Editor), ambil langsung dari relasi siswa
+      if (profile && !profile.nama_kelas) {
+        try {
+          const { data: sData } = await client.from("data_siswa").select("id").eq("nis", nis).maybeSingle();
+          if (sData?.id) {
+            const { data: placement } = await client.from("siswa_kelas_tahun_ajaran")
+              .select("kelas_tahun_ajaran_id, kelas_tahun_ajaran(nama_kelas, jenjang)")
+              .eq("siswa_id", sData.id)
+              .order("tanggal_mulai", { ascending: false })
+              .limit(1);
+            if (placement?.[0]?.kelas_tahun_ajaran) {
+              profile.nama_kelas = placement[0].kelas_tahun_ajaran.nama_kelas || "";
+              profile.jenjang = placement[0].kelas_tahun_ajaran.jenjang || "";
+            } else {
+              const { data: sk } = await client.from("siswa_kelas")
+                .select("kelas_id, data_kelas(nama_kelas)")
+                .eq("siswa_id", sData.id)
+                .limit(1);
+              if (sk?.[0]?.data_kelas) {
+                profile.nama_kelas = sk[0].data_kelas.nama_kelas || "";
+              }
+            }
           }
         } catch (_) {}
       }

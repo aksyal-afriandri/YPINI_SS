@@ -401,7 +401,13 @@
 				selectExam.innerHTML = allExams.map(u => {
 					const isOngoing = new Date() >= new Date(u.dibuka_at) && new Date() <= new Date(u.ditutup_at);
 					const statusLabel = isOngoing ? "Sedang Berlangsung" : (new Date() < new Date(u.dibuka_at) ? "Terjadwal" : "Selesai");
-					return `<option value="${u.id}">${escapeHtml(u.nama_ujian)} (${u.data_pelajaran?.nama_pelajaran || '-'}) - ${statusLabel}</option>`;
+					let targetLabel = "";
+					if (u.target_tingkat && (!u.target_kelas || u.target_kelas === "SEMUA")) {
+						targetLabel = ` [Semua Kelas ${u.target_tingkat}]`;
+					} else if (u.target_kelas) {
+						targetLabel = ` [Kelas ${u.target_kelas}]`;
+					}
+					return `<option value="${u.id}">${escapeHtml(u.nama_ujian)}${targetLabel} (${u.data_pelajaran?.nama_pelajaran || '-'}) - ${statusLabel}</option>`;
 				}).join('');
 
 				// Default pilih ujian yang sedang berlangsung atau yang paling baru

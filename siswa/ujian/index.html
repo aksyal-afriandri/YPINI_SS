@@ -1784,6 +1784,116 @@
       }
     }
 
+    function extractTingkat(namaKelas) {
+        if (!namaKelas) return "";
+        const clean = String(namaKelas).trim();
+    
+        // 1. Teks kata bahasa Indonesia (tujuh, delapan, sembilan, dst)
+        if (/\b(?:tujuh)\b/i.test(clean)) return "7";
+        if (/\b(?:delapan)\b/i.test(clean)) return "8";
+        if (/\b(?:sembilan)\b/i.test(clean)) return "9";
+        if (/\b(?:sepuluh)\b/i.test(clean)) return "10";
+        if (/\b(?:sebelas)\b/i.test(clean)) return "11";
+        if (/\b(?:dua\s*belas)\b/i.test(clean)) return "12";
+        if (/\b(?:enam)\b/i.test(clean)) return "6";
+        if (/\b(?:lima)\b/i.test(clean)) return "5";
+        if (/\b(?:empat)\b/i.test(clean)) return "4";
+        if (/\b(?:tiga)\b/i.test(clean)) return "3";
+        if (/\b(?:dua)\b/i.test(clean)) return "2";
+        if (/\b(?:satu)\b/i.test(clean)) return "1";
+    
+        // 2. Angka Romawi (VII, VIII, IX, X, dst)
+        if (/\bVIII\b/i.test(clean)) return "8";
+        if (/\bVII\b/i.test(clean)) return "7";
+        if (/\bXII\b/i.test(clean)) return "12";
+        if (/\bXI\b/i.test(clean)) return "11";
+        if (/\bIX\b/i.test(clean)) return "9";
+        if (/\bX\b/i.test(clean)) return "10";
+        if (/\bVI\b/i.test(clean)) return "6";
+        if (/\bIV\b/i.test(clean)) return "4";
+        if (/\bV\b/i.test(clean)) return "5";
+        if (/\bIII\b/i.test(clean)) return "3";
+        if (/\bII\b/i.test(clean)) return "2";
+        if (/\bI\b/i.test(clean)) return "1";
+    
+        // 3. Digit angka (7, 8, 9, 7A, 7-B, dsb)
+        const numMatch = clean.match(/\b(\d{1,2})\b/) || clean.match(/(?:kelas\s*)?(\d{1,2})/i);
+        if (numMatch) return String(parseInt(numMatch[1], 10));
+    
+        return "";
+    }
+
+    function isExamForStudent(exam, studentClass, studentTingkat) {
+      const targetTingkat = (exam.target_tingkat || "").trim().toUpperCase();
+      const targetKelas = (exam.target_kelas || "").trim().toUpperCase();
+
+      const isAllTingkat = !targetTingkat || targetTingkat === "SEMUA" || targetTingkat === "ALL";
+      const isAllKelas = !targetKelas || targetKelas === "SEMUA" || targetKelas === "ALL";
+
+      // Jika ujian tidak dibatasi, terbuka untuk semua siswa
+      if (isAllTingkat && isAllKelas) {
+        return true;
+      }
+
+      const sClass = (studentClass || "").trim().toUpperCase();
+      const sTingkat = (studentTingkat || "").trim().toUpperCase();
+
+      // Jika dibatasi berdasarkan tingkat (misal Semua Kelas 7):
+      if (!isAllTingkat && isAllKelas) {
+        if (sTingkat && sTingkat === targetTingkat) return true;
+        if (sClass && sClass.startsWith(targetTingkat)) return true;
+        return false;
+      }
+
+      // Jika dibatasi untuk kelas tertentu (1 per satu kelas, misal 7A atau 7A, 7B):
+      if (!isAllKelas) {
+        const list = targetKelas.split(",").map(c => c.trim().toUpperCase());
+        if (list.includes(sClass)) return true;
+        const sClean = sClass.replace(/[^A-Z0-9]/g, "");
+        if (list.some(c => c.replace(/[^A-Z0-9]/g, "") === sClean)) return true;
+        return false;
+      }
+
+      return true;
+    }
+
+    async function getStudentClass(client, nis) {
+      try {
+        const cached = sessionStorage.getItem("ypn_student_profile_" + nis);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed.nama_kelas) return parsed.nama_kelas;
+        }
+      } catch (_) {}
+
+      try {
+        const { data: prof } = await client.rpc("get_student_profile", { p_nis: nis });
+        if (prof?.success && prof.nama_kelas) return prof.nama_kelas;
+      } catch (_) {}
+
+      try {
+        const { data: s } = await client.from("data_siswa").select("id").eq("nis", nis).maybeSingle();
+        if (s?.id) {
+          const { data: placement } = await client.from("siswa_kelas_tahun_ajaran")
+            .select("kelas_tahun_ajaran_id, kelas_tahun_ajaran(nama_kelas)")
+            .eq("siswa_id", s.id)
+            .order("tanggal_mulai", { ascending: false })
+            .limit(1);
+          if (placement?.[0]?.kelas_tahun_ajaran?.nama_kelas) {
+            return placement[0].kelas_tahun_ajaran.nama_kelas;
+          }
+          const { data: sk } = await client.from("siswa_kelas")
+            .select("kelas_id, data_kelas(nama_kelas)")
+            .eq("siswa_id", s.id)
+            .limit(1);
+          if (sk?.[0]?.data_kelas?.nama_kelas) {
+            return sk[0].data_kelas.nama_kelas;
+          }
+        }
+      } catch (_) {}
+      return "";
+    }
+
     async function initExam() {
       showView("loadingView");
 
@@ -1833,6 +1943,23 @@
         }
 
         activeExam = examData;
+
+        // Validasi sasaran kelas untuk siswa yang sedang login
+        const studentClass = await getStudentClass(supabase, nis);
+        const studentTingkat = extractTingkat(studentClass);
+        if (!isExamForStudent(activeExam, studentClass, studentTingkat)) {
+          let targetMsg = "kelas tertentu";
+          if (activeExam.target_tingkat && (!activeExam.target_kelas || activeExam.target_kelas === "SEMUA")) {
+            targetMsg = `seluruh kelas ${activeExam.target_tingkat}`;
+          } else if (activeExam.target_kelas) {
+            targetMsg = `kelas ${activeExam.target_kelas}`;
+          }
+          showMessage(
+            "Akses Ujian Dibatasi",
+            `Ujian ini ditujukan untuk ${targetMsg} dan tidak tersedia untuk kelas Anda (${studentClass || "Belum ditempatkan"}).`
+          );
+          return;
+        }
 
         // Ambil Daftar Soal (termasuk gambar_url dan gambar_urls)
         let soalData = null;

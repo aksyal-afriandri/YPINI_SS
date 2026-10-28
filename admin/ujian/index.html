@@ -219,10 +219,19 @@
 							</ul>
 						</div>
 						<div class="card-body">
+							<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+								<div class="d-flex align-items-center mb-2 mb-md-0">
+									<label for="filterExamTarget" class="small font-weight-bold text-muted mr-2 mb-0">Sasaran:</label>
+									<select id="filterExamTarget" class="form-control form-control-sm w-auto" style="min-width: 170px;">
+										<option value="">Semua Sasaran</option>
+									</select>
+								</div>
+								<div id="filterExamInfo" class="small text-muted"></div>
+							</div>
 							<div class="table-responsive">
 								<table class="table table-hover" id="examTable">
-									<thead><tr><th>Nama ujian</th><th>Mata pelajaran</th><th>Jadwal</th><th>Durasi</th><th>Status</th><th>Aksi</th></tr></thead>
-									<tbody><tr><td colspan="6" class="text-center text-muted py-4">Memuat ujian...</td></tr></tbody>
+									<thead><tr><th>Nama ujian</th><th>Mata pelajaran</th><th>Sasaran</th><th>Jadwal</th><th>Durasi</th><th>Status</th><th>Aksi</th></tr></thead>
+									<tbody><tr><td colspan="7" class="text-center text-muted py-4">Memuat ujian...</td></tr></tbody>
 								</table>
 							</div>
 						</div>
@@ -274,6 +283,37 @@
 						<div class="form-group col-md-3"><label for="examTolerance">Toleransi (menit)</label><input id="examTolerance" name="toleransi_menit" type="number" class="form-control" min="0" step="1" value="15" placeholder="Default 15" required><small class="text-muted">Ekstra waktu pengerjaan</small></div>
 						<div class="form-group col-md-3"><label for="examOpenAt">Mulai dibuka</label><input id="examOpenAt" name="dibuka_at" type="datetime-local" class="form-control" required></div>
 						<div class="form-group col-md-3"><label for="examCloseAt">Ditutup</label><input id="examCloseAt" name="ditutup_at" type="datetime-local" class="form-control" required></div>
+					</div>
+					<div class="form-row border-top pt-3">
+						<div class="form-group col-md-4">
+							<label for="examTargetMode" class="font-weight-bold">Sasaran Kelas</label>
+							<select id="examTargetMode" name="target_mode" class="form-control">
+								<option value="semua">Semua Kelas</option>
+								<option value="tingkat">Semua Kelas di Tingkat Tertentu</option>
+								<option value="spesifik">Pilih Kelas Tertentu (Satu per Satu)</option>
+							</select>
+							<small class="text-muted d-block mt-1">Pilih peserta yang dapat mengakses ujian ini.</small>
+						</div>
+						<div class="form-group col-md-8" id="examTargetTingkatContainer" style="display: none;">
+							<label for="examTargetTingkat" class="font-weight-bold">Pilih Tingkat</label>
+							<select id="examTargetTingkat" class="form-control">
+								<option value="">Pilih tingkat kelas...</option>
+							</select>
+							<small class="text-muted d-block mt-1">Misal: Memilih "Semua Kelas 7" akan otomatis membuka ujian untuk seluruh kelas 7 (7A, 7B, dst).</small>
+						</div>
+						<div class="form-group col-md-8" id="examTargetClassesContainer" style="display: none;">
+							<div class="d-flex justify-content-between align-items-center mb-1">
+								<label class="font-weight-bold mb-0">Pilih Kelas Tertentu</label>
+								<div>
+									<button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="btnSelectAllClasses" style="font-size: 0.75rem;">Pilih Semua</button>
+									<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 ml-1" id="btnClearAllClasses" style="font-size: 0.75rem;">Batal Pilih</button>
+								</div>
+							</div>
+							<div id="examClassCheckboxesList" class="border rounded p-2 bg-light" style="max-height: 150px; overflow-y: auto;">
+								<span class="text-muted small">Memuat daftar kelas...</span>
+							</div>
+							<small class="text-muted d-block mt-1">Centang kelas yang diizinkan (misal Kelas 7A saja, atau beberapa kelas).</small>
+						</div>
 					</div>
 					<div class="form-row border-top pt-3">
 						<div class="form-group col-md-4"><div class="custom-control custom-switch"><input id="examActive" name="aktif" type="checkbox" class="custom-control-input"><label class="custom-control-label" for="examActive">Ujian aktif</label></div></div>
@@ -517,6 +557,186 @@
 		const questionsSection = document.getElementById("questionsSection");
 		let subjects = [];
 		let exams = [];
+		let allClasses = [];
+		let availableTingkats = [];
+
+		function extractTingkatFromClassName(namaKelas) {
+			return extractTingkat(namaKelas);
+		}
+
+		function extractTingkat(namaKelas) {
+		    if (!namaKelas) return "";
+		    const clean = String(namaKelas).trim();
+		
+		    // 1. Teks kata bahasa Indonesia (tujuh, delapan, sembilan, dst)
+		    if (/\b(?:tujuh)\b/i.test(clean)) return "7";
+		    if (/\b(?:delapan)\b/i.test(clean)) return "8";
+		    if (/\b(?:sembilan)\b/i.test(clean)) return "9";
+		    if (/\b(?:sepuluh)\b/i.test(clean)) return "10";
+		    if (/\b(?:sebelas)\b/i.test(clean)) return "11";
+		    if (/\b(?:dua\s*belas)\b/i.test(clean)) return "12";
+		    if (/\b(?:enam)\b/i.test(clean)) return "6";
+		    if (/\b(?:lima)\b/i.test(clean)) return "5";
+		    if (/\b(?:empat)\b/i.test(clean)) return "4";
+		    if (/\b(?:tiga)\b/i.test(clean)) return "3";
+		    if (/\b(?:dua)\b/i.test(clean)) return "2";
+		    if (/\b(?:satu)\b/i.test(clean)) return "1";
+		
+		    // 2. Angka Romawi (VII, VIII, IX, X, dst)
+		    if (/\bVIII\b/i.test(clean)) return "8";
+		    if (/\bVII\b/i.test(clean)) return "7";
+		    if (/\bXII\b/i.test(clean)) return "12";
+		    if (/\bXI\b/i.test(clean)) return "11";
+		    if (/\bIX\b/i.test(clean)) return "9";
+		    if (/\bX\b/i.test(clean)) return "10";
+		    if (/\bVI\b/i.test(clean)) return "6";
+		    if (/\bIV\b/i.test(clean)) return "4";
+		    if (/\bV\b/i.test(clean)) return "5";
+		    if (/\bIII\b/i.test(clean)) return "3";
+		    if (/\bII\b/i.test(clean)) return "2";
+		    if (/\bI\b/i.test(clean)) return "1";
+		
+		    // 3. Digit angka (7, 8, 9, 7A, 7-B, dsb)
+		    const numMatch = clean.match(/\b(\d{1,2})\b/) || clean.match(/(?:kelas\s*)?(\d{1,2})/i);
+		    if (numMatch) return String(parseInt(numMatch[1], 10));
+		
+		    return "";
+		}
+
+		function getExamTargetBadge(exam) {
+			const tTingkat = (exam.target_tingkat || "").trim();
+			const tKelas = (exam.target_kelas || "").trim();
+			if ((!tTingkat || tTingkat === "SEMUA") && (!tKelas || tKelas === "SEMUA")) {
+				return '<span class="badge badge-light border text-secondary font-weight-normal">Semua Kelas</span>';
+			}
+			if (tTingkat && (!tKelas || tKelas === "SEMUA")) {
+				return `<span class="badge badge-info">Semua Kelas ${escapeHtml(tTingkat)}</span>`;
+			}
+			if (tKelas) {
+				const list = tKelas.split(",").map(c => c.trim()).filter(Boolean);
+				if (list.length === 1) {
+					return `<span class="badge badge-primary">Kelas ${escapeHtml(list[0])}</span>`;
+				}
+				if (list.length <= 3) {
+					return `<span class="badge badge-primary">Kelas ${escapeHtml(list.join(", "))}</span>`;
+				}
+				return `<span class="badge badge-primary" title="${escapeHtml(list.join(", "))}">Kelas (${list.length} kelas)</span>`;
+			}
+			return '<span class="badge badge-light border text-secondary font-weight-normal">Semua Kelas</span>';
+		}
+
+		function updateTargetModeUI() {
+			const mode = document.getElementById("examTargetMode")?.value || "semua";
+			const tingkatContainer = document.getElementById("examTargetTingkatContainer");
+			const classesContainer = document.getElementById("examTargetClassesContainer");
+			if (tingkatContainer) tingkatContainer.style.display = mode === "tingkat" ? "block" : "none";
+			if (classesContainer) classesContainer.style.display = mode === "spesifik" ? "block" : "none";
+		}
+
+		function renderClassCheckboxes(selectedClasses = []) {
+			const container = document.getElementById("examClassCheckboxesList");
+			if (!container) return;
+			if (!allClasses.length) {
+				container.innerHTML = '<span class="text-muted small">Belum ada data kelas yang terdaftar di sistem.</span>';
+				return;
+			}
+
+			const grouped = {};
+			allClasses.forEach(c => {
+				const t = c.tingkat || "Lainnya";
+				if (!grouped[t]) grouped[t] = [];
+				grouped[t].push(c);
+			});
+
+			let html = "";
+			Object.keys(grouped).sort((a, b) => (Number(a) || 99) - (Number(b) || 99)).forEach(t => {
+				const groupTitle = t === "Lainnya" ? "Kelas Lainnya" : `Tingkat ${t}`;
+				html += `<div class="mb-2 pb-1 border-bottom">
+					<div class="d-flex justify-content-between align-items-center mb-1">
+						<span class="font-weight-bold text-dark small">${groupTitle}</span>
+						<button type="button" class="btn btn-link btn-sm p-0 small text-primary" data-action="toggle-tingkat-classes" data-tingkat="${t}" style="font-size: 0.75rem;">Pilih Semua ${t}</button>
+					</div>
+					<div class="row no-gutters">`;
+				grouped[t].forEach(cls => {
+					const isChecked = selectedClasses.includes(cls.nama_kelas);
+					html += `<div class="col-6 col-sm-4 col-md-3 mb-1">
+						<div class="custom-control custom-checkbox small">
+							<input type="checkbox" class="custom-control-input exam-class-check" id="chk_cls_${cls.id}" value="${escapeHtml(cls.nama_kelas)}" data-tingkat="${t}" ${isChecked ? "checked" : ""}>
+							<label class="custom-control-label" for="chk_cls_${cls.id}">Kelas ${escapeHtml(cls.nama_kelas)}</label>
+						</div>
+					</div>`;
+				});
+				html += `</div></div>`;
+			});
+
+			container.innerHTML = html;
+		}
+
+		function renderExamClassFilter() {
+			const filterSelect = document.getElementById("filterExamTarget");
+			if (!filterSelect) return;
+			const currentVal = filterSelect.value;
+			let html = '<option value="">Semua Sasaran</option><option value="SEMUA_KELAS">Semua Kelas</option>';
+
+			if (availableTingkats.length) {
+				html += '<optgroup label="Berdasarkan Tingkat">';
+				availableTingkats.forEach(t => {
+					html += `<option value="TINGKAT_${t}">Semua Kelas ${t}</option>`;
+				});
+				html += '</optgroup>';
+			}
+
+			if (allClasses.length) {
+				html += '<optgroup label="Kelas Spesifik">';
+				allClasses.forEach(c => {
+					html += `<option value="${escapeHtml(c.nama_kelas)}">Kelas ${escapeHtml(c.nama_kelas)}</option>`;
+				});
+				html += '</optgroup>';
+			}
+
+			filterSelect.innerHTML = html;
+			filterSelect.value = currentVal;
+		}
+
+		async function loadClasses() {
+			try {
+				let classes = [];
+				try {
+					const res = await apiGet("/data/kelas");
+					if (res && res.data) classes = res.data;
+				} catch (_) {}
+
+				if (!classes.length) {
+					const { data } = await client.from("data_kelas").select("id, nama_kelas").order("nama_kelas");
+					classes = data || [];
+				}
+
+				allClasses = classes.map(c => ({
+					...c,
+					tingkat: extractTingkatFromClassName(c.nama_kelas)
+				}));
+
+				const tingkatsSet = new Set();
+				allClasses.forEach(c => {
+					if (c.tingkat) tingkatsSet.add(c.tingkat);
+				});
+				if (!tingkatsSet.size) {
+					["7", "8", "9"].forEach(t => tingkatsSet.add(t));
+				}
+				availableTingkats = Array.from(tingkatsSet).sort((a, b) => Number(a) - Number(b));
+
+				const tingkatSelect = document.getElementById("examTargetTingkat");
+				if (tingkatSelect) {
+					tingkatSelect.innerHTML = '<option value="">Pilih tingkat kelas...</option>' +
+						availableTingkats.map(t => `<option value="${t}">Semua Kelas ${t}</option>`).join("");
+				}
+
+				renderClassCheckboxes();
+				renderExamClassFilter();
+			} catch (err) {
+				console.warn("Gagal memuat kelas:", err);
+			}
+		}
 		let examQuestions = [];
 		let selectedExam = null;
 		let editingExamId = null;
@@ -617,22 +837,51 @@
 			if (badgeAktif) badgeAktif.textContent = aktifList.length;
 			if (badgeArsip) badgeArsip.textContent = arsipList.length;
 
-			const filteredExams = currentExamTab === 'arsip' ? arsipList : aktifList;
+			const targetFilter = document.getElementById("filterExamTarget")?.value || "";
+			let filteredExams = currentExamTab === 'arsip' ? arsipList : aktifList;
+
+			if (targetFilter) {
+				filteredExams = filteredExams.filter(exam => {
+					const tTingkat = (exam.target_tingkat || "").trim().toUpperCase();
+					const tKelas = (exam.target_kelas || "").trim().toUpperCase();
+					const isAll = (!tTingkat || tTingkat === "SEMUA") && (!tKelas || tKelas === "SEMUA");
+
+					if (targetFilter === "SEMUA_KELAS") return isAll;
+					if (targetFilter.startsWith("TINGKAT_")) {
+						const reqT = targetFilter.replace("TINGKAT_", "").toUpperCase();
+						return tTingkat === reqT;
+					}
+					if (tKelas) {
+						const list = tKelas.split(",").map(c => c.trim().toUpperCase());
+						return list.includes(targetFilter.toUpperCase());
+					}
+					return false;
+				});
+			}
+
+			const infoEl = document.getElementById("filterExamInfo");
+			if (infoEl) {
+				infoEl.textContent = targetFilter ? `Menampilkan ${filteredExams.length} ujian` : "";
+			}
 
 			if (!filteredExams.length) {
-				const emptyMsg = currentExamTab === 'arsip'
-					? 'Tidak ada ujian yang diarsipkan.'
-					: 'Belum ada ujian. Buat ujian pertama untuk mulai mengatur jadwal dan soal.';
-				examRows.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">${emptyMsg}</td></tr>`;
+				const emptyMsg = targetFilter
+					? 'Tidak ada ujian yang cocok dengan filter sasaran ini.'
+					: (currentExamTab === 'arsip'
+						? 'Tidak ada ujian yang diarsipkan.'
+						: 'Belum ada ujian. Buat ujian pertama untuk mulai mengatur jadwal dan soal.');
+				examRows.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">${emptyMsg}</td></tr>`;
 				return;
 			}
 			examRows.innerHTML = filteredExams.map((exam) => {
 				const status = examStatus(exam);
 				const subjectName = exam.data_pelajaran?.nama_pelajaran || subjects.find((subject) => subject.id === exam.pelajaran_id)?.nama_pelajaran || "-";
 				const isArchived = exam.is_archived;
+				const targetBadge = getExamTargetBadge(exam);
 				return `<tr class="${isArchived ? 'table-secondary' : ''}">
 					<td class="font-weight-bold">${escapeHtml(exam.nama_ujian)}${isArchived ? ' <span class="badge badge-secondary ml-1"><i class="fas fa-archive mr-1"></i>Arsip</span>' : ''}</td>
 					<td>${escapeHtml(subjectName)}</td>
+					<td>${targetBadge}</td>
 					<td class="small">${escapeHtml(formatDate(exam.dibuka_at))}<br><span class="text-muted">s.d. ${escapeHtml(formatDate(exam.ditutup_at))}</span></td>
 					<td>${exam.waktu_menit} menit<br><span class="badge badge-light border text-muted" title="Toleransi waktu pengerjaan">+${exam.toleransi_menit != null ? exam.toleransi_menit : 15}m toleransi</span></td>
 					<td>
@@ -762,6 +1011,10 @@
 			document.getElementById("examCloseAt").value = toLocalInput(later);
 			document.getElementById("examDuration").value = 60;
 			document.getElementById("examTolerance").value = globalCbtSettings.toleransi_menit_default || 15;
+			document.getElementById("examTargetMode").value = "semua";
+			document.getElementById("examTargetTingkat").value = "";
+			renderClassCheckboxes([]);
+			updateTargetModeUI();
 			$("#examModal").modal("show");
 		}
 
@@ -779,6 +1032,23 @@
 			examForm.elements.aktif.checked = exam.aktif;
 			examForm.elements.acak_soal.checked = exam.acak_soal;
 			examForm.elements.acak_jawaban.checked = exam.acak_jawaban;
+
+			const tTingkat = exam.target_tingkat || "";
+			const tKelas = exam.target_kelas || "";
+			if (tKelas && tKelas !== "SEMUA") {
+				document.getElementById("examTargetMode").value = "spesifik";
+				const sel = tKelas.split(",").map(c => c.trim()).filter(Boolean);
+				renderClassCheckboxes(sel);
+			} else if (tTingkat && tTingkat !== "SEMUA") {
+				document.getElementById("examTargetMode").value = "tingkat";
+				document.getElementById("examTargetTingkat").value = tTingkat;
+				renderClassCheckboxes([]);
+			} else {
+				document.getElementById("examTargetMode").value = "semua";
+				document.getElementById("examTargetTingkat").value = "";
+				renderClassCheckboxes([]);
+			}
+			updateTargetModeUI();
 			$("#examModal").modal("show");
 		}
 
@@ -874,6 +1144,37 @@
 			}
 
 			button.disabled = true;
+			const targetMode = document.getElementById("examTargetMode")?.value || "semua";
+			let targetTingkat = null;
+			let targetKelas = null;
+
+			if (targetMode === "tingkat") {
+				targetTingkat = document.getElementById("examTargetTingkat")?.value || null;
+				if (!targetTingkat) {
+					errorBox.textContent = "Silakan pilih tingkat kelas sasaran ujian.";
+					errorBox.classList.remove("d-none");
+					button.disabled = false;
+					return;
+				}
+				targetKelas = null;
+			} else if (targetMode === "spesifik") {
+				const checked = Array.from(document.querySelectorAll(".exam-class-check:checked")).map(el => el.value.trim());
+				if (!checked.length) {
+					errorBox.textContent = "Silakan centang minimal satu kelas atau ubah sasaran ke Semua Kelas.";
+					errorBox.classList.remove("d-none");
+					button.disabled = false;
+					return;
+				}
+				targetKelas = checked.join(",");
+				const tingkats = [...new Set(checked.map(c => extractTingkatFromClassName(c)))].filter(Boolean);
+				if (tingkats.length === 1) {
+					targetTingkat = tingkats[0];
+				}
+			} else {
+				targetTingkat = null;
+				targetKelas = null;
+			}
+
 			const values = {
 				nama_ujian: form.elements.nama_ujian.value.trim(),
 				pelajaran_id: subjectId,
@@ -884,12 +1185,24 @@
 				acak_soal: form.elements.acak_soal.checked,
 				acak_jawaban: form.elements.acak_jawaban.checked,
 				aktif: form.elements.aktif.checked,
+				target_tingkat: targetTingkat,
+				target_kelas: targetKelas,
 			};
 			try {
 				const query = editingExamId
 					? client.from("ujian").update(values).eq("id", editingExamId)
 					: client.from("ujian").insert(values);
 				let { error } = await query;
+				if (error && error.message && (error.message.includes("target_tingkat") || error.message.includes("target_kelas"))) {
+					console.warn("Kolom target_tingkat/target_kelas belum ada di DB, menyimpan tanpa sasaran:", error);
+					delete values.target_tingkat;
+					delete values.target_kelas;
+					const fallbackQuery = editingExamId
+						? client.from("ujian").update(values).eq("id", editingExamId)
+						: client.from("ujian").insert(values);
+					const fallbackRes = await fallbackQuery;
+					error = fallbackRes.error;
+				}
 				if (error && error.message && error.message.includes("toleransi_menit")) {
 					console.warn("Kolom toleransi_menit belum ada, menyimpan tanpa toleransi_menit:", error);
 					delete values.toleransi_menit;
@@ -1560,6 +1873,24 @@
 			window.scrollTo({ top: 0, behavior: "smooth" });
 		});
 
+		document.getElementById("examTargetMode")?.addEventListener("change", updateTargetModeUI);
+		document.getElementById("btnSelectAllClasses")?.addEventListener("click", () => {
+			document.querySelectorAll(".exam-class-check").forEach(c => c.checked = true);
+		});
+		document.getElementById("btnClearAllClasses")?.addEventListener("click", () => {
+			document.querySelectorAll(".exam-class-check").forEach(c => c.checked = false);
+		});
+		document.getElementById("examClassCheckboxesList")?.addEventListener("click", (e) => {
+			const btn = e.target.closest('[data-action="toggle-tingkat-classes"]');
+			if (!btn) return;
+			const t = btn.dataset.tingkat;
+			const checks = Array.from(document.querySelectorAll(`.exam-class-check[data-tingkat="${t}"]`));
+			const allChecked = checks.every(c => c.checked);
+			checks.forEach(c => c.checked = !allChecked);
+			btn.textContent = allChecked ? `Pilih Semua ${t}` : `Batal Pilih ${t}`;
+		});
+		document.getElementById("filterExamTarget")?.addEventListener("change", () => loadExams());
+
 		document.getElementById("questionType").addEventListener("change", (event) => setQuestionType(event.target.value));
 		examForm.addEventListener("submit", saveExam);
 		questionForm.addEventListener("submit", saveQuestion);
@@ -1710,10 +2041,11 @@
 			try {
 				await loadGlobalCbtSettings();
 				await loadSubjects();
+				await loadClasses();
 				await loadExams();
 			} catch (error) {
 				showMessage(error.message, "danger");
-				examRows.innerHTML = '<tr><td colspan="6" class="text-center text-danger py-4">Gagal memuat data. Pastikan schema ujian sudah dijalankan dan akun memiliki role admin.</td></tr>';
+				examRows.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Gagal memuat data. Pastikan schema ujian sudah dijalankan dan akun memiliki role admin.</td></tr>';
 			}
 		});
 	</script>

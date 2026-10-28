@@ -806,10 +806,19 @@
 				if (!allExams || allExams.length === 0) {
 					const { data, error } = await client
 						.from("ujian")
-						.select("id, nama_ujian, pelajaran_id, aktif, data_pelajaran(nama_pelajaran)")
+						.select("id, nama_ujian, pelajaran_id, aktif, target_tingkat, target_kelas, data_pelajaran(nama_pelajaran)")
 						.order("id", { ascending: false });
-					if (error) throw error;
-					allExams = data || [];
+					if (error) {
+						// Fallback jika kolom target_tingkat belum ada
+						const fallbackRes = await client
+							.from("ujian")
+							.select("id, nama_ujian, pelajaran_id, aktif, data_pelajaran(nama_pelajaran)")
+							.order("id", { ascending: false });
+						if (fallbackRes.error) throw fallbackRes.error;
+						allExams = fallbackRes.data || [];
+					} else {
+						allExams = data || [];
+					}
 				}
 
 				const select = document.getElementById("filterExam");
@@ -825,7 +834,13 @@
 					opt.value = String(e.id);
 					const subject = e.data_pelajaran?.nama_pelajaran ? ` (${e.data_pelajaran.nama_pelajaran})` : '';
 					const statusText = e.aktif ? '[Aktif]' : '[Nonaktif]';
-					opt.textContent = `${e.nama_ujian}${subject} ${statusText}`;
+					let targetLabel = '';
+					if (e.target_tingkat && (!e.target_kelas || e.target_kelas === 'SEMUA')) {
+						targetLabel = ` [Semua Kelas ${e.target_tingkat}]`;
+					} else if (e.target_kelas) {
+						targetLabel = ` [Kelas ${e.target_kelas}]`;
+					}
+					opt.textContent = `${e.nama_ujian}${targetLabel}${subject} ${statusText}`;
 					select.appendChild(opt);
 				});
 
