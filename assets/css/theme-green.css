@@ -69,13 +69,17 @@
 }
 
 
-/* ===== FIX: teks submenu sidebar overflow keluar dari bg putih ===== */
+/* ===== Submenu Sidebar (Desktop & Mobile) ===== */
+.sidebar .nav-item .collapse,
+.sidebar .nav-item .collapsing {
+  z-index: 1050;
+}
+
 .sidebar .nav-item .collapse .collapse-inner,
 .sidebar .nav-item .collapsing .collapse-inner {
-  min-width: 0;
-  max-width: 100%;
   box-sizing: border-box;
-  overflow: hidden;
+  border-radius: 0.35rem;
+  padding: 0.5rem 0;
 }
 
 .sidebar .nav-item .collapse .collapse-inner .collapse-item,
@@ -88,17 +92,93 @@
   line-height: 1.35;
 }
 
-/* Wrapper daftar kelas yang dibuat lewat JS */
-#sidebarClassLinks,
-#sidebarMonitoringClassLinks,
-#sidebarExamResultClassLinks {
-  max-width: 100%;
+/* Custom scrollbar halus untuk submenu */
+.sidebar .nav-item .collapse .collapse-inner::-webkit-scrollbar,
+#sidebarClassLinks::-webkit-scrollbar,
+#sidebarMonitoringClassLinks::-webkit-scrollbar,
+#sidebarExamResultClassLinks::-webkit-scrollbar,
+#sidebarAttendanceClassLinks::-webkit-scrollbar {
+  width: 5px;
+}
+.sidebar .nav-item .collapse .collapse-inner::-webkit-scrollbar-track,
+#sidebarClassLinks::-webkit-scrollbar-track,
+#sidebarMonitoringClassLinks::-webkit-scrollbar-track,
+#sidebarExamResultClassLinks::-webkit-scrollbar-track,
+#sidebarAttendanceClassLinks::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.sidebar .nav-item .collapse .collapse-inner::-webkit-scrollbar-thumb,
+#sidebarClassLinks::-webkit-scrollbar-thumb,
+#sidebarMonitoringClassLinks::-webkit-scrollbar-thumb,
+#sidebarExamResultClassLinks::-webkit-scrollbar-thumb,
+#sidebarAttendanceClassLinks::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.sidebar .nav-item .collapse .collapse-inner::-webkit-scrollbar-thumb:hover,
+#sidebarClassLinks::-webkit-scrollbar-thumb:hover,
+#sidebarMonitoringClassLinks::-webkit-scrollbar-thumb:hover,
+#sidebarExamResultClassLinks::-webkit-scrollbar-thumb:hover,
+#sidebarAttendanceClassLinks::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
-/* Saat sidebar dalam mode kecil (toggled, desktop) popup submenu tetap boleh lebih lebar */
+/* Khusus Tampilan HP / Layar Kecil (< 768px) */
+@media (max-width: 767.98px) {
+  .sidebar .nav-item .collapse {
+    position: absolute;
+    left: calc(6.5rem + 0.35rem) !important;
+    top: 2px !important;
+    z-index: 1060 !important;
+  }
+
+  .sidebar .nav-item .collapse .collapse-inner {
+    min-width: 12rem !important;
+    max-width: calc(100vw - 7.5rem) !important;
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.25) !important;
+    border: 1px solid rgba(0, 0, 0, 0.12) !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Batasi juga container daftar kelas jika sangat panjang */
+  #sidebarClassLinks,
+  #sidebarMonitoringClassLinks,
+  #sidebarExamResultClassLinks,
+  #sidebarAttendanceClassLinks {
+    max-height: 50vh;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Tampilan Desktop (>= 768px) */
 @media (min-width: 768px) {
+  .sidebar:not(.toggled) .nav-item .collapse .collapse-inner {
+    max-width: 100%;
+  }
+
+  .sidebar:not(.toggled) #sidebarClassLinks,
+  .sidebar:not(.toggled) #sidebarMonitoringClassLinks,
+  .sidebar:not(.toggled) #sidebarExamResultClassLinks,
+  .sidebar:not(.toggled) #sidebarAttendanceClassLinks {
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  /* Saat sidebar toggled (kecil) di desktop */
+  .sidebar.toggled .nav-item .collapse {
+    z-index: 1060;
+  }
   .sidebar.toggled .nav-item .collapse .collapse-inner {
-    min-width: 10rem;
+    min-width: 11rem;
     max-width: 16rem;
+    max-height: 75vh;
+    overflow-y: auto !important;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2);
   }
 }
