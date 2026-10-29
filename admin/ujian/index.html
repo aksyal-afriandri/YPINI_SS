@@ -22,6 +22,15 @@
 			overflow-y: auto !important;
 			max-height: calc(100vh - 200px);
 		}
+		#examTable th, #examTable td {
+			vertical-align: middle;
+		}
+		#examTable th {
+			white-space: nowrap;
+			background-color: #f8f9fc;
+			color: #4e73df;
+			font-size: 0.85rem;
+		}
 	</style>
 </head>
 <body id="page-top" data-login-path="../../index.html">
@@ -243,7 +252,17 @@
 							</div>
 							<div class="table-responsive">
 								<table class="table table-hover" id="examTable">
-									<thead><tr><th>Nama ujian</th><th>Mata pelajaran</th><th>Sasaran</th><th>Jadwal</th><th>Durasi</th><th>Status</th><th>Aksi</th></tr></thead>
+									<thead>
+										<tr>
+											<th style="min-width: 170px;">Nama ujian</th>
+											<th style="min-width: 120px;">Mata pelajaran</th>
+											<th style="min-width: 140px;">Sasaran</th>
+											<th style="min-width: 160px;">Jadwal</th>
+											<th style="min-width: 105px;">Durasi</th>
+											<th style="min-width: 110px;">Status</th>
+											<th style="min-width: 130px;" class="text-center">Aksi</th>
+										</tr>
+									</thead>
 									<tbody><tr><td colspan="7" class="text-center text-muted py-4">Memuat ujian...</td></tr></tbody>
 								</table>
 							</div>
@@ -736,17 +755,22 @@
 				return '<span class="badge badge-light border text-secondary font-weight-normal">Semua Kelas</span>';
 			}
 			if (tTingkat && (!tKelas || tKelas === "SEMUA")) {
-				return `<span class="badge badge-info">Semua Kelas ${escapeHtml(tTingkat)}</span>`;
+				return `<span class="badge badge-info font-weight-normal">Semua Kelas ${escapeHtml(tTingkat)}</span>`;
 			}
 			if (tKelas) {
 				const list = tKelas.split(",").map(c => c.trim()).filter(Boolean);
 				if (list.length === 1) {
-					return `<span class="badge badge-primary">Kelas ${escapeHtml(list[0])}</span>`;
+					return `<span class="badge badge-primary font-weight-normal">${escapeHtml(list[0])}</span>`;
 				}
-				if (list.length <= 3) {
-					return `<span class="badge badge-primary">Kelas ${escapeHtml(list.join(", "))}</span>`;
+				if (list.length <= 2) {
+					return `<div class="d-flex flex-wrap" style="gap: 3px;">` +
+						list.map(c => `<span class="badge badge-primary font-weight-normal">${escapeHtml(c)}</span>`).join("") +
+						`</div>`;
 				}
-				return `<span class="badge badge-primary" title="${escapeHtml(list.join(", "))}">Kelas (${list.length} kelas)</span>`;
+				return `<div class="d-flex flex-wrap align-items-center" style="gap: 3px;">
+					<span class="badge badge-primary font-weight-normal" title="${escapeHtml(list.join(", "))}">${escapeHtml(list[0])}</span>
+					<span class="badge badge-light border text-muted" title="${escapeHtml(list.join(", "))}">+${list.length - 1} kelas</span>
+				</div>`;
 			}
 			return '<span class="badge badge-light border text-secondary font-weight-normal">Semua Kelas</span>';
 		}
@@ -925,6 +949,33 @@
 			return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 		}
 
+		function formatExamSchedule(openStr, closeStr) {
+			if (!openStr || !closeStr) return "-";
+			const d1 = new Date(openStr);
+			const d2 = new Date(closeStr);
+			if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return "-";
+
+			const dateOptions = { day: "numeric", month: "short", year: "numeric" };
+			const timeOptions = { hour: "2-digit", minute: "2-digit", hour12: false };
+
+			const datePart1 = new Intl.DateTimeFormat("id-ID", dateOptions).format(d1);
+			const datePart2 = new Intl.DateTimeFormat("id-ID", dateOptions).format(d2);
+			const timePart1 = new Intl.DateTimeFormat("id-ID", timeOptions).format(d1).replace(":", ".");
+			const timePart2 = new Intl.DateTimeFormat("id-ID", timeOptions).format(d2).replace(":", ".");
+
+			if (datePart1 === datePart2) {
+				return `<div class="text-nowrap" style="line-height: 1.3;">
+					<div class="font-weight-bold text-dark" style="font-size: 0.85rem;"><i class="far fa-calendar-alt text-primary mr-1"></i>${escapeHtml(datePart1)}</div>
+					<div class="text-muted small"><i class="far fa-clock mr-1 text-secondary"></i>${escapeHtml(timePart1)} - ${escapeHtml(timePart2)} WIB</div>
+				</div>`;
+			}
+
+			return `<div class="text-nowrap" style="line-height: 1.3;">
+				<div class="text-dark small"><i class="far fa-calendar-alt text-primary mr-1"></i>${escapeHtml(datePart1)}, ${escapeHtml(timePart1)}</div>
+				<div class="text-muted small"><i class="fas fa-arrow-right text-muted mr-1" style="font-size: 9px;"></i>${escapeHtml(datePart2)}, ${escapeHtml(timePart2)}</div>
+			</div>`;
+		}
+
 		function toLocalInput(value) {
 			const date = new Date(value);
 			return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -1059,25 +1110,42 @@
 				const subjectName = exam.data_pelajaran?.nama_pelajaran || subjects.find((subject) => subject.id === exam.pelajaran_id)?.nama_pelajaran || "-";
 				const isArchived = exam.is_archived;
 				const targetBadge = getExamTargetBadge(exam);
+				const hasPassword = Boolean(exam.password_ujian && String(exam.password_ujian).trim());
+
 				return `<tr class="${isArchived ? 'table-secondary' : ''}">
-					<td class="font-weight-bold">${escapeHtml(exam.nama_ujian)}${isArchived ? ' <span class="badge badge-secondary ml-1"><i class="fas fa-archive mr-1"></i>Arsip</span>' : ''}</td>
-					<td>${escapeHtml(subjectName)}</td>
-					<td>${targetBadge}</td>
-					<td class="small">${escapeHtml(formatDate(exam.dibuka_at))}<br><span class="text-muted">s.d. ${escapeHtml(formatDate(exam.ditutup_at))}</span></td>
-					<td>${exam.waktu_menit} menit<br><span class="badge badge-light border text-muted" title="Toleransi waktu pengerjaan">+${exam.toleransi_menit != null ? exam.toleransi_menit : 15}m toleransi</span></td>
 					<td>
-						<span class="badge badge-${status.style} mb-2">${status.label}</span>
-						${!isArchived ? `<div class="custom-control custom-switch">
-							<input class="custom-control-input" type="checkbox" id="exam-active-${exam.id}" data-exam-active="${exam.id}" aria-label="${exam.aktif ? "Nonaktifkan" : "Aktifkan"} ${escapeHtml(exam.nama_ujian)}" ${exam.aktif ? "checked" : ""}>
-							<label class="custom-control-label small" for="exam-active-${exam.id}">${exam.aktif ? "Aktif" : "Nonaktif"}</label>
-						</div>` : '<span class="small text-muted">Diarsipkan</span>'}
+						<div class="font-weight-bold text-dark" style="font-size: 0.9rem;">${escapeHtml(exam.nama_ujian)}</div>
+						<div class="d-flex flex-wrap align-items-center mt-1" style="gap: 4px;">
+							${isArchived ? '<span class="badge badge-secondary small"><i class="fas fa-archive mr-1"></i>Arsip</span>' : ''}
+							${hasPassword ? '<span class="badge badge-warning text-dark small" title="Pengaturan ujian ini diproteksi password"><i class="fas fa-lock mr-1"></i>Terkunci</span>' : ''}
+						</div>
+					</td>
+					<td>
+						<span class="text-dark font-weight-500">${escapeHtml(subjectName)}</span>
+					</td>
+					<td>${targetBadge}</td>
+					<td>${formatExamSchedule(exam.dibuka_at, exam.ditutup_at)}</td>
+					<td class="text-nowrap">
+						<div class="font-weight-bold text-dark" style="font-size: 0.9rem;">${exam.waktu_menit} <span class="small font-weight-normal text-muted">menit</span></div>
+						<span class="badge badge-light border text-muted" title="Toleransi waktu pengerjaan">+${exam.toleransi_menit != null ? exam.toleransi_menit : 15}m toleransi</span>
 					</td>
 					<td class="text-nowrap">
-						${!isArchived ? `<button class="btn btn-sm btn-outline-primary" data-action="questions" data-id="${exam.id}" title="Atur soal"><i class="fas fa-list-ol"></i></button>
-						<button class="btn btn-sm btn-outline-secondary" data-action="edit-exam" data-id="${exam.id}" title="Edit ujian"><i class="fas fa-edit"></i></button>
-						<button class="btn btn-sm btn-outline-warning" data-action="archive-exam" data-id="${exam.id}" title="Arsipkan ujian"><i class="fas fa-archive"></i></button>` 
-						: `<button class="btn btn-sm btn-outline-success" data-action="restore-exam" data-id="${exam.id}" title="Pulihkan dari arsip"><i class="fas fa-undo"></i></button>`}
-						<button class="btn btn-sm btn-outline-danger" data-action="delete-exam" data-id="${exam.id}" title="Hapus ujian"><i class="fas fa-trash"></i></button>
+						<div class="d-flex flex-column align-items-start" style="gap: 4px;">
+							<span class="badge badge-${status.style}">${status.label}</span>
+							${!isArchived ? `<div class="custom-control custom-switch" title="Klik untuk ${exam.aktif ? "menonaktifkan" : "mengaktifkan"} ujian">
+								<input class="custom-control-input" type="checkbox" id="exam-active-${exam.id}" data-exam-active="${exam.id}" aria-label="${exam.aktif ? "Nonaktifkan" : "Aktifkan"} ${escapeHtml(exam.nama_ujian)}" ${exam.aktif ? "checked" : ""}>
+								<label class="custom-control-label small text-muted" for="exam-active-${exam.id}">${exam.aktif ? "Aktif" : "Nonaktif"}</label>
+							</div>` : '<span class="small text-muted">Diarsipkan</span>'}
+						</div>
+					</td>
+					<td class="text-nowrap text-center">
+						<div class="btn-group btn-group-sm" role="group">
+							${!isArchived ? `<button class="btn btn-outline-primary" data-action="questions" data-id="${exam.id}" title="Atur soal"><i class="fas fa-list-ol"></i></button>
+							<button class="btn btn-outline-secondary" data-action="edit-exam" data-id="${exam.id}" title="Edit ujian"><i class="fas fa-edit"></i></button>
+							<button class="btn btn-outline-warning" data-action="archive-exam" data-id="${exam.id}" title="Arsipkan ujian"><i class="fas fa-archive"></i></button>` 
+							: `<button class="btn btn-outline-success" data-action="restore-exam" data-id="${exam.id}" title="Pulihkan dari arsip"><i class="fas fa-undo"></i></button>`}
+							<button class="btn btn-outline-danger" data-action="delete-exam" data-id="${exam.id}" title="Hapus ujian"><i class="fas fa-trash"></i></button>
+						</div>
 					</td>
 				</tr>`;
 			}).join("");
