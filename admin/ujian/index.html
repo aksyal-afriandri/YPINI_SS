@@ -1573,13 +1573,9 @@
 					throw error;
 				}
 
-				const unlockedId = editingExamId || savedData?.[0]?.id;
-				if (unlockedId) {
-					if (values.password_ujian) {
-						sessionUnlockedExams[unlockedId] = true;
-					} else {
-						delete sessionUnlockedExams[unlockedId];
-					}
+				const targetId = editingExamId || savedData?.[0]?.id;
+				if (targetId) {
+					delete sessionUnlockedExams[targetId];
 				}
 
 				$("#examModal").modal("hide");
@@ -2294,7 +2290,7 @@
 					openEditExam(exam);
 				}
 				if (button.dataset.action === "archive-exam") {
-					const allowed = await requireExamAuth(exam, "mengarsipkan ujian");
+					const allowed = await requireExamAuth(exam, "mengarsipkan ujian", true);
 					if (!allowed) return;
 					if (window.confirm(`Arsipkan ujian "${exam.nama_ujian}"? Ujian akan disembunyikan dari daftar utama, soal-soal tetap tersimpan.`)) {
 						const { error: archiveError } = await client.from("ujian").update({ is_archived: true, aktif: false }).eq("id", exam.id);
@@ -2304,7 +2300,7 @@
 					}
 				}
 				if (button.dataset.action === "restore-exam") {
-					const allowed = await requireExamAuth(exam, "memulihkan ujian dari arsip");
+					const allowed = await requireExamAuth(exam, "memulihkan ujian dari arsip", true);
 					if (!allowed) return;
 					if (window.confirm(`Pulihkan ujian "${exam.nama_ujian}" dari arsip?`)) {
 						const { error: restoreError } = await client.from("ujian").update({ is_archived: false }).eq("id", exam.id);
@@ -2324,7 +2320,7 @@
 					questionsSection.scrollIntoView({ behavior: "smooth", block: "start" });
 				}
 				if (button.dataset.action === "delete-exam") {
-					const allowed = await requireExamAuth(exam, "menghapus ujian dan seluruh data soal");
+					const allowed = await requireExamAuth(exam, "menghapus ujian dan seluruh data soal", true);
 					if (!allowed) return;
 					if (window.confirm(`Hapus ujian "${exam.nama_ujian}" beserta seluruh soal dan data pengerjaan siswa?`)) {
 						// 1. Bersihkan data jawaban dan percobaan siswa terkait ujian ini terlebih dahulu
