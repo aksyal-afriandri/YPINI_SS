@@ -10,6 +10,19 @@
 	<link href="../../assets/img/logo.png" rel="icon">
 	<link href="../../assets/css/sb-admin-2.min.css" rel="stylesheet">
 	<link href="../../assets/css/theme-green.css" rel="stylesheet">
+	<style>
+		.modal-dialog-scrollable {
+			max-height: calc(100% - 3.5rem);
+		}
+		.modal-dialog-scrollable .modal-content {
+			max-height: 100%;
+			overflow: hidden;
+		}
+		.modal-dialog-scrollable .modal-body {
+			overflow-y: auto !important;
+			max-height: calc(100vh - 200px);
+		}
+	</style>
 </head>
 <body id="page-top" data-login-path="../../index.html">
 	<div id="wrapper">
@@ -269,7 +282,7 @@
 	</div>
 
 	<div class="modal fade" id="examModal" tabindex="-1" role="dialog" aria-labelledby="examModalTitle" aria-hidden="true">
-		<div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable" role="document"><div class="modal-content">
 			<form id="examForm">
 				<div class="modal-header"><h5 class="modal-title" id="examModalTitle">Buat ujian</h5><button class="close" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button></div>
 				<div class="modal-body">
@@ -313,6 +326,22 @@
 								<span class="text-muted small">Memuat daftar kelas...</span>
 							</div>
 							<small class="text-muted d-block mt-1">Centang kelas yang diizinkan (misal Kelas 7A saja, atau beberapa kelas).</small>
+						</div>
+					</div>
+					<div class="form-row border-top pt-3">
+						<div class="form-group col-md-12">
+							<label for="examPassword" class="font-weight-bold text-dark">
+								<i class="fas fa-lock text-warning mr-1"></i>Password Pengaturan Ujian <span class="badge badge-light border text-muted ml-1">Opsional</span>
+							</label>
+							<div class="input-group">
+								<input type="password" id="examPassword" name="password_ujian" class="form-control" placeholder="Tentukan password otorisasi keamanan ujian (kosongkan jika tidak ingin diproteksi)..." autocomplete="off">
+								<div class="input-group-append">
+									<button class="btn btn-outline-secondary" type="button" id="toggleExamPassword" title="Lihat/Sembunyikan password">
+										<i class="fas fa-eye" id="toggleExamPasswordIcon"></i>
+									</button>
+								</div>
+							</div>
+							<small class="form-text text-muted">Opsional. Jika diisi, password ini akan diminta saat mengaktifkan/menonaktifkan, mengubah pengaturan, menambah/mengedit soal, atau menghapus ujian. Kosongkan jika ujian tidak ingin diproteksi password.</small>
 						</div>
 					</div>
 					<div class="form-row border-top pt-3">
@@ -371,8 +400,48 @@
 		</div>
 	</div>
 
+	<!-- Modal Verifikasi Password Pengaturan Ujian -->
+	<div class="modal fade" id="examAuthPasswordModal" tabindex="-1" role="dialog" aria-labelledby="examAuthPasswordModalTitle" aria-hidden="true" data-backdrop="static">
+		<div class="modal-dialog modal-dialog-centered" role="document">
+			<div class="modal-content shadow border-0">
+				<form id="examAuthPasswordForm">
+					<div class="modal-header bg-warning text-dark">
+						<h5 class="modal-title font-weight-bold" id="examAuthPasswordModalTitle">
+							<i class="fas fa-shield-alt mr-2 text-danger"></i>Verifikasi Keamanan Ujian
+						</h5>
+						<button class="close" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+					</div>
+					<div class="modal-body">
+						<div id="examAuthModalAlert" class="alert alert-danger d-none small py-2"></div>
+						<p class="small text-muted mb-3">
+							Ujian <strong id="examAuthTargetName">-</strong> diproteksi. Masukkan password otorisasi ujian ini untuk <span id="examAuthActionLabel" class="badge badge-secondary">-</span>.
+						</p>
+						<div class="form-group mb-2">
+							<label for="examAuthPasswordInput" class="font-weight-bold text-dark small">Password Pengaturan Ujian</label>
+							<div class="input-group">
+								<input type="password" id="examAuthPasswordInput" class="form-control" placeholder="Masukkan password ujian..." required autofocus>
+								<div class="input-group-append">
+									<button class="btn btn-outline-secondary" type="button" id="toggleExamAuthPassword" title="Lihat/Sembunyikan password">
+										<i class="fas fa-eye" id="toggleExamAuthPasswordIcon"></i>
+									</button>
+								</div>
+							</div>
+							<small class="form-text text-muted">Akses akan dibuka untuk sesi pengerjaan ujian ini selama berada di halaman ini.</small>
+						</div>
+					</div>
+					<div class="modal-footer bg-light py-2">
+						<button class="btn btn-secondary btn-sm" type="button" data-dismiss="modal">Batal</button>
+						<button class="btn btn-primary btn-sm" type="submit" id="btnSubmitExamAuth">
+							<i class="fas fa-unlock mr-1"></i> Buka Akses
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal fade" id="questionModal" tabindex="-1" role="dialog" aria-labelledby="questionModalTitle" aria-hidden="true">
-		<div class="modal-dialog modal-lg" role="document"><div class="modal-content">
+		<div class="modal-dialog modal-lg modal-dialog-scrollable" role="document"><div class="modal-content">
 			<form id="questionForm">
 				<div class="modal-header"><h5 class="modal-title" id="questionModalTitle">Tambah soal</h5><button class="close" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button></div>
 				<div class="modal-body">
@@ -559,6 +628,63 @@
 		let exams = [];
 		let allClasses = [];
 		let availableTingkats = [];
+		let currentGuruData = null;
+		let currentGuruPelajaranIds = [];
+		let currentGuruKelasList = [];
+		const sessionUnlockedExams = {};
+
+		async function loadTeacherContext() {
+			if (window.currentUserRole !== "guru") return;
+			try {
+				const userNip = window.currentUserProfile?.nip;
+				const userId = window.currentUser?.id;
+				let query = client.from("data_guru").select("id, nip, nama, pelajaran_id, pelajaran_ids, kelas_list");
+				if (userId) {
+					query = query.or(`user_id.eq.${userId}${userNip ? `,nip.eq.${userNip}` : ""}`);
+				} else if (userNip) {
+					query = query.eq("nip", userNip);
+				}
+				const { data, error } = await query.maybeSingle();
+				if (!error && data) {
+					currentGuruData = data;
+					const pIds = Array.isArray(data.pelajaran_ids) && data.pelajaran_ids.length
+						? data.pelajaran_ids.map(Number)
+						: (data.pelajaran_id ? [Number(data.pelajaran_id)] : []);
+					currentGuruPelajaranIds = pIds;
+					currentGuruKelasList = (data.kelas_list || []).map(k => String(k).trim().toUpperCase());
+					renderTeacherBanner();
+				}
+			} catch (err) {
+				console.warn("Gagal memuat relasi data guru:", err);
+			}
+		}
+
+		function renderTeacherBanner() {
+			const container = document.getElementById("teacherRelationBadgeContainer");
+			if (!container || !currentGuruData) return;
+
+			const mapelNames = subjects
+				.filter(s => currentGuruPelajaranIds.includes(Number(s.id)))
+				.map(s => s.nama_pelajaran)
+				.join(", ") || (currentGuruData.pelajaran_id ? "1 Mapel" : "Belum diatur");
+
+			const kelasNames = currentGuruKelasList.length
+				? currentGuruKelasList.join(", ")
+				: "Semua Kelas";
+
+			container.innerHTML = `
+				<div class="alert alert-info py-2 px-3 small d-flex flex-wrap align-items-center justify-content-between mb-3 shadow-sm border-0">
+					<div>
+						<i class="fas fa-chalkboard-teacher mr-2 text-primary"></i>
+						<strong>Akses Guru:</strong> ${escapeHtml(currentGuruData.nama)} | 
+						<strong>Mapel Diampu:</strong> <span class="badge badge-primary font-weight-normal">${escapeHtml(mapelNames)}</span> | 
+						<strong>Kelas Diampu:</strong> <span class="badge badge-success font-weight-normal">${escapeHtml(kelasNames)}</span>
+					</div>
+					<span class="badge badge-info py-1 px-2 mt-1 mt-md-0"><i class="fas fa-filter mr-1"></i>Akses Khusus Pengampu</span>
+				</div>
+			`;
+			container.classList.remove("d-none");
+		}
 
 		function extractTingkatFromClassName(namaKelas) {
 			return extractTingkat(namaKelas);
@@ -641,8 +767,18 @@
 				return;
 			}
 
+			let targetClasses = allClasses;
+			if (window.currentUserRole === "guru" && currentGuruKelasList.length > 0) {
+				targetClasses = allClasses.filter(c => currentGuruKelasList.includes(String(c.nama_kelas).trim().toUpperCase()));
+			}
+
+			if (!targetClasses.length) {
+				container.innerHTML = '<span class="text-muted small">Anda belum ditugaskan kelas apapun untuk diajar.</span>';
+				return;
+			}
+
 			const grouped = {};
-			allClasses.forEach(c => {
+			targetClasses.forEach(c => {
 				const t = c.tingkat || "Lainnya";
 				if (!grouped[t]) grouped[t] = [];
 				grouped[t].push(c);
@@ -809,11 +945,19 @@
 				if (error) throw error;
 				subjects = data || [];
 				const examSubject = document.getElementById("examSubject");
-				if (!subjects.length) {
-					examSubject.innerHTML = '<option value="">(Belum ada mata pelajaran - Tambahkan di menu Data Pelajaran)</option>';
+
+				let selectableSubjects = subjects;
+				if (window.currentUserRole === "guru" && currentGuruPelajaranIds.length > 0) {
+					selectableSubjects = subjects.filter(s => currentGuruPelajaranIds.includes(Number(s.id)));
+				}
+
+				if (!selectableSubjects.length) {
+					examSubject.innerHTML = window.currentUserRole === "guru"
+						? '<option value="">(Anda belum ditugaskan mata pelajaran apapun)</option>'
+						: '<option value="">(Belum ada mata pelajaran - Tambahkan di menu Data Pelajaran)</option>';
 				} else {
 					examSubject.innerHTML = '<option value="">Pilih mata pelajaran</option>' +
-						subjects.map((subject) => `<option value="${subject.id}">${escapeHtml(subject.nama_pelajaran)}</option>`).join("");
+						selectableSubjects.map((subject) => `<option value="${subject.id}">${escapeHtml(subject.nama_pelajaran)}</option>`).join("");
 				}
 			} catch (err) {
 				console.warn("Gagal memuat data pelajaran:", err);
@@ -822,11 +966,46 @@
 		}
 
 		async function loadExams() {
-			examRows.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Memuat ujian...</td></tr>';
+			examRows.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Memuat ujian...</td></tr>';
 			const { data, error } = await client.from("ujian")
 				.select("*, data_pelajaran(nama_pelajaran)").order("created_at", { ascending: false });
 			if (error) throw error;
-			exams = data || [];
+			let rawExams = data || [];
+
+			// Konsep 2: Batasi akses guru berdasarkan relasi mapel dan kelas
+			if (window.currentUserRole === "guru") {
+				rawExams = rawExams.filter((exam) => {
+					// 1. Cek mata pelajaran
+					if (!currentGuruPelajaranIds.includes(Number(exam.pelajaran_id))) {
+						return false;
+					}
+					// 2. Cek kelas jika guru memiliki penugasan kelas spesifik
+					if (currentGuruKelasList.length > 0) {
+						const tKelas = (exam.target_kelas || "").trim().toUpperCase();
+						const tTingkat = (exam.target_tingkat || "").trim().toUpperCase();
+
+						// Jika sasaran adalah Semua Kelas (tanpa batas kelas/tingkat), izinkan
+						if ((!tKelas || tKelas === "SEMUA") && (!tTingkat || tTingkat === "SEMUA")) {
+							return true;
+						}
+						// Jika sasaran kelas spesifik (misal "7A, 7B"), cek irisan kelas
+						if (tKelas && tKelas !== "SEMUA") {
+							const examClassList = tKelas.split(",").map(c => c.trim().toUpperCase());
+							const hasClassMatch = examClassList.some(c => currentGuruKelasList.includes(c));
+							if (hasClassMatch) return true;
+						}
+						// Jika sasaran tingkat (misal "7"), cek apakah guru mengajar salah satu kelas di tingkat tsb
+						if (tTingkat && tTingkat !== "SEMUA") {
+							const teacherTingkats = currentGuruKelasList.map(c => extractTingkatFromClassName(c));
+							if (teacherTingkats.includes(tTingkat)) return true;
+						}
+						return false;
+					}
+					return true;
+				});
+			}
+
+			exams = rawExams;
 
 			const aktifList = exams.filter(e => !e.is_archived);
 			const arsipList = exams.filter(e => e.is_archived);
@@ -869,7 +1048,9 @@
 					? 'Tidak ada ujian yang cocok dengan filter sasaran ini.'
 					: (currentExamTab === 'arsip'
 						? 'Tidak ada ujian yang diarsipkan.'
-						: 'Belum ada ujian. Buat ujian pertama untuk mulai mengatur jadwal dan soal.');
+						: (window.currentUserRole === "guru"
+							? 'Belum ada ujian untuk mata pelajaran dan kelas yang Anda ampu.'
+							: 'Belum ada ujian. Buat ujian pertama untuk mulai mengatur jadwal dan soal.'));
 				examRows.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">${emptyMsg}</td></tr>`;
 				return;
 			}
@@ -995,13 +1176,92 @@
 			}).join("");
 		}
 
+		async function requireExamAuth(exam, actionDescription = "melakukan aksi pada ujian ini", forcePrompt = false) {
+			if (!exam) return false;
+
+			// Jika ujian tidak diproteksi password (nullable/kosong), langsung izinkan tanpa memunculkan modal
+			const examPass = exam.password_ujian ? String(exam.password_ujian).trim() : "";
+			if (!examPass) {
+				return true;
+			}
+
+			// Jika tidak dipaksa konfirmasi ulang dan sudah dibuka kuncinya dalam sesi halaman ini
+			if (!forcePrompt && sessionUnlockedExams[exam.id]) {
+				return true;
+			}
+
+			return new Promise((resolve) => {
+				const modalEl = document.getElementById("examAuthPasswordModal");
+				const formEl = document.getElementById("examAuthPasswordForm");
+				const alertEl = document.getElementById("examAuthModalAlert");
+				const targetNameEl = document.getElementById("examAuthTargetName");
+				const actionLabelEl = document.getElementById("examAuthActionLabel");
+				const passInput = document.getElementById("examAuthPasswordInput");
+
+				targetNameEl.textContent = `"${exam.nama_ujian}"`;
+				actionLabelEl.textContent = actionDescription;
+				alertEl.classList.add("d-none");
+				passInput.value = "";
+
+				let isResolved = false;
+
+				const cleanup = () => {
+					formEl.onsubmit = null;
+					$(modalEl).off("hidden.bs.modal");
+				};
+
+				formEl.onsubmit = (e) => {
+					e.preventDefault();
+					const entered = passInput.value.trim();
+					const isExamPass = entered === examPass;
+					const isMasterPass = (globalCbtSettings.password_unlock && entered === String(globalCbtSettings.password_unlock).trim());
+
+					if (isExamPass || isMasterPass) {
+						sessionUnlockedExams[exam.id] = true;
+						isResolved = true;
+						cleanup();
+
+						$(modalEl).one("hidden.bs.modal", () => {
+							setTimeout(() => {
+								if ($(".modal:visible").length === 0) {
+									$("body").removeClass("modal-open").css({ "overflow": "", "padding-right": "" });
+								}
+								resolve(true);
+							}, 50);
+						});
+						$(modalEl).modal("hide");
+					} else {
+						alertEl.textContent = "Password otorisasi salah. Akses ditolak.";
+						alertEl.classList.remove("d-none");
+						passInput.select();
+					}
+				};
+
+				$(modalEl).on("hidden.bs.modal", () => {
+					cleanup();
+					if ($(".modal:visible").length === 0) {
+						$("body").removeClass("modal-open").css({ "overflow": "", "padding-right": "" });
+					}
+					if (!isResolved) {
+						resolve(false);
+					}
+				});
+
+				$(modalEl).modal("show");
+				setTimeout(() => passInput.focus(), 400);
+			});
+		}
+
 		function openNewExam() {
 			editingExamId = null;
 			examForm.reset();
 			document.getElementById("examModalTitle").textContent = "Buat ujian";
 			const errorBox = document.getElementById("examFormError");
 			errorBox.classList.add("d-none");
-			if (!subjects.length) {
+			if (window.currentUserRole === "guru" && !currentGuruPelajaranIds.length) {
+				errorBox.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Akun Anda belum memiliki relasi mata pelajaran yang diampu. Hubungi Administrator untuk mengatur mata pelajaran Anda di Data Guru.';
+				errorBox.classList.remove("d-none");
+			} else if (!subjects.length) {
 				errorBox.innerHTML = '<i class="fas fa-exclamation-triangle mr-1"></i> Data mata pelajaran masih kosong. Silakan tambahkan mata pelajaran terlebih dahulu di menu <strong>Data Pelajaran</strong> sebelum membuat jadwal ujian.';
 				errorBox.classList.remove("d-none");
 			}
@@ -1013,6 +1273,7 @@
 			document.getElementById("examTolerance").value = globalCbtSettings.toleransi_menit_default || 15;
 			document.getElementById("examTargetMode").value = "semua";
 			document.getElementById("examTargetTingkat").value = "";
+			if (examForm.elements.password_ujian) examForm.elements.password_ujian.value = "";
 			renderClassCheckboxes([]);
 			updateTargetModeUI();
 			$("#examModal").modal("show");
@@ -1032,6 +1293,9 @@
 			examForm.elements.aktif.checked = exam.aktif;
 			examForm.elements.acak_soal.checked = exam.acak_soal;
 			examForm.elements.acak_jawaban.checked = exam.acak_jawaban;
+			if (examForm.elements.password_ujian) {
+				examForm.elements.password_ujian.value = exam.password_ujian || "";
+			}
 
 			const tTingkat = exam.target_tingkat || "";
 			const tKelas = exam.target_kelas || "";
@@ -1128,6 +1392,15 @@
 				return;
 			}
 
+			// Konsep 2: Validasi hak akses guru pada mata pelajaran
+			if (window.currentUserRole === "guru" && currentGuruPelajaranIds.length > 0 && !currentGuruPelajaranIds.includes(subjectId)) {
+				errorBox.textContent = "Akses ditolak: Anda hanya dapat membuat atau mengedit ujian untuk mata pelajaran yang Anda ampu.";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
+			const passwordUjian = (form.elements.password_ujian?.value || "").trim();
+
 			const openedAt = new Date(form.elements.dibuka_at.value);
 			const closedAt = new Date(form.elements.ditutup_at.value);
 			if (!(openedAt < closedAt)) {
@@ -1187,29 +1460,42 @@
 				aktif: form.elements.aktif.checked,
 				target_tingkat: targetTingkat,
 				target_kelas: targetKelas,
+				password_ujian: passwordUjian || null,
 			};
 			try {
 				const query = editingExamId
-					? client.from("ujian").update(values).eq("id", editingExamId)
-					: client.from("ujian").insert(values);
-				let { error } = await query;
+					? client.from("ujian").update(values).eq("id", editingExamId).select("id")
+					: client.from("ujian").insert(values).select("id");
+				let { data: savedData, error } = await query;
 				if (error && error.message && (error.message.includes("target_tingkat") || error.message.includes("target_kelas"))) {
 					console.warn("Kolom target_tingkat/target_kelas belum ada di DB, menyimpan tanpa sasaran:", error);
 					delete values.target_tingkat;
 					delete values.target_kelas;
 					const fallbackQuery = editingExamId
-						? client.from("ujian").update(values).eq("id", editingExamId)
-						: client.from("ujian").insert(values);
+						? client.from("ujian").update(values).eq("id", editingExamId).select("id")
+						: client.from("ujian").insert(values).select("id");
 					const fallbackRes = await fallbackQuery;
+					savedData = fallbackRes.data;
 					error = fallbackRes.error;
 				}
 				if (error && error.message && error.message.includes("toleransi_menit")) {
 					console.warn("Kolom toleransi_menit belum ada, menyimpan tanpa toleransi_menit:", error);
 					delete values.toleransi_menit;
 					const fallbackQuery = editingExamId
-						? client.from("ujian").update(values).eq("id", editingExamId)
-						: client.from("ujian").insert(values);
+						? client.from("ujian").update(values).eq("id", editingExamId).select("id")
+						: client.from("ujian").insert(values).select("id");
 					const fallbackRes = await fallbackQuery;
+					savedData = fallbackRes.data;
+					error = fallbackRes.error;
+				}
+				if (error && error.message && error.message.includes("password_ujian")) {
+					console.warn("Kolom password_ujian belum ada di DB, menyimpan tanpa password_ujian:", error);
+					delete values.password_ujian;
+					const fallbackQuery = editingExamId
+						? client.from("ujian").update(values).eq("id", editingExamId).select("id")
+						: client.from("ujian").insert(values).select("id");
+					const fallbackRes = await fallbackQuery;
+					savedData = fallbackRes.data;
 					error = fallbackRes.error;
 				}
 				if (error) {
@@ -1218,6 +1504,16 @@
 					}
 					throw error;
 				}
+
+				const unlockedId = editingExamId || savedData?.[0]?.id;
+				if (unlockedId) {
+					if (values.password_ujian) {
+						sessionUnlockedExams[unlockedId] = true;
+					} else {
+						delete sessionUnlockedExams[unlockedId];
+					}
+				}
+
 				$("#examModal").modal("hide");
 				showMessage(editingExamId ? "Pengaturan ujian diperbarui." : "Ujian berhasil dibuat.");
 				await loadExams();
@@ -1722,9 +2018,21 @@
 		});
 		document.getElementById("newExamButton").addEventListener("click", openNewExam);
 		document.getElementById("refreshExamsButton").addEventListener("click", () => loadExams().catch((error) => showMessage(error.message, "danger")));
-		document.getElementById("newQuestionButton").addEventListener("click", openNewQuestion);
+		document.getElementById("newQuestionButton").addEventListener("click", async () => {
+			if (selectedExam) {
+				const allowed = await requireExamAuth(selectedExam, "menambah butir soal baru");
+				if (!allowed) return;
+			}
+			openNewQuestion();
+		});
 		document.getElementById("downloadQuestionTemplate").addEventListener("click", downloadQuestionTemplate);
-		document.getElementById("importQuestionsButton").addEventListener("click", () => document.getElementById("importQuestionsFile").click());
+		document.getElementById("importQuestionsButton").addEventListener("click", async () => {
+			if (selectedExam) {
+				const allowed = await requireExamAuth(selectedExam, "mengimpor soal dari Excel");
+				if (!allowed) return;
+			}
+			document.getElementById("importQuestionsFile").click();
+		});
 		document.getElementById("importQuestionsFile").addEventListener("change", async (event) => {
 			const file = event.target.files[0];
 			if (!file) return;
@@ -1741,11 +2049,13 @@
 		});
 
 		// Bulk Upload Photos Modal Triggers
-		document.getElementById("bulkUploadPhotosButton").addEventListener("click", () => {
+		document.getElementById("bulkUploadPhotosButton").addEventListener("click", async () => {
 			if (!selectedExam) {
 				showMessage("Silakan pilih ujian terlebih dahulu.", "warning");
 				return;
 			}
+			const allowed = await requireExamAuth(selectedExam, "mengunggah foto soal massal");
+			if (!allowed) return;
 			bulkSelectedFiles = [];
 			renderBulkFilesPreview();
 			document.getElementById("bulkUploadProgressBarContainer").classList.add("d-none");
@@ -1855,6 +2165,14 @@
 			if (!toggle) return;
 			const exam = exams.find((item) => String(item.id) === toggle.dataset.examActive);
 			if (!exam) return;
+
+			const desiredState = toggle.checked;
+			const allowed = await requireExamAuth(exam, desiredState ? "mengaktifkan ujian" : "menonaktifkan ujian", true);
+			if (!allowed) {
+				toggle.checked = !desiredState;
+				return;
+			}
+
 			toggle.disabled = true;
 			try {
 				const { error } = await client.from("ujian").update({ aktif: toggle.checked }).eq("id", exam.id);
@@ -1868,6 +2186,7 @@
 		});
 
 		document.getElementById("questionsBackButton").addEventListener("click", () => {
+			$("body").removeClass("modal-open").css({ "overflow": "", "padding-right": "" });
 			questionsSection.classList.add("d-none");
 			examListView.classList.remove("d-none");
 			window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1901,55 +2220,74 @@
 			const exam = exams.find((item) => String(item.id) === button.dataset.id);
 			if (!exam) return;
 			try {
-				if (button.dataset.action === "edit-exam") openEditExam(exam);
-				if (button.dataset.action === "archive-exam" && window.confirm(`Arsipkan ujian "${exam.nama_ujian}"? Ujian akan disembunyikan dari daftar utama, soal-soal tetap tersimpan.`)) {
-					const { error: archiveError } = await client.from("ujian").update({ is_archived: true, aktif: false }).eq("id", exam.id);
-					if (archiveError) throw archiveError;
-					showMessage(`Ujian "${exam.nama_ujian}" berhasil diarsipkan.`);
-					await loadExams();
+				if (button.dataset.action === "edit-exam") {
+					const allowed = await requireExamAuth(exam, "mengedit pengaturan ujian", true);
+					if (!allowed) return;
+					openEditExam(exam);
 				}
-				if (button.dataset.action === "restore-exam" && window.confirm(`Pulihkan ujian "${exam.nama_ujian}" dari arsip?`)) {
-					const { error: restoreError } = await client.from("ujian").update({ is_archived: false }).eq("id", exam.id);
-					if (restoreError) throw restoreError;
-					showMessage(`Ujian "${exam.nama_ujian}" berhasil dipulihkan dari arsip.`);
-					await loadExams();
+				if (button.dataset.action === "archive-exam") {
+					const allowed = await requireExamAuth(exam, "mengarsipkan ujian");
+					if (!allowed) return;
+					if (window.confirm(`Arsipkan ujian "${exam.nama_ujian}"? Ujian akan disembunyikan dari daftar utama, soal-soal tetap tersimpan.`)) {
+						const { error: archiveError } = await client.from("ujian").update({ is_archived: true, aktif: false }).eq("id", exam.id);
+						if (archiveError) throw archiveError;
+						showMessage(`Ujian "${exam.nama_ujian}" berhasil diarsipkan.`);
+						await loadExams();
+					}
+				}
+				if (button.dataset.action === "restore-exam") {
+					const allowed = await requireExamAuth(exam, "memulihkan ujian dari arsip");
+					if (!allowed) return;
+					if (window.confirm(`Pulihkan ujian "${exam.nama_ujian}" dari arsip?`)) {
+						const { error: restoreError } = await client.from("ujian").update({ is_archived: false }).eq("id", exam.id);
+						if (restoreError) throw restoreError;
+						showMessage(`Ujian "${exam.nama_ujian}" berhasil dipulihkan dari arsip.`);
+						await loadExams();
+					}
 				}
 				if (button.dataset.action === "questions") {
+					const allowed = await requireExamAuth(exam, "mengakses dan menambah soal ujian", true);
+					if (!allowed) return;
 					selectedExam = exam;
+					$("body").removeClass("modal-open").css({ "overflow": "", "padding-right": "" });
 					examListView.classList.add("d-none");
 					questionsSection.classList.remove("d-none");
 					await loadQuestions();
 					questionsSection.scrollIntoView({ behavior: "smooth", block: "start" });
 				}
-				if (button.dataset.action === "delete-exam" && window.confirm(`Hapus ujian "${exam.nama_ujian}" beserta seluruh soal dan data pengerjaan siswa?`)) {
-					// 1. Bersihkan data jawaban dan percobaan siswa terkait ujian ini terlebih dahulu
-					try {
-						await client.from("jawaban_siswa").delete().eq("ujian_id", exam.id);
-					} catch (_) {}
-					try {
-						await client.from("percobaan_ujian").delete().eq("ujian_id", exam.id);
-					} catch (_) {}
+				if (button.dataset.action === "delete-exam") {
+					const allowed = await requireExamAuth(exam, "menghapus ujian dan seluruh data soal");
+					if (!allowed) return;
+					if (window.confirm(`Hapus ujian "${exam.nama_ujian}" beserta seluruh soal dan data pengerjaan siswa?`)) {
+						// 1. Bersihkan data jawaban dan percobaan siswa terkait ujian ini terlebih dahulu
+						try {
+							await client.from("jawaban_siswa").delete().eq("ujian_id", exam.id);
+						} catch (_) {}
+						try {
+							await client.from("percobaan_ujian").delete().eq("ujian_id", exam.id);
+						} catch (_) {}
 
-					// 2. Bersihkan kunci & acuan jawaban soal
-					try {
-						const { data: soalList } = await client.from("soal_ujian").select("id").eq("ujian_id", exam.id);
-						if (soalList && soalList.length > 0) {
-							const soalIds = soalList.map((s) => s.id);
-							await client.from("kunci_pg").delete().in("soal_id", soalIds);
-							await client.from("jawaban_acuan_essay").delete().in("soal_id", soalIds);
+						// 2. Bersihkan kunci & acuan jawaban soal
+						try {
+							const { data: soalList } = await client.from("soal_ujian").select("id").eq("ujian_id", exam.id);
+							if (soalList && soalList.length > 0) {
+								const soalIds = soalList.map((s) => s.id);
+								await client.from("kunci_pg").delete().in("soal_id", soalIds);
+								await client.from("jawaban_acuan_essay").delete().in("soal_id", soalIds);
+							}
+							await client.from("soal_ujian").delete().eq("ujian_id", exam.id);
+						} catch (_) {}
+
+						// 3. Hapus ujian
+						const { error } = await client.from("ujian").delete().eq("id", exam.id);
+						if (error) throw error;
+						if (selectedExam?.id === exam.id) {
+							selectedExam = null;
+							questionsSection.classList.add("d-none");
 						}
-						await client.from("soal_ujian").delete().eq("ujian_id", exam.id);
-					} catch (_) {}
-
-					// 3. Hapus ujian
-					const { error } = await client.from("ujian").delete().eq("id", exam.id);
-					if (error) throw error;
-					if (selectedExam?.id === exam.id) {
-						selectedExam = null;
-						questionsSection.classList.add("d-none");
+						showMessage("Ujian beserta seluruh data pengerjaan dan soal berhasil dihapus.");
+						await loadExams();
 					}
-					showMessage("Ujian beserta seluruh data pengerjaan dan soal berhasil dihapus.");
-					await loadExams();
 				}
 			} catch (error) {
 				showMessage(error.message, "danger");
@@ -1960,12 +2298,20 @@
 			const button = event.target.closest("button[data-question-action]");
 			if (!button) return;
 			try {
-				if (button.dataset.questionAction === "edit") await openEditQuestion(button.dataset.id);
-				if (button.dataset.questionAction === "delete" && window.confirm("Hapus soal ini?")) {
-					const { error } = await client.from("soal_ujian").delete().eq("id", button.dataset.id);
-					if (error) throw error;
-					showMessage("Soal berhasil dihapus.");
-					await loadQuestions();
+				if (button.dataset.questionAction === "edit") {
+					const allowed = await requireExamAuth(selectedExam, "mengedit butir soal");
+					if (!allowed) return;
+					await openEditQuestion(button.dataset.id);
+				}
+				if (button.dataset.questionAction === "delete") {
+					const allowed = await requireExamAuth(selectedExam, "menghapus butir soal");
+					if (!allowed) return;
+					if (window.confirm("Hapus soal ini?")) {
+						const { error } = await client.from("soal_ujian").delete().eq("id", button.dataset.id);
+						if (error) throw error;
+						showMessage("Soal berhasil dihapus.");
+						await loadQuestions();
+					}
 				}
 			} catch (error) {
 				showMessage(error.message, "danger");
@@ -1985,6 +2331,42 @@
 				passInput.type = "password";
 				icon.className = "fas fa-eye";
 			}
+		});
+
+		document.getElementById("toggleExamPassword")?.addEventListener("click", () => {
+			const passInput = document.getElementById("examPassword");
+			const icon = document.getElementById("toggleExamPasswordIcon");
+			if (passInput.type === "password") {
+				passInput.type = "text";
+				icon.className = "fas fa-eye-slash";
+			} else {
+				passInput.type = "password";
+				icon.className = "fas fa-eye";
+			}
+		});
+
+		document.getElementById("toggleExamAuthPassword")?.addEventListener("click", () => {
+			const passInput = document.getElementById("examAuthPasswordInput");
+			const icon = document.getElementById("toggleExamAuthPasswordIcon");
+			if (passInput.type === "password") {
+				passInput.type = "text";
+				icon.className = "fas fa-eye-slash";
+			} else {
+				passInput.type = "password";
+				icon.className = "fas fa-eye";
+			}
+		});
+
+		// Memastikan scroll modal dan body selalu bersih dan tidak mengunci halaman
+		$(document).on("hidden.bs.modal", ".modal", function () {
+			if ($(".modal.show").length > 0 || $(".modal:visible").length > 0) {
+				$("body").addClass("modal-open");
+			} else {
+				$("body").removeClass("modal-open").css({ "overflow": "", "padding-right": "" });
+			}
+		});
+		$(document).on("shown.bs.modal", ".modal", function () {
+			$("body").addClass("modal-open");
 		});
 
 		document.getElementById("globalSecurityForm")?.addEventListener("submit", async (e) => {
@@ -2040,12 +2422,13 @@
 			if (!await window.adminSessionReady) return;
 			try {
 				await loadGlobalCbtSettings();
+				await loadTeacherContext();
 				await loadSubjects();
 				await loadClasses();
 				await loadExams();
 			} catch (error) {
 				showMessage(error.message, "danger");
-				examRows.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Gagal memuat data. Pastikan schema ujian sudah dijalankan dan akun memiliki role admin.</td></tr>';
+				examRows.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Gagal memuat data. Pastikan schema ujian sudah dijalankan dan akun memiliki role admin atau guru.</td></tr>';
 			}
 		});
 	</script>

@@ -5,7 +5,8 @@ const RESOURCE_PAGE_CONFIG = {
     fields: [
       { key: "nip", label: "NIP" },
       { key: "nama", label: "Nama" },
-      { key: "nama_pelajaran", label: "Mata Pelajaran" },
+      { key: "nama_pelajaran_badges", label: "Mata Pelajaran", isHtml: true },
+      { key: "kelas_list_badges", label: "Kelas Diampu", isHtml: true },
     ],
     addModal: "tambahGuruModal",
     editModal: "editGuruModal",
@@ -108,12 +109,26 @@ document.addEventListener("DOMContentLoaded", () => {
     tableBody.replaceChildren();
 
     records.forEach((record, index) => {
+      if (config.resource === "guru") {
+        const mapels = record.nama_pelajaran_list && record.nama_pelajaran_list.length
+          ? record.nama_pelajaran_list
+          : (record.nama_pelajaran && record.nama_pelajaran !== "-" ? [record.nama_pelajaran] : []);
+        record.nama_pelajaran_badges = mapels.length
+          ? mapels.map((m) => `<span class="badge badge-primary mr-1 mb-1 font-weight-normal">${m}</span>`).join("")
+          : '<span class="text-muted small">Belum diatur</span>';
+
+        const kelasList = Array.isArray(record.kelas_list) ? record.kelas_list : [];
+        record.kelas_list_badges = kelasList.length
+          ? kelasList.map((k) => `<span class="badge badge-success mr-1 mb-1 font-weight-normal">${k}</span>`).join("")
+          : '<span class="text-muted small">Belum diatur</span>';
+      }
+
       const row = document.createElement("tr");
       const numberCell = document.createElement("td");
       numberCell.textContent = String(index + 1);
       row.append(numberCell);
 
-      config.fields.forEach(({ key }) => {
+      config.fields.forEach(({ key, isHtml }) => {
         const cell = document.createElement("td");
         if (config.resource === "kelas" && key === "nama_kelas") {
           const button = document.createElement("button");
@@ -124,6 +139,8 @@ document.addEventListener("DOMContentLoaded", () => {
           button.dataset.recordAction = "students";
           button.dataset.recordId = record.id;
           cell.append(button);
+        } else if (isHtml) {
+          cell.innerHTML = record[key] ?? "";
         } else {
           cell.textContent = record[key] ?? "";
         }
@@ -179,21 +196,81 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  let cachedSubjects = [];
+  let cachedClasses = [];
+
+  function renderGuruCheckboxes(containerPelajaranId, containerKelasId, selectedPIds = [], selectedClasses = []) {
+    const pContainer = document.getElementById(containerPelajaranId);
+    const kContainer = document.getElementById(containerKelasId);
+
+    const safePIds = (selectedPIds || []).map(Number);
+    const safeClasses = (selectedClasses || []).map((c) => String(c).trim());
+
+    if (pContainer) {
+      if (!cachedSubjects.length) {
+        pContainer.innerHTML = '<span class="text-muted small">Belum ada data mata pelajaran.</span>';
+      } else {
+        pContainer.innerHTML = cachedSubjects.map((s) => {
+          const isChecked = safePIds.includes(Number(s.id));
+          return `
+            <div class="custom-control custom-checkbox custom-control-inline mr-3 mb-1">
+              <input type="checkbox" class="custom-control-input" id="${containerPelajaranId}_${s.id}" value="${s.id}" ${isChecked ? "checked" : ""}>
+              <label class="custom-control-label small" for="${containerPelajaranId}_${s.id}">${s.nama_pelajaran}</label>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+
+    if (kContainer) {
+      if (!cachedClasses.length) {
+        kContainer.innerHTML = '<span class="text-muted small">Belum ada data kelas aktif.</span>';
+      } else {
+        kContainer.innerHTML = cachedClasses.map((c) => {
+          const isChecked = safeClasses.includes(String(c.nama_kelas).trim());
+          return `
+            <div class="custom-control custom-checkbox custom-control-inline mr-3 mb-1">
+              <input type="checkbox" class="custom-control-input" id="${containerKelasId}_${c.id}" value="${c.nama_kelas}" ${isChecked ? "checked" : ""}>
+              <label class="custom-control-label small" for="${containerKelasId}_${c.id}">${c.nama_kelas}</label>
+            </div>
+          `;
+        }).join("");
+      }
+    }
+  }
+
   async function loadResourceSelectOptions() {
     if (config.resource === "guru") {
-      const selects = document.querySelectorAll('select[name="pelajaran_id"]');
-      if (!selects.length) return;
       try {
-        const result = await apiGet("/data/pelajaran");
-        const optionsHtml = '<option value="">-- Pilih Mata Pelajaran (Opsional) --</option>' +
-          (result.data || []).map((p) => `<option value="${p.id}">${p.nama_pelajaran}</option>`).join("");
-        selects.forEach((select) => {
-          const currentVal = select.value;
-          select.innerHTML = optionsHtml;
-          if (currentVal) select.value = currentVal;
-        });
+        const [resPelajaran, resKelas] = await Promise.all([
+          apiGet("/data/pelajaran").catch(() => ({ data: [] })),
+          apiGet("/data/kelas").catch(() => ({ data: [] })),
+        ]);
+        cachedSubjects = resPelajaran.data || [];
+        cachedClasses = resKelas.data || [];
+
+        renderGuruCheckboxes("tambahGuruPelajaranList", "tambahGuruKelasList");
+        renderGuruCheckboxes("editGuruPelajaranList", "editGuruKelasList");
+
+        const setupToggleAll = (btnId, containerId) => {
+          const btn = document.getElementById(btnId);
+          if (btn && !btn.dataset.wired) {
+            btn.dataset.wired = "true";
+            btn.addEventListener("click", () => {
+              const checks = Array.from(document.querySelectorAll(`#${containerId} input[type="checkbox"]`));
+              const allChecked = checks.length > 0 && checks.every((c) => c.checked);
+              checks.forEach((c) => (c.checked = !allChecked));
+              btn.textContent = allChecked ? "Pilih Semua" : "Batal Pilih";
+            });
+          }
+        };
+
+        setupToggleAll("btnToggleAllPelajaranTambah", "tambahGuruPelajaranList");
+        setupToggleAll("btnToggleAllKelasTambah", "tambahGuruKelasList");
+        setupToggleAll("btnToggleAllPelajaranEdit", "editGuruPelajaranList");
+        setupToggleAll("btnToggleAllKelasEdit", "editGuruKelasList");
       } catch (err) {
-        console.warn("Gagal memuat opsi pelajaran:", err);
+        console.warn("Gagal memuat opsi pelajaran & kelas:", err);
       }
     }
   }
@@ -279,6 +356,9 @@ document.addEventListener("DOMContentLoaded", () => {
           el.value = "";
         }
       });
+      if (config.resource === "guru") {
+        renderGuruCheckboxes("editGuruPelajaranList", "editGuruKelasList", record.pelajaran_ids, record.kelas_list);
+      }
     } else if (button.dataset.recordAction === "reset-password") {
       const confirmReset = window.confirm(
         `Reset password akun guru "${record.nama}" (NIP: ${record.nip}) ke password default (NIP)?\n\nKlik OK untuk mereset.`
@@ -313,7 +393,14 @@ document.addEventListener("DOMContentLoaded", () => {
   addForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      await apiPost(`/data/${config.resource}`, formValues(addForm));
+      const payload = formValues(addForm);
+      if (config.resource === "guru") {
+        const pChecks = Array.from(addForm.querySelectorAll("#tambahGuruPelajaranList input[type='checkbox']:checked"));
+        payload.pelajaran_ids = pChecks.map((c) => Number(c.value));
+        const kChecks = Array.from(addForm.querySelectorAll("#tambahGuruKelasList input[type='checkbox']:checked"));
+        payload.kelas_list = kChecks.map((c) => c.value);
+      }
+      await apiPost(`/data/${config.resource}`, payload);
       addForm.reset();
       hideModal(config.addModal);
       await loadRecords();
@@ -325,7 +412,14 @@ document.addEventListener("DOMContentLoaded", () => {
   editForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     try {
-      await apiPut(`/data/${config.resource}/${encodeURIComponent(editForm.dataset.recordId)}`, formValues(editForm));
+      const payload = formValues(editForm);
+      if (config.resource === "guru") {
+        const pChecks = Array.from(editForm.querySelectorAll("#editGuruPelajaranList input[type='checkbox']:checked"));
+        payload.pelajaran_ids = pChecks.map((c) => Number(c.value));
+        const kChecks = Array.from(editForm.querySelectorAll("#editGuruKelasList input[type='checkbox']:checked"));
+        payload.kelas_list = kChecks.map((c) => c.value);
+      }
+      await apiPut(`/data/${config.resource}/${encodeURIComponent(editForm.dataset.recordId)}`, payload);
       hideModal(config.editModal);
       await loadRecords();
     } catch (error) {

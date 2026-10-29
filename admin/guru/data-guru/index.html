@@ -262,6 +262,7 @@
                                             <th>NIP</th>
                                             <th>Nama</th>
                                             <th>Mata Pelajaran</th>
+                                            <th>Kelas Diampu</th>
                                             <th>Action</th>
                                         </tr>
                                     </thead>
@@ -305,10 +306,24 @@
                                                 <input type="text" name="nama" class="form-control" id="nama" required>
                                             </div>
                                             <div class="form-group">
-                                                <label for="pelajaran_id">Mata Pelajaran</label>
-                                                <select name="pelajaran_id" class="form-control" id="pelajaran_id">
-                                                    <option value="">-- Pilih Mata Pelajaran (Opsional) --</option>
-                                                </select>
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <label class="font-weight-bold mb-0">Mata Pelajaran (Bisa Lebih dari 1)</label>
+                                                    <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" id="btnToggleAllPelajaranTambah">Pilih Semua</button>
+                                                </div>
+                                                <div class="border rounded p-2 bg-light" style="max-height: 140px; overflow-y: auto;" id="tambahGuruPelajaranList">
+                                                    <span class="text-muted small">Memuat mata pelajaran...</span>
+                                                </div>
+                                                <small class="form-text text-muted">Centang mata pelajaran yang diampu guru ini.</small>
+                                            </div>
+                                            <div class="form-group">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <label class="font-weight-bold mb-0">Kelas Diampu (Bisa Lebih dari 1)</label>
+                                                    <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" id="btnToggleAllKelasTambah">Pilih Semua</button>
+                                                </div>
+                                                <div class="border rounded p-2 bg-light" style="max-height: 140px; overflow-y: auto;" id="tambahGuruKelasList">
+                                                    <span class="text-muted small">Memuat kelas...</span>
+                                                </div>
+                                                <small class="form-text text-muted">Centang kelas yang diajar oleh guru ini (menentukan batas akses ujian guru).</small>
                                             </div>
                                             <button type="submit" class="btn btn-primary">Tambah</button>
                                         </form>
@@ -353,10 +368,24 @@
                                         <input type="text" name="nama" class="form-control" id="editNama" required>
                                     </div>
                                     <div class="form-group">
-                                        <label for="editPelajaranId">Mata Pelajaran</label>
-                                        <select name="pelajaran_id" class="form-control" id="editPelajaranId">
-                                            <option value="">-- Pilih Mata Pelajaran (Opsional) --</option>
-                                        </select>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="font-weight-bold mb-0">Mata Pelajaran (Bisa Lebih dari 1)</label>
+                                            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" id="btnToggleAllPelajaranEdit">Pilih Semua</button>
+                                        </div>
+                                        <div class="border rounded p-2 bg-light" style="max-height: 140px; overflow-y: auto;" id="editGuruPelajaranList">
+                                            <span class="text-muted small">Memuat mata pelajaran...</span>
+                                        </div>
+                                        <small class="form-text text-muted">Centang mata pelajaran yang diampu guru ini.</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="font-weight-bold mb-0">Kelas Diampu (Bisa Lebih dari 1)</label>
+                                            <button type="button" class="btn btn-sm btn-link p-0 text-decoration-none" id="btnToggleAllKelasEdit">Pilih Semua</button>
+                                        </div>
+                                        <div class="border rounded p-2 bg-light" style="max-height: 140px; overflow-y: auto;" id="editGuruKelasList">
+                                            <span class="text-muted small">Memuat kelas...</span>
+                                        </div>
+                                        <small class="form-text text-muted">Centang kelas yang diajar oleh guru ini (menentukan batas akses ujian guru).</small>
                                     </div>
                                     <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
                                 </form>

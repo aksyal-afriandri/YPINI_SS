@@ -1,7 +1,7 @@
 const SUPABASE_STORAGE_BUCKET = "student-photos";
 const RESOURCE_FIELDS = {
   siswa: ["nis", "nama", "no_wa"],
-  guru: ["nip", "nama", "pelajaran_id"],
+  guru: ["nip", "nama", "pelajaran_id", "pelajaran_ids", "kelas_list"],
   kelas: ["jenjang", "nama_kelas"],
   pelajaran: ["nama_pelajaran"],
   tahun: ["tahun_ajaran"],
@@ -70,7 +70,34 @@ function formPayload(resource, input) {
     }
   });
   if (resource === "guru") {
-    values.pelajaran_id = values.pelajaran_id && !isNaN(values.pelajaran_id) ? Number(values.pelajaran_id) : null;
+    let pIds = [];
+    if (input instanceof FormData) {
+      const allP = input.getAll("pelajaran_ids");
+      if (allP && allP.length) pIds = allP;
+      else if (input.get("pelajaran_ids")) {
+        try { pIds = JSON.parse(input.get("pelajaran_ids")); } catch (_) { pIds = [input.get("pelajaran_ids")]; }
+      }
+    } else if (input && input.pelajaran_ids !== undefined) {
+      pIds = Array.isArray(input.pelajaran_ids) ? input.pelajaran_ids : [input.pelajaran_ids];
+    }
+    pIds = pIds.map(Number).filter((n) => !isNaN(n) && n > 0);
+    if (!pIds.length && values.pelajaran_id && !isNaN(values.pelajaran_id)) {
+      pIds = [Number(values.pelajaran_id)];
+    }
+    values.pelajaran_ids = pIds;
+    values.pelajaran_id = pIds.length ? pIds[0] : null;
+
+    let kList = [];
+    if (input instanceof FormData) {
+      const allK = input.getAll("kelas_list");
+      if (allK && allK.length) kList = allK;
+      else if (input.get("kelas_list")) {
+        try { kList = JSON.parse(input.get("kelas_list")); } catch (_) { kList = [input.get("kelas_list")]; }
+      }
+    } else if (input && input.kelas_list !== undefined) {
+      kList = Array.isArray(input.kelas_list) ? input.kelas_list : [input.kelas_list];
+    }
+    values.kelas_list = kList.map((k) => String(k).trim()).filter(Boolean);
   }
   return values;
 }
@@ -232,7 +259,7 @@ async function apiGet(path) {
   if (resource === "guru") {
     let { data, error } = await getSupabaseClient()
       .from("data_guru")
-      .select("id, nip, nama, pelajaran_id, data_pelajaran(id, nama_pelajaran)")
+      .select("id, nip, nama, pelajaran_id, pelajaran_ids, kelas_list, data_pelajaran(id, nama_pelajaran)")
       .order("id", { ascending: true });
     if (error) {
       const fallback = await getSupabaseClient()
@@ -242,10 +269,32 @@ async function apiGet(path) {
       if (fallback.error) throwSupabaseError(fallback.error);
       data = fallback.data;
     }
-    const records = (data || []).map((guru) => ({
-      ...guru,
-      nama_pelajaran: guru.data_pelajaran?.nama_pelajaran || "-",
-    }));
+
+    // Load map of all pelajaran for multiple subjects mapping
+    let allSubjects = [];
+    try {
+      const { data: pData } = await getSupabaseClient().from("data_pelajaran").select("id, nama_pelajaran");
+      allSubjects = pData || [];
+    } catch (_) {}
+    const subjectMap = new Map(allSubjects.map((s) => [Number(s.id), s.nama_pelajaran]));
+
+    const records = (data || []).map((guru) => {
+      const pIds = Array.isArray(guru.pelajaran_ids) && guru.pelajaran_ids.length
+        ? guru.pelajaran_ids.map(Number)
+        : (guru.pelajaran_id ? [Number(guru.pelajaran_id)] : []);
+      const subjectNames = pIds.map((pid) => subjectMap.get(pid)).filter(Boolean);
+      const nama_pelajaran = subjectNames.length
+        ? subjectNames.join(", ")
+        : (guru.data_pelajaran?.nama_pelajaran || "-");
+
+      return {
+        ...guru,
+        pelajaran_ids: pIds,
+        nama_pelajaran,
+        nama_pelajaran_list: subjectNames,
+        kelas_list: Array.isArray(guru.kelas_list) ? guru.kelas_list : [],
+      };
+    });
     return { data: records };
   }
 
