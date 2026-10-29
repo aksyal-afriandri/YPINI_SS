@@ -67,3 +67,38 @@
   background-color: rgba(22, 163, 74, 0.12) !important;
   color: #ffffff !important;
 }
+
+
+/* ===== FIX: teks submenu sidebar overflow keluar dari bg putih ===== */
+.sidebar .nav-item .collapse .collapse-inner,
+.sidebar .nav-item .collapsing .collapse-inner {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.sidebar .nav-item .collapse .collapse-inner .collapse-item,
+.sidebar .nav-item .collapsing .collapse-inner .collapse-item,
+.sidebar .nav-item .collapse .collapse-inner .collapse-header,
+.sidebar .nav-item .collapsing .collapse-inner .collapse-header {
+  white-space: normal;       /* izinkan teks turun ke baris baru */
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+/* Wrapper daftar kelas yang dibuat lewat JS */
+#sidebarClassLinks,
+#sidebarMonitoringClassLinks,
+#sidebarExamResultClassLinks {
+  max-width: 100%;
+}
+
+/* Saat sidebar dalam mode kecil (toggled, desktop) popup submenu tetap boleh lebih lebar */
+@media (min-width: 768px) {
+  .sidebar.toggled .nav-item .collapse .collapse-inner {
+    min-width: 10rem;
+    max-width: 16rem;
+  }
+}

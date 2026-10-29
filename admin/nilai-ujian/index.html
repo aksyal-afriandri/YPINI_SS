@@ -20,6 +20,11 @@
 		.essay-reference-box { background: #fffdf5; border-left: 4px solid #f6c23e; border-radius: 4px; padding: 10px 14px; font-size: 0.88rem; line-height: 1.4; white-space: pre-wrap; }
 		.question-image-thumb { max-height: 180px; max-width: 100%; border-radius: 6px; border: 1px solid #e3e6f0; object-fit: contain; cursor: pointer; transition: transform .2s; }
 		.question-image-thumb:hover { transform: scale(1.02); }
+		/* Header tabel yang bisa diurutkan (gaya DataTables) */
+		#submissionsTable thead th[data-sort-key] { cursor: pointer; user-select: none; white-space: nowrap; }
+		#submissionsTable thead th[data-sort-key]:hover { background-color: #e9ecef; }
+		#submissionsTable thead th[data-sort-key] .sort-icon { margin-left: 6px; opacity: .35; font-size: .8em; }
+		#submissionsTable thead th[data-sort-key].sorted .sort-icon { opacity: 1; color: #16a34a; }
 		@media screen {
 			#printArea { display: none !important; }
 		}
@@ -80,6 +85,14 @@
 			}
 			.print-signature-area {
 				page-break-inside: avoid !important;
+			}
+			.ans-q {
+				page-break-inside: avoid !important;
+				break-inside: avoid !important;
+			}
+			.ans-q img {
+				max-height: 60mm;
+				max-width: 100%;
 			}
 		}
 
@@ -361,13 +374,13 @@
 								<table class="table table-hover table-striped mb-0" id="submissionsTable">
 									<thead class="thead-light">
 										<tr>
-											<th style="width: 45px;">No</th>
-											<th>Siswa</th>
-											<th>Kelas</th>
-											<th>Ujian & Mapel</th>
-											<th>Waktu Pengumpulan</th>
-											<th class="text-center" style="width: 120px;">Nilai Akhir</th>
-											<th class="text-center" style="width: 120px;">Status</th>
+											<th style="width: 60px;" data-sort-key="no" tabindex="0" title="Urutkan berdasarkan nomor">No<i class="fas fa-sort sort-icon"></i></th>
+											<th data-sort-key="siswa" tabindex="0" title="Urutkan berdasarkan nama siswa">Siswa<i class="fas fa-sort sort-icon"></i></th>
+											<th data-sort-key="kelas" tabindex="0" title="Urutkan berdasarkan kelas">Kelas<i class="fas fa-sort sort-icon"></i></th>
+											<th data-sort-key="ujian" tabindex="0" title="Urutkan berdasarkan ujian & mapel">Ujian & Mapel<i class="fas fa-sort sort-icon"></i></th>
+											<th data-sort-key="waktu" tabindex="0" title="Urutkan berdasarkan waktu pengumpulan">Waktu Pengumpulan<i class="fas fa-sort sort-icon"></i></th>
+											<th class="text-center" style="width: 130px;" data-sort-key="nilai" tabindex="0" title="Urutkan berdasarkan nilai akhir">Nilai Akhir<i class="fas fa-sort sort-icon"></i></th>
+											<th class="text-center" style="width: 130px;" data-sort-key="status" tabindex="0" title="Urutkan berdasarkan status">Status<i class="fas fa-sort sort-icon"></i></th>
 											<th class="text-center" style="width: 120px;">Aksi</th>
 										</tr>
 									</thead>
@@ -497,6 +510,15 @@
 						<button type="button" class="btn btn-outline-success btn-sm ml-2" id="btnReviewModalSendWa">
 							<i class="fab fa-whatsapp mr-1"></i>Kirim Nilai ke WA
 						</button>
+						<div class="btn-group dropup ml-2">
+							<button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" id="btnPrintAnswerSheet" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Cetak / simpan PDF jawaban siswa dibandingkan dengan kunci jawaban">
+								<i class="fas fa-file-pdf mr-1"></i>Cetak PDF
+							</button>
+							<div class="dropdown-menu">
+								<a class="dropdown-item" href="#" data-print-mode="rekap"><i class="fas fa-table fa-fw mr-2 text-gray-500"></i>Jawaban Rekap</a>
+								<a class="dropdown-item" href="#" data-print-mode="butir"><i class="fas fa-list-ol fa-fw mr-2 text-gray-500"></i>Jawaban per Soal</a>
+							</div>
+						</div>
 					</div>
 					<div>
 						<button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
@@ -985,6 +1007,9 @@
 				return true;
 			});
 
+			// Nomor tetap sesuai urutan hasil filter (agar kolom No bisa diurutkan naik/turun), lalu terapkan pengurutan aktif
+			filteredSubmissions.forEach((it, i) => { it._no = i + 1; });
+			applySubmissionSort();
 			renderTable();
 			updateStats();
 		}
@@ -1012,6 +1037,66 @@
 				? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2)
 				: "0.00";
 			if (elAvg) elAvg.textContent = avg;
+		}
+
+		/* ==========================================================================
+		   PENGURUTAN TABEL DAFTAR PENGERJAAN (klik header kolom: naik <-> turun)
+		   Urutan ini juga dipakai oleh Cetak Rekap Nilai & Export Excel (sesuai tampilan tabel).
+		   ========================================================================== */
+		let submissionSort = { key: "no", dir: "asc" };
+		const SUBMISSION_STATUS_RANK = { dikumpulkan: 0, dinilai: 1 };
+		const submissionCollator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
+
+		function getSubmissionSortValue(item, key) {
+			switch (key) {
+				case "no": return item._no || 0;
+				case "siswa": return item.studentName || "";
+				case "kelas": return item.className || "";
+				case "ujian": return `${item.examName || ""} ${item.subjectName || ""}`;
+				case "waktu": return new Date(item.dikumpulkan_at || item.mulai_at).getTime() || 0;
+				case "status": return SUBMISSION_STATUS_RANK[item.status] ?? 2;
+				default: return "";
+			}
+		}
+
+		function applySubmissionSort() {
+			const { key, dir } = submissionSort;
+			const mul = dir === "desc" ? -1 : 1;
+			const hasScore = (s) => s.nilai_total !== null && s.nilai_total !== undefined;
+
+			filteredSubmissions.sort((a, b) => {
+				if (key === "nilai") {
+					// Baris "Belum Final" selalu di bawah, baik naik maupun turun
+					if (!hasScore(a) && !hasScore(b)) return (a._no || 0) - (b._no || 0);
+					if (!hasScore(a)) return 1;
+					if (!hasScore(b)) return -1;
+					return ((Number(a.nilai_total) - Number(b.nilai_total)) * mul) || ((a._no || 0) - (b._no || 0));
+				}
+				const av = getSubmissionSortValue(a, key);
+				const bv = getSubmissionSortValue(b, key);
+				const cmp = typeof av === "number" ? av - bv : submissionCollator.compare(String(av), String(bv));
+				return (cmp * mul) || ((a._no || 0) - (b._no || 0));
+			});
+			updateSortIndicators();
+		}
+
+		function updateSortIndicators() {
+			document.querySelectorAll("#submissionsTable thead [data-sort-key]").forEach(th => {
+				const active = th.getAttribute("data-sort-key") === submissionSort.key;
+				th.classList.toggle("sorted", active);
+				th.setAttribute("aria-sort", active ? (submissionSort.dir === "asc" ? "ascending" : "descending") : "none");
+				const icon = th.querySelector(".sort-icon");
+				if (icon) icon.className = "fas sort-icon " + (active ? (submissionSort.dir === "asc" ? "fa-sort-up" : "fa-sort-down") : "fa-sort");
+			});
+		}
+
+		function onSortHeaderClick(th) {
+			const key = th.getAttribute("data-sort-key");
+			submissionSort = (submissionSort.key === key)
+				? { key, dir: submissionSort.dir === "asc" ? "desc" : "asc" }
+				: { key, dir: "asc" };
+			applySubmissionSort();
+			renderTable();
 		}
 
 		function renderTable() {
@@ -1042,7 +1127,7 @@
 
 				return `
 					<tr>
-						<td class="text-center align-middle font-weight-bold text-gray-600">${index + 1}</td>
+						<td class="text-center align-middle font-weight-bold text-gray-600">${submissionSort.key === "no" ? (item._no || (index + 1)) : (index + 1)}</td>
 						<td class="align-middle">
 							<div class="font-weight-bold text-gray-900">
 								${escapeHtml(item.studentName)}
@@ -1623,6 +1708,24 @@
 			// Anda dapat menambahkan catatan kaki, teks pengumuman, atau informasi remedial di sini.
 			// Kosongkan "" jika tidak diperlukan.
 			catatanTambahan: "", // [PETUNJUK] Contoh: "* Batas kelulusan (KKM) adalah 75. Siswa di bawah 75 wajib mengikuti remedial."
+
+			// 6. TANDA TANGAN PADA CETAK LEMBAR JAWABAN SISWA (dari tombol "Cetak PDF" di modal Periksa)
+			// false = disembunyikan sementara | true = tampilkan lagi tanda tangan guru di kanan bawah
+			tampilkanTandaTanganLembarJawaban: false,
+			// Kotak ringkasan (Total Soal, PG Benar, PG Salah, Tidak Dijawab, Nilai Akhir) di atas lembar jawaban
+			// false = disembunyikan | true = tampilkan lagi
+			tampilkanRingkasanLembarJawaban: false,
+			// Kunci / acuan jawaban essay pada cetak "Jawaban per Butir Soal" (cetak Rekap tidak pernah menampilkannya)
+			// false = hanya jawaban siswa | true = tampilkan juga acuan jawaban
+			tampilkanAcuanEssayLembarJawaban: false,
+			// Tulisan BENAR / SALAH / TIDAK DIJAWAB di sebelah nomor soal pada cetak "Jawaban per Butir Soal"
+			// false = hanya penanda warna merah/hijau | true = tampilkan tulisannya juga
+			tampilkanLabelBenarSalahLembarJawaban: false,
+			// Urutan soal pada cetak lembar jawaban (Rekap & Per Butir)
+			// true = soal pilihan ganda dulu, essay selalu di akhir | false = ikuti urutan asli di pengaturan ujian
+			essayDiAkhirLembarJawaban: true,
+			// Nomor pada cetak: false = diurutkan ulang 1, 2, 3, ... sesuai hasil cetak | true = pakai nomor asli soal di ujian
+			pakaiNomorAsliLembarJawaban: false,
 		};
 
 		/**
@@ -1937,6 +2040,291 @@
 			setTimeout(() => {
 				window.print();
 			}, 100);
+		}
+
+		/* ==========================================================================
+		   CETAK LEMBAR JAWABAN SISWA (dari modal "Periksa")
+		   mode "rekap" = dua tabel terpisah: Pilihan Ganda (No | Soal | Jawaban Siswa | Kunci Jawaban)
+		                  dan Essay (No | Soal | Jawaban Siswa, tanpa kunci)
+		   mode "butir" = perbandingan jawaban siswa vs kunci untuk tiap butir soal
+		   Beberapa bagian bisa dinyalakan lagi lewat PRINT_CONFIG (tampilkan...LembarJawaban).
+		   Hasil dicetak lewat dialog cetak browser -> pilih "Simpan sebagai PDF".
+		   ========================================================================== */
+		async function printStudentAnswerSheet(mode = "butir") {
+			const attempt = currentSelectedAttempt;
+			if (!attempt || !currentAttemptQuestions.length) {
+				showModalMessage("Data soal & jawaban belum termuat, tidak ada yang bisa dicetak.", "warning");
+				return;
+			}
+			const isRekap = mode === "rekap";
+
+			const font = PRINT_CONFIG.fontCetak || "Arial, 'Helvetica Neue', Helvetica, sans-serif";
+			const schoolName = PRINT_CONFIG.kop.namaSekolah ? PRINT_CONFIG.kop.namaSekolah.trim() : "";
+			const teacherName = window.currentUserProfile?.name || "";
+			const printDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+			const finalScoreRaw = document.getElementById("inputFinalScore")?.value;
+			const finalScore = (finalScoreRaw !== undefined && finalScoreRaw !== "") ? finalScoreRaw : "-";
+
+			const optText = (q, k) => ({ A: q.pilihan_a, B: q.pilihan_b, C: q.pilihan_c, D: q.pilihan_d })[k] || "";
+			const GREEN = "#d4edda", RED = "#f8d7da", GREY = "#e9ecef";
+
+			// --- Hitung ringkasan PG (dipakai kotak ringkasan jika diaktifkan) ---
+			let pgTotal = 0, pgCorrect = 0, pgWrong = 0, pgBlank = 0;
+			currentAttemptQuestions.forEach(q => {
+				if (q.soal_type === "essay") return;
+				const ans = currentAttemptStudentAnswers.get(String(q.id));
+				const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
+				const key = (currentAttemptKunciPg.get(String(q.id)) || "").toUpperCase();
+				pgTotal++;
+				if (choice && key && choice === key) pgCorrect++;
+				else if (choice) pgWrong++;
+				else pgBlank++;
+			});
+
+			const cell = "border: 1px solid #333; padding: 3px 6px; text-align: center; font-size: 9.5pt;";
+			const summaryHtml = PRINT_CONFIG.tampilkanRingkasanLembarJawaban ? `
+				<table style="width: 100%; border-collapse: collapse; margin: 8px 0;">
+					<tr>
+						<td style="${cell} background: #f0f0f0;"><b>Total Soal</b><br>${currentAttemptQuestions.length}</td>
+						<td style="${cell} background: ${GREEN};"><b>PG Benar</b><br>${pgCorrect} / ${pgTotal}</td>
+						<td style="${cell} background: ${RED};"><b>PG Salah</b><br>${pgWrong}</td>
+						<td style="${cell} background: ${GREY};"><b>Tidak Dijawab</b><br>${pgBlank}</td>
+						<td style="${cell} background: #fff3cd;"><b>Nilai Akhir</b><br><span style="font-size: 12pt; font-weight: bold;">${escapeHtml(finalScore)}</span></td>
+					</tr>
+				</table>` : "";
+
+			// --- Urutan cetak: pilihan ganda dulu, essay di akhir (urutan relatif di tiap jenis tetap) ---
+			const originalIndex = new Map(currentAttemptQuestions.map((q, i) => [q.id, i]));
+			const printQuestions = PRINT_CONFIG.essayDiAkhirLembarJawaban === false
+				? currentAttemptQuestions.slice()
+				: [
+					...currentAttemptQuestions.filter(q => q.soal_type !== "essay"),
+					...currentAttemptQuestions.filter(q => q.soal_type === "essay")
+				];
+			const numberOf = (q, idx) => PRINT_CONFIG.pakaiNomorAsliLembarJawaban
+				? (q.nomor_urut || (originalIndex.get(q.id) + 1))
+				: (idx + 1);
+
+			let bodyHtml = "";
+
+			// ======================= MODE 1: REKAP (tabel PG & tabel essay terpisah) =======================
+			if (isRekap) {
+				const th = "border: 1px solid #333; padding: 6px 8px; background: #f0f0f0; font-size: 10pt;";
+				const td = "border: 1px solid #333; padding: 5px 8px; vertical-align: top; font-size: 10pt;";
+
+				const pgItems = [], essayItems = [];
+				printQuestions.forEach((q, idx) => {
+					(q.soal_type === "essay" ? essayItems : pgItems).push({ q, qNum: numberOf(q, idx) });
+				});
+
+				// --- Tabel Pilihan Ganda: No | Soal | Jawaban Siswa | Kunci Jawaban ---
+				const pgRows = pgItems.map(({ q, qNum }) => {
+					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
+					const key = (currentAttemptKunciPg.get(String(q.id)) || "").toUpperCase();
+					const studentBg = !choice ? GREY : (choice === key ? GREEN : RED);
+					const studentCell = choice
+						? `<td style="${td} background: ${studentBg};"><b>${choice}.</b> ${escapeHtml(optText(q, choice) || "-")}</td>`
+						: `<td style="${td} background: ${studentBg}; font-style: italic; color: #555;">Tidak dijawab</td>`;
+					const keyCell = key
+						? `<td style="${td} background: ${GREEN};"><b>${key}.</b> ${escapeHtml(optText(q, key) || "-")}</td>`
+						: `<td style="${td} font-style: italic; color: #555;">Kunci belum diatur</td>`;
+					return `<tr>
+						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
+						<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
+						${studentCell}
+						${keyCell}
+					</tr>`;
+				}).join("");
+
+				// --- Tabel Essay: No | Soal | Jawaban Siswa (tanpa kunci/acuan) ---
+				const essayRows = essayItems.map(({ q, qNum }) => {
+					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+					return `<tr>
+						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
+						<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
+						<td style="${td} white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
+					</tr>`;
+				}).join("");
+
+				const sectionTitle = (t) => `<div style="font-weight: bold; font-size: 11pt; margin: 12px 0 4px 0;">${t}</div>`;
+				const tableOpen = `<table class="print-table" style="width: 100%; border-collapse: collapse;">`;
+
+				bodyHtml = "";
+				if (pgRows) {
+					bodyHtml += sectionTitle("Soal Pilihan Ganda") + `${tableOpen}
+						<thead>
+							<tr>
+								<th style="${th} width: 34px;">No</th>
+								<th style="${th} text-align: left;">Soal</th>
+								<th style="${th} text-align: left; width: 24%;">Jawaban Siswa</th>
+								<th style="${th} text-align: left; width: 24%;">Kunci Jawaban</th>
+							</tr>
+						</thead>
+						<tbody>${pgRows}</tbody>
+					</table>`;
+				}
+				if (essayRows) {
+					bodyHtml += sectionTitle("Soal Essay") + `${tableOpen}
+						<thead>
+							<tr>
+								<th style="${th} width: 34px;">No</th>
+								<th style="${th} text-align: left; width: 38%;">Soal</th>
+								<th style="${th} text-align: left;">Jawaban Siswa</th>
+							</tr>
+						</thead>
+						<tbody>${essayRows}</tbody>
+					</table>`;
+				}
+				if (!bodyHtml) bodyHtml = `<div style="margin-top: 14px; font-style: italic;">Belum ada soal pada ujian ini.</div>`;
+			}
+
+			// ======================= MODE 2: JAWABAN PER BUTIR =======================
+			if (!isRekap) {
+				const detailHtml = printQuestions.map((q, idx) => {
+					const qNum = numberOf(q, idx);
+					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const isEssay = q.soal_type === "essay";
+
+					const images = [];
+					if (q.gambar_url) images.push(q.gambar_url);
+					if (Array.isArray(q.gambar_urls)) q.gambar_urls.forEach(u => { if (u && !images.includes(u)) images.push(u); });
+					const imagesHtml = images.length
+						? `<div style="margin: 6px 0;">${images.map(u => `<img src="${escapeHtml(u)}" alt="Gambar soal" style="margin-right: 8px; border: 1px solid #999;">`).join("")}</div>`
+						: "";
+
+					const headBase = "font-weight: bold; font-size: 10.5pt; margin-bottom: 4px;";
+					const qText = `<div style="white-space: pre-wrap; font-size: 10.5pt; margin-bottom: 4px;">${escapeHtml(q.pertanyaan)}</div>`;
+
+					if (!isEssay) {
+						const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
+						const key = (currentAttemptKunciPg.get(String(q.id)) || "").toUpperCase();
+						const isCorrect = choice && key && choice === key;
+						const result = !choice ? "TIDAK DIJAWAB" : (isCorrect ? "BENAR" : "SALAH");
+						const resultColor = !choice ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
+						const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
+							? `<span style="color: ${resultColor};">${result}</span>` : "";
+
+						// Hanya penanda warna: hijau = kunci / jawaban benar, merah = jawaban siswa yang salah
+						const optRows = ["A", "B", "C", "D"].map(k => {
+							let bg = "#fff", weight = "normal";
+							if (k === choice && k === key) { bg = GREEN; weight = "bold"; }
+							else if (k === choice) { bg = RED; weight = "bold"; }
+							else if (k === key) { bg = GREEN; weight = "bold"; }
+							return `<tr style="background: ${bg};">
+								<td style="border: 1px solid #333; padding: 4px 6px; width: 28px; text-align: center; font-weight: bold;">${k}</td>
+								<td style="border: 1px solid #333; padding: 4px 8px; font-weight: ${weight}; white-space: pre-wrap;">${escapeHtml(optText(q, k) || "-")}</td>
+							</tr>`;
+						}).join("");
+
+						return `
+							<div class="ans-q" style="margin-bottom: 14px;">
+								<div style="${headBase} display: flex; justify-content: space-between;">
+									<span>Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Pilihan Ganda)</span></span>
+									${labelHtml}
+								</div>
+								${qText}
+								${imagesHtml}
+								<table style="width: 100%; border-collapse: collapse; margin-top: 4px;">${optRows}</table>
+							</div>`;
+					}
+
+					// Essay: hanya jawaban siswa (acuan jawaban hanya jika diaktifkan di PRINT_CONFIG)
+					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+					const refs = currentAttemptAcuanEssay.get(String(q.id)) || [];
+					const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
+					const refHtml = PRINT_CONFIG.tampilkanAcuanEssayLembarJawaban && refs.length ? `
+						<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci / Acuan Jawaban:</div>
+						<div style="${boxStyle} background: ${GREEN};">${refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("")}</div>` : "";
+
+					return `
+						<div class="ans-q" style="margin-bottom: 14px;">
+							<div style="${headBase}">Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Essay / Uraian)</span></div>
+							${qText}
+							${imagesHtml}
+							<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
+							<div style="${boxStyle}">${studentText ? escapeHtml(studentText) : "<i>Siswa tidak mengisi jawaban.</i>"}</div>
+							${refHtml}
+						</div>`;
+				}).join("");
+
+				bodyHtml = `<div style="font-weight: bold; font-size: 11pt; margin: 10px 0 8px 0; border-bottom: 1px solid #000;">Perbandingan Jawaban per Butir Soal</div>${detailHtml}`;
+			}
+
+			// ======================= TANDA TANGAN (bisa diaktifkan via PRINT_CONFIG) =======================
+			const signatureHtml = PRINT_CONFIG.tampilkanTandaTanganLembarJawaban ? `
+				<div class="print-signature-area" style="margin-top: 20px; display: flex; justify-content: flex-end; font-size: 10.5pt;">
+					<div style="text-align: center; min-width: 220px;">
+						<div>${escapeHtml(printDate)}</div>
+						<div>Guru Pengampu,</div>
+						<div style="height: 60px;"></div>
+						<div style="font-weight: bold; text-decoration: underline;">${escapeHtml(teacherName || "( ........................ )")}</div>
+					</div>
+				</div>` : "";
+
+			const infoRow = (label, value) => `<tr><td style="width: 120px; font-weight: bold; vertical-align: top; padding: 1px 0;">${label}</td><td style="padding: 1px 0;">: ${value}</td></tr>`;
+			const docTitle = isRekap ? "REKAP JAWABAN SISWA" : "LEMBAR JAWABAN SISWA &amp; KUNCI JAWABAN";
+			const legend = `<span style="background: ${GREEN}; padding: 0 6px; border: 1px solid #999;">hijau = jawaban benar / kunci</span>
+				<span style="background: ${RED}; padding: 0 6px; border: 1px solid #999; margin-left: 6px;">merah = jawaban siswa salah</span>`;
+
+			const html = `
+				<div style="font-family: ${font}; color: #000; width: 100%; box-sizing: border-box;">
+					<div style="text-align: center; margin-bottom: 12px; border-bottom: 3px double #000; padding-bottom: 8px;">
+						${schoolName ? `<h2 style="margin: 0; font-size: 15pt; text-transform: uppercase;">${escapeHtml(schoolName)}</h2>` : ""}
+						<h3 style="margin: 4px 0 0 0; font-size: 13pt;">${docTitle}</h3>
+					</div>
+					<table style="width: 100%; font-size: 10.5pt; border-collapse: collapse; margin-bottom: 6px;">
+						<tr>
+							<td style="width: 55%; vertical-align: top;">
+								<table style="border-collapse: collapse;">
+									${infoRow("Nama Siswa", escapeHtml(attempt.studentName))}
+									${infoRow("NIS", escapeHtml(attempt.studentNis))}
+									${infoRow("Kelas", escapeHtml(attempt.className))}
+								</table>
+							</td>
+							<td style="vertical-align: top;">
+								<table style="border-collapse: collapse;">
+									${infoRow("Ujian", escapeHtml(attempt.examName))}
+									${infoRow("Mata Pelajaran", escapeHtml(attempt.subjectName))}
+									${infoRow("Dikumpulkan", escapeHtml(formatWibDate(attempt.dikumpulkan_at || attempt.mulai_at)))}
+								</table>
+							</td>
+						</tr>
+					</table>
+					${summaryHtml}
+					<div style="font-size: 9pt; margin: 6px 0;">Keterangan warna: ${legend}</div>
+					${bodyHtml}
+					${signatureHtml}
+				</div>`;
+
+			const printContainer = document.getElementById("printArea");
+			if (!printContainer) { alert("Elemen printArea tidak ditemukan."); return; }
+			printContainer.innerHTML = html;
+
+			// Tunggu gambar soal selesai dimuat (maks. 4 detik) supaya ikut tercetak
+			const imgs = Array.from(printContainer.querySelectorAll("img"));
+			if (imgs.length) {
+				await Promise.race([
+					Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(res => { img.onload = img.onerror = res; }))),
+					new Promise(res => setTimeout(res, 4000))
+				]);
+			}
+
+			// Judul dokumen = nama file PDF default; modal-open dilepas sementara agar isi tidak terpotong
+			const oldTitle = document.title;
+			const safe = (s) => String(s || "").replace(/[\\/:*?"<>|]+/g, " ").trim();
+			document.title = `${isRekap ? "Rekap Jawaban" : "Lembar Jawaban"} - ${safe(attempt.studentName)} - ${safe(attempt.examName)}`;
+			const hadModalOpen = document.body.classList.contains("modal-open");
+			document.body.classList.remove("modal-open");
+
+			window.addEventListener("afterprint", () => {
+				document.title = oldTitle;
+				if (hadModalOpen && $("#reviewModal").hasClass("show")) document.body.classList.add("modal-open");
+				printContainer.innerHTML = "";
+			}, { once: true });
+
+			setTimeout(() => window.print(), 100);
 		}
 
 		/**
@@ -2325,6 +2713,27 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 				if (currentSelectedAttempt) {
 					openWhatsAppModal(currentSelectedAttempt.id);
 				}
+			});
+
+			const sortHead = document.querySelector("#submissionsTable thead");
+			if (sortHead) {
+				sortHead.addEventListener("click", (e) => {
+					const th = e.target.closest("[data-sort-key]");
+					if (th) onSortHeaderClick(th);
+				});
+				sortHead.addEventListener("keydown", (e) => {
+					if (e.key !== "Enter" && e.key !== " ") return;
+					const th = e.target.closest("[data-sort-key]");
+					if (th) { e.preventDefault(); onSortHeaderClick(th); }
+				});
+				updateSortIndicators();
+			}
+
+			document.querySelectorAll("[data-print-mode]").forEach(item => {
+				item.addEventListener("click", (e) => {
+					e.preventDefault();
+					printStudentAnswerSheet(item.getAttribute("data-print-mode"));
+				});
 			});
 
 			document.getElementById("btnExecuteSendWa").addEventListener("click", executeSendWhatsApp);
