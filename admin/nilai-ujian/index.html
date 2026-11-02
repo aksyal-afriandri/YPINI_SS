@@ -1382,10 +1382,10 @@
 					}
 
 					const options = [
-						{ key: 'A', text: q.pilihan_a },
-						{ key: 'B', text: q.pilihan_b },
-						{ key: 'C', text: q.pilihan_c },
-						{ key: 'D', text: q.pilihan_d },
+						{ key: 'A', text: q.pilihan_a, img: q.gambar_pilihan_a },
+						{ key: 'B', text: q.pilihan_b, img: q.gambar_pilihan_b },
+						{ key: 'C', text: q.pilihan_c, img: q.gambar_pilihan_c },
+						{ key: 'D', text: q.pilihan_d, img: q.gambar_pilihan_d },
 					];
 
 					html += `
@@ -1419,7 +1419,8 @@
 										return `
 											<div class="${rowClass}">
 												<span class="badge badge-light border mr-2 font-weight-bold">${opt.key}</span>
-												<span>${escapeHtml(opt.text || '-')}</span>
+												<span>${escapeHtml(opt.text || (opt.img ? '' : '-'))}</span>
+												${opt.img ? `<div class="mt-1"><a href="${escapeHtml(opt.img)}" target="_blank" rel="noopener"><img src="${escapeHtml(opt.img)}" alt="Foto pilihan ${opt.key}" style="max-width: 220px; max-height: 140px; object-fit: contain; background: #fff; border: 1px solid #d1d3e2; border-radius: 6px; padding: 2px;"></a></div>` : ''}
 												${badgeInfo}
 											</div>
 										`;
@@ -2066,6 +2067,10 @@
 			const finalScore = (finalScoreRaw !== undefined && finalScoreRaw !== "") ? finalScoreRaw : "-";
 
 			const optText = (q, k) => ({ A: q.pilihan_a, B: q.pilihan_b, C: q.pilihan_c, D: q.pilihan_d })[k] || "";
+			const optImg = (q, k) => ({ A: q.gambar_pilihan_a, B: q.gambar_pilihan_b, C: q.gambar_pilihan_c, D: q.gambar_pilihan_d })[k] || "";
+			const optImgHtml = (q, k) => optImg(q, k)
+				? `<div><img src="${escapeHtml(optImg(q, k))}" alt="Pilihan ${k}" style="max-width: 160px; max-height: 90px; object-fit: contain; margin-top: 3px;"></div>`
+				: "";
 			const GREEN = "#d4edda", RED = "#f8d7da", GREY = "#e9ecef";
 
 			// --- Hitung ringkasan PG (dipakai kotak ringkasan jika diaktifkan) ---
@@ -2124,10 +2129,10 @@
 					const key = (currentAttemptKunciPg.get(String(q.id)) || "").toUpperCase();
 					const studentBg = !choice ? GREY : (choice === key ? GREEN : RED);
 					const studentCell = choice
-						? `<td style="${td} background: ${studentBg};"><b>${choice}.</b> ${escapeHtml(optText(q, choice) || "-")}</td>`
+						? `<td style="${td} background: ${studentBg};"><b>${choice}.</b> ${escapeHtml(optText(q, choice) || (optImg(q, choice) ? "" : "-"))}${optImgHtml(q, choice)}</td>`
 						: `<td style="${td} background: ${studentBg}; font-style: italic; color: #555;">Tidak dijawab</td>`;
 					const keyCell = key
-						? `<td style="${td} background: ${GREEN};"><b>${key}.</b> ${escapeHtml(optText(q, key) || "-")}</td>`
+						? `<td style="${td} background: ${GREEN};"><b>${key}.</b> ${escapeHtml(optText(q, key) || (optImg(q, key) ? "" : "-"))}${optImgHtml(q, key)}</td>`
 						: `<td style="${td} font-style: italic; color: #555;">Kunci belum diatur</td>`;
 					return `<tr>
 						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
@@ -2214,7 +2219,7 @@
 							else if (k === key) { bg = GREEN; weight = "bold"; }
 							return `<tr style="background: ${bg};">
 								<td style="border: 1px solid #333; padding: 4px 6px; width: 28px; text-align: center; font-weight: bold;">${k}</td>
-								<td style="border: 1px solid #333; padding: 4px 8px; font-weight: ${weight}; white-space: pre-wrap;">${escapeHtml(optText(q, k) || "-")}</td>
+								<td style="border: 1px solid #333; padding: 4px 8px; font-weight: ${weight}; white-space: pre-wrap;">${escapeHtml(optText(q, k) || (optImg(q, k) ? "" : "-"))}${optImgHtml(q, k)}</td>
 							</tr>`;
 						}).join("");
 

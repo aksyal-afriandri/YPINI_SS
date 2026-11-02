@@ -502,11 +502,52 @@
 
 					<div id="multipleChoiceFields">
 						<div class="form-row">
-							<div class="form-group col-md-6"><label for="choiceA">Pilihan A</label><input id="choiceA" name="pilihan_a" class="form-control"></div>
-							<div class="form-group col-md-6"><label for="choiceB">Pilihan B</label><input id="choiceB" name="pilihan_b" class="form-control"></div>
-							<div class="form-group col-md-6"><label for="choiceC">Pilihan C</label><input id="choiceC" name="pilihan_c" class="form-control"></div>
-							<div class="form-group col-md-6"><label for="choiceD">Pilihan D</label><input id="choiceD" name="pilihan_d" class="form-control"></div>
+							<div class="form-group col-md-6">
+								<label for="choiceA">Pilihan A</label>
+								<div class="input-group">
+									<input id="choiceA" name="pilihan_a" class="form-control" placeholder="Teks jawaban (boleh kosong jika memakai foto)">
+									<div class="input-group-append">
+										<label class="btn btn-outline-primary mb-0" for="choiceImageFileA" title="Tambah foto pada pilihan A"><i class="fas fa-image"></i><span class="d-none d-sm-inline ml-1">Foto</span></label>
+									</div>
+								</div>
+								<input type="file" id="choiceImageFileA" class="d-none" accept="image/*" data-choice-file="A">
+								<div id="choiceImagePreviewA" class="mt-2 d-none" data-choice-preview="A"></div>
+							</div>
+							<div class="form-group col-md-6">
+								<label for="choiceB">Pilihan B</label>
+								<div class="input-group">
+									<input id="choiceB" name="pilihan_b" class="form-control" placeholder="Teks jawaban (boleh kosong jika memakai foto)">
+									<div class="input-group-append">
+										<label class="btn btn-outline-primary mb-0" for="choiceImageFileB" title="Tambah foto pada pilihan B"><i class="fas fa-image"></i><span class="d-none d-sm-inline ml-1">Foto</span></label>
+									</div>
+								</div>
+								<input type="file" id="choiceImageFileB" class="d-none" accept="image/*" data-choice-file="B">
+								<div id="choiceImagePreviewB" class="mt-2 d-none" data-choice-preview="B"></div>
+							</div>
+							<div class="form-group col-md-6">
+								<label for="choiceC">Pilihan C</label>
+								<div class="input-group">
+									<input id="choiceC" name="pilihan_c" class="form-control" placeholder="Teks jawaban (boleh kosong jika memakai foto)">
+									<div class="input-group-append">
+										<label class="btn btn-outline-primary mb-0" for="choiceImageFileC" title="Tambah foto pada pilihan C"><i class="fas fa-image"></i><span class="d-none d-sm-inline ml-1">Foto</span></label>
+									</div>
+								</div>
+								<input type="file" id="choiceImageFileC" class="d-none" accept="image/*" data-choice-file="C">
+								<div id="choiceImagePreviewC" class="mt-2 d-none" data-choice-preview="C"></div>
+							</div>
+							<div class="form-group col-md-6">
+								<label for="choiceD">Pilihan D</label>
+								<div class="input-group">
+									<input id="choiceD" name="pilihan_d" class="form-control" placeholder="Teks jawaban (boleh kosong jika memakai foto)">
+									<div class="input-group-append">
+										<label class="btn btn-outline-primary mb-0" for="choiceImageFileD" title="Tambah foto pada pilihan D"><i class="fas fa-image"></i><span class="d-none d-sm-inline ml-1">Foto</span></label>
+									</div>
+								</div>
+								<input type="file" id="choiceImageFileD" class="d-none" accept="image/*" data-choice-file="D">
+								<div id="choiceImagePreviewD" class="mt-2 d-none" data-choice-preview="D"></div>
+							</div>
 						</div>
+						<small class="form-text text-muted mb-3" style="margin-top:-8px;">Setiap pilihan boleh berisi teks, foto, atau keduanya (1 foto per pilihan, maks. 10 MB).</small>
 						<div class="form-group"><label for="correctChoice">Kunci jawaban</label><select id="correctChoice" name="jawaban_benar" class="form-control"><option value="">Pilih kunci</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div>
 					</div>
 					<div id="essayFields" class="d-none">
@@ -1155,13 +1196,76 @@
 			const isMultipleChoice = type === "pg";
 			document.getElementById("multipleChoiceFields").classList.toggle("d-none", !isMultipleChoice);
 			document.getElementById("essayFields").classList.toggle("d-none", isMultipleChoice);
-			["choiceA", "choiceB", "choiceC", "choiceD", "correctChoice"].forEach((id) => {
-				document.getElementById(id).required = isMultipleChoice;
-			});
+			document.getElementById("correctChoice").required = isMultipleChoice;
 			document.getElementById("essayReferences").required = !isMultipleChoice;
 		}
 
 		let currentQuestionImages = [];
+
+		// Foto pada pilihan jawaban A-D (maks. 1 foto per pilihan)
+		const CHOICE_KEYS = ["A", "B", "C", "D"];
+		let currentChoiceImages = { A: null, B: null, C: null, D: null };
+
+		function resetChoiceImages(source) {
+			currentChoiceImages = { A: null, B: null, C: null, D: null };
+			if (source) {
+				CHOICE_KEYS.forEach((k) => {
+					const url = source["gambar_pilihan_" + k.toLowerCase()];
+					if (url && String(url).trim()) currentChoiceImages[k] = { type: "existing", url: String(url).trim() };
+				});
+			}
+			renderChoiceImages();
+		}
+
+		function renderChoiceImages() {
+			CHOICE_KEYS.forEach((k) => {
+				const box = document.getElementById("choiceImagePreview" + k);
+				if (!box) return;
+				const item = currentChoiceImages[k];
+				if (!item) {
+					box.innerHTML = "";
+					box.classList.add("d-none");
+					return;
+				}
+				box.classList.remove("d-none");
+				box.innerHTML = `
+					<div class="d-inline-block position-relative border rounded p-1 bg-white shadow-sm">
+						<img src="${escapeHtml(item.url)}" alt="Foto pilihan ${k}" style="max-width: 160px; max-height: 110px; object-fit: contain; border-radius: 4px; display: block;">
+						<button type="button" class="btn btn-danger btn-sm position-absolute" style="top: -8px; right: -8px; width: 22px; height: 22px; padding: 0; line-height: 1; border-radius: 50%; font-size: 11px;" title="Hapus foto pilihan ${k}" data-remove-choice-img="${k}"><i class="fas fa-times"></i></button>
+					</div>
+					<div class="badge badge-light border text-muted ml-1" style="font-size: 10px;">${item.type === "file" ? "File Baru" : "Tersimpan"}</div>`;
+			});
+		}
+
+		document.querySelectorAll("input[data-choice-file]").forEach((input) => {
+			input.addEventListener("change", (e) => {
+				const key = input.dataset.choiceFile;
+				const file = (e.target.files || [])[0];
+				e.target.value = "";
+				if (!file) return;
+				const errorBox = document.getElementById("questionFormError");
+				if (!/^image\//.test(file.type)) {
+					errorBox.textContent = `Foto pilihan ${key} harus berupa file gambar.`;
+					errorBox.classList.remove("d-none");
+					return;
+				}
+				if (file.size > 10 * 1024 * 1024) {
+					errorBox.textContent = `Foto pilihan ${key} terlalu besar (maksimal 10 MB).`;
+					errorBox.classList.remove("d-none");
+					return;
+				}
+				errorBox.classList.add("d-none");
+				currentChoiceImages[key] = { type: "file", url: URL.createObjectURL(file), file };
+				renderChoiceImages();
+			});
+		});
+
+		document.getElementById("multipleChoiceFields").addEventListener("click", (e) => {
+			const btn = e.target.closest("button[data-remove-choice-img]");
+			if (!btn) return;
+			currentChoiceImages[btn.dataset.removeChoiceImg] = null;
+			renderChoiceImages();
+		});
 
 		function renderQuestionImagesPreview() {
 			const listEl = document.getElementById("questionImagesPreviewList");
@@ -1389,6 +1493,7 @@
 			questionForm.reset();
 			currentQuestionImages = [];
 			renderQuestionImagesPreview();
+			resetChoiceImages(null);
 			document.getElementById("questionModalTitle").textContent = "Tambah soal";
 			document.getElementById("questionFormError").classList.add("d-none");
 			document.getElementById("questionImageFiles").value = "";
@@ -1431,6 +1536,7 @@
 			questionForm.elements.pilihan_b.value = question.pilihan_b || "";
 			questionForm.elements.pilihan_c.value = question.pilihan_c || "";
 			questionForm.elements.pilihan_d.value = question.pilihan_d || "";
+			resetChoiceImages(question);
 			setQuestionType(question.soal_type);
 			if (question.soal_type === "pg") {
 				const { data: key, error: keyError } = await client.from("kunci_pg")
@@ -1598,8 +1704,20 @@
 			button.disabled = true;
 			const type = form.elements.soal_type.value;
 
+			if (type === "pg") {
+				const emptyChoices = CHOICE_KEYS.filter((k) =>
+					!form.elements["pilihan_" + k.toLowerCase()].value.trim() && !currentChoiceImages[k]);
+				if (emptyChoices.length) {
+					errorBox.textContent = `Pilihan ${emptyChoices.join(", ")} masih kosong. Isi teks atau tambahkan foto pada setiap pilihan.`;
+					errorBox.classList.remove("d-none");
+					button.disabled = false;
+					return;
+				}
+			}
+
 			// Handle uploading files in currentQuestionImages
 			const finalUrls = [];
+			const choiceFinalUrls = { A: null, B: null, C: null, D: null };
 			try {
 				for (let i = 0; i < currentQuestionImages.length; i++) {
 					const item = currentQuestionImages[i];
@@ -1614,6 +1732,26 @@
 						if (pubData?.publicUrl) finalUrls.push(pubData.publicUrl);
 					} else if (item.url) {
 						finalUrls.push(item.url);
+					}
+				}
+
+				// Foto pada pilihan jawaban A-D (hanya untuk soal pilihan ganda)
+				if (type === "pg") {
+					for (const k of CHOICE_KEYS) {
+						const item = currentChoiceImages[k];
+						if (!item) continue;
+						if (item.type === "file" && item.file) {
+							const cleanName = item.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+							const path = `${selectedExam.id}/choice_${Date.now()}_${k}_${cleanName}`;
+							const { error: choiceUploadError } = await client.storage
+								.from("exam-photos")
+								.upload(path, item.file, { upsert: true });
+							if (choiceUploadError) throw choiceUploadError;
+							const { data: choicePub } = client.storage.from("exam-photos").getPublicUrl(path);
+							if (choicePub?.publicUrl) choiceFinalUrls[k] = choicePub.publicUrl;
+						} else if (item.url) {
+							choiceFinalUrls[k] = item.url;
+						}
 					}
 				}
 			} catch (uploadErr) {
@@ -1635,6 +1773,10 @@
 				pilihan_d: type === "pg" ? form.elements.pilihan_d.value.trim() : null,
 				gambar_url: finalUrls[0] || null,
 				gambar_urls: finalUrls.length ? finalUrls : null,
+				gambar_pilihan_a: type === "pg" ? choiceFinalUrls.A : null,
+				gambar_pilihan_b: type === "pg" ? choiceFinalUrls.B : null,
+				gambar_pilihan_c: type === "pg" ? choiceFinalUrls.C : null,
+				gambar_pilihan_d: type === "pg" ? choiceFinalUrls.D : null,
 			};
 			const essayAnswers = type === "essay"
 				? form.elements.jawaban_acuan.value.split(/\r?\n/).map((answer) => answer.trim()).filter(Boolean)
@@ -1647,29 +1789,29 @@
 			}
 			try {
 				let questionId;
-				try {
-					const questionQuery = editingQuestion
-						? client.from("soal_ujian").update(values).eq("id", editingQuestion.id).select("id").single()
-						: client.from("soal_ujian").insert(values).select("id").single();
-					const { data, error } = await questionQuery;
-					if (error) throw error;
-					questionId = data.id;
-				} catch (dbErr) {
-					if (dbErr.message && dbErr.message.includes("gambar_urls")) {
-						// Fallback if column gambar_urls doesn't exist yet
-						const fallbackValues = { ...values };
-						fallbackValues.gambar_url = finalUrls.join(",");
-						delete fallbackValues.gambar_urls;
-						const retryQuery = editingQuestion
-							? client.from("soal_ujian").update(fallbackValues).eq("id", editingQuestion.id).select("id").single()
-							: client.from("soal_ujian").insert(fallbackValues).select("id").single();
-						const { data: retryData, error: retryError } = await retryQuery;
-						if (retryError) throw retryError;
-						questionId = retryData.id;
-					} else {
-						throw dbErr;
+				const runQuestionQuery = (vals) => (editingQuestion
+					? client.from("soal_ujian").update(vals).eq("id", editingQuestion.id).select("id").single()
+					: client.from("soal_ujian").insert(vals).select("id").single());
+				const choiceCols = ["gambar_pilihan_a", "gambar_pilihan_b", "gambar_pilihan_c", "gambar_pilihan_d"];
+				let attemptValues = { ...values };
+				let result = await runQuestionQuery(attemptValues);
+
+				// Kolom foto pilihan belum ada di database
+				if (result.error && result.error.message && result.error.message.includes("gambar_pilihan")) {
+					if (choiceCols.some((c) => attemptValues[c])) {
+						throw new Error("Kolom foto pilihan jawaban belum ada di database. Jalankan skrip 'sql/ADD-exam-choice-photos.sql' di SQL Editor Supabase, lalu coba simpan lagi.");
 					}
+					choiceCols.forEach((c) => delete attemptValues[c]);
+					result = await runQuestionQuery(attemptValues);
 				}
+				// Kolom gambar_urls belum ada di database
+				if (result.error && result.error.message && result.error.message.includes("gambar_urls")) {
+					attemptValues = { ...attemptValues, gambar_url: finalUrls.join(",") };
+					delete attemptValues.gambar_urls;
+					result = await runQuestionQuery(attemptValues);
+				}
+				if (result.error) throw result.error;
+				questionId = result.data.id;
 
 				if (type === "pg") {
 					const { error: keyError } = await client.from("kunci_pg").upsert({

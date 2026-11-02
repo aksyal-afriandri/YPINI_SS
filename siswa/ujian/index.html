@@ -134,6 +134,40 @@
       color: #3d4451;
       line-height: 1.5;
     }
+    .cbt-option-media {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      margin-top: 8px;
+    }
+    .cbt-option-media:first-child { margin-top: 0; }
+    .cbt-option-img {
+      display: block;
+      max-width: 100%;
+      max-height: 240px;
+      object-fit: contain;
+      background: #ffffff;
+      border: 1px solid #e3e6f0;
+      border-radius: 8px;
+      padding: 4px;
+    }
+    .cbt-option-zoom {
+      position: absolute;
+      right: 6px;
+      bottom: 6px;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.55);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-in;
+    }
+    .cbt-option-zoom:hover { background: rgba(0, 0, 0, 0.8); }
 
     /* Grid Navigasi Nomor Soal dalam Modal */
     .cbt-grid-container {
@@ -1535,6 +1569,12 @@
           C: question.pilihan_c || "",
           D: question.pilihan_d || ""
         };
+        const optionImages = {
+          A: question.gambar_pilihan_a || "",
+          B: question.gambar_pilihan_b || "",
+          C: question.gambar_pilihan_c || "",
+          D: question.gambar_pilihan_d || ""
+        };
 
         const optionCards = document.querySelectorAll(".cbt-option");
         optionCards.forEach((optCard, idx) => {
@@ -1545,7 +1585,31 @@
           if (badgeEl) badgeEl.textContent = displayLabel;
 
           const textEl = optCard.querySelector(".cbt-option-text");
-          if (textEl) textEl.textContent = optionTexts[originalKey] || "-";
+          if (textEl) {
+            const optText = optionTexts[originalKey] || "";
+            const optImg = optionImages[originalKey] || "";
+            textEl.textContent = optText || (optImg ? "" : "-");
+            if (optImg) {
+              const media = document.createElement("div");
+              media.className = "cbt-option-media";
+              const img = document.createElement("img");
+              img.className = "cbt-option-img";
+              img.src = optImg;
+              img.alt = `Foto pilihan ${displayLabel}`;
+              img.loading = "lazy";
+              const zoomBtn = document.createElement("button");
+              zoomBtn.type = "button";
+              zoomBtn.className = "cbt-option-zoom";
+              zoomBtn.title = "Perbesar gambar";
+              zoomBtn.setAttribute("aria-label", `Perbesar foto pilihan ${displayLabel}`);
+              zoomBtn.dataset.zoomSrc = optImg;
+              zoomBtn.dataset.zoomTitle = `Pilihan ${displayLabel} - Soal No. ${currentIndex + 1}`;
+              zoomBtn.innerHTML = '<i class="fas fa-search-plus"></i>';
+              media.appendChild(img);
+              media.appendChild(zoomBtn);
+              textEl.appendChild(media);
+            }
+          }
 
           optCard.dataset.originalKey = originalKey;
           optCard.dataset.displayLabel = displayLabel;
@@ -1963,23 +2027,23 @@
 
         // Ambil Daftar Soal (termasuk gambar_url dan gambar_urls)
         let soalData = null;
-        try {
+        const baseCols = "id, ujian_id, nomor_urut, soal_type, pertanyaan, pilihan_a, pilihan_b, pilihan_c, pilihan_d";
+        const columnSets = [
+          baseCols + ", gambar_url, gambar_urls, gambar_pilihan_a, gambar_pilihan_b, gambar_pilihan_c, gambar_pilihan_d",
+          baseCols + ", gambar_url, gambar_urls",
+          baseCols + ", gambar_url"
+        ];
+        let lastSoalError = null;
+        for (const cols of columnSets) {
           const { data, error } = await supabase
             .from("soal_ujian")
-            .select("id, ujian_id, nomor_urut, soal_type, pertanyaan, pilihan_a, pilihan_b, pilihan_c, pilihan_d, gambar_url, gambar_urls")
+            .select(cols)
             .eq("ujian_id", activeExam.id)
             .order("nomor_urut", { ascending: true });
-          if (error) throw error;
-          soalData = data;
-        } catch (_) {
-          const { data, error } = await supabase
-            .from("soal_ujian")
-            .select("id, ujian_id, nomor_urut, soal_type, pertanyaan, pilihan_a, pilihan_b, pilihan_c, pilihan_d, gambar_url")
-            .eq("ujian_id", activeExam.id)
-            .order("nomor_urut", { ascending: true });
-          if (error) throw error;
-          soalData = data;
+          if (!error) { soalData = data; lastSoalError = null; break; }
+          lastSoalError = error;
         }
+        if (lastSoalError) throw lastSoalError;
 
         if (!soalData || !soalData.length) {
           showMessage("Belum Ada Soal", "Ujian ini sedang aktif, tetapi belum ada butir soal yang diunggah oleh guru.");
@@ -2199,7 +2263,19 @@
       }
 
       document.querySelectorAll(".cbt-option").forEach((opt) => {
-        opt.addEventListener("click", () => {
+        opt.addEventListener("click", (e) => {
+          const zoomBtn = e.target.closest(".cbt-option-zoom");
+          if (zoomBtn) {
+            // Perbesar foto pilihan tanpa mengubah jawaban yang dipilih
+            e.stopPropagation();
+            const src = zoomBtn.dataset.zoomSrc;
+            document.getElementById("lightboxModalTitle").textContent = zoomBtn.dataset.zoomTitle || "Foto Pilihan";
+            document.getElementById("lightboxModalImage").src = src;
+            const origLink = document.getElementById("lightboxOriginalLink");
+            if (origLink) origLink.href = src;
+            $("#imageLightboxModal").modal("show");
+            return;
+          }
           selectOption(opt.dataset.originalKey || opt.dataset.option);
         });
       });
