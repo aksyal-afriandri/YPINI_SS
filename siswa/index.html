@@ -342,6 +342,28 @@
             return "";
         }
 
+        // Hapus seluruh data pengerjaan lokal (jawaban, timer, urutan acak, kunci anti-curang, flag selesai) untuk satu ujian
+        function clearExamLocalState(examId, nis) {
+            ["completed", "answers", "timer", "options", "order", "anticheat", "attempt"].forEach((k) => {
+                try { localStorage.removeItem(`ypn_cbt_${k}_${examId}_${nis}`); } catch (_) {}
+            });
+        }
+
+        // Ambil status percobaan dari server (sumber kebenaran). null jika gagal.
+        async function fetchAttemptMap(client, nis) {
+            try {
+                const { data, error } = await client.rpc("get_student_exam_history", { p_nis: nis });
+                if (error || !data || data.success !== true) return null;
+                const map = new Map();
+                (data.exams || []).forEach((e) => {
+                    map.set(String(e.id), e.has_attempted ? { id: e.attempt_id, status: e.attempt_status } : null);
+                });
+                return map;
+            } catch (_) {
+                return null;
+            }
+        }
+
         async function loadAvailableExams() {
             const status = document.getElementById("availableExamStatus");
             const list = document.getElementById("availableExamList");
@@ -394,6 +416,7 @@
                 }
 
                 const filteredExams = exams.filter(exam => isExamForStudent(exam, studentClass, studentTingkat));
+                const attemptMap = await fetchAttemptMap(client, nis);
 
                 list.replaceChildren();
                 if (!filteredExams.length) {
@@ -425,7 +448,22 @@
                     details.append(title, meta);
 
                     // Cek jika siswa sudah menyelesaikan ujian ini
-                    const isCompleted = localStorage.getItem(`ypn_cbt_completed_${exam.id}_${nis}`) === "true";
+                    // Sumber kebenaran = server (percobaan_ujian). localStorage hanya cadangan jika server tidak terjangkau,
+                    // sehingga setelah admin mereset pengerjaan, status "Sudah Dikerjakan" ikut hilang.
+                    let isCompleted;
+                    if (attemptMap) {
+                        const attempt = attemptMap.get(String(exam.id));
+                        isCompleted = !!attempt && (attempt.status === "dikumpulkan" || attempt.status === "dinilai");
+                        if (isCompleted) {
+                            try { localStorage.setItem(`ypn_cbt_completed_${exam.id}_${nis}`, "true"); } catch (_) {}
+                        } else if (!attempt) {
+                            clearExamLocalState(exam.id, nis);   // belum ada percobaan di server (mis. sudah direset admin)
+                        } else {
+                            try { localStorage.removeItem(`ypn_cbt_completed_${exam.id}_${nis}`); } catch (_) {}
+                        }
+                    } else {
+                        isCompleted = localStorage.getItem(`ypn_cbt_completed_${exam.id}_${nis}`) === "true";
+                    }
 
                     if (isCompleted) {
                         const doneBadge = document.createElement("span");
@@ -506,6 +544,15 @@
         });
 
         loadAvailableExams();
+
+        // Segarkan daftar ujian otomatis (mis. setelah admin mereset pengerjaan) saat tab aktif dan lembar ujian tidak sedang dibuka
+        function refreshExamListIfIdle() {
+            const container = document.getElementById("cbtExamContainer");
+            if (document.hidden || (container && !container.classList.contains("d-none"))) return;
+            loadAvailableExams();
+        }
+        document.addEventListener("visibilitychange", refreshExamListIfIdle);
+        setInterval(refreshExamListIfIdle, 30000);
     </script>
 
     <!-- Container Iframe Ujian Fullscreen (Tanpa Pindah Halaman agar Fullscreen Tidak Reset) -->

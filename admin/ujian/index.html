@@ -316,6 +316,9 @@
 						<div class="form-group col-md-3"><label for="examOpenAt">Mulai dibuka</label><input id="examOpenAt" name="dibuka_at" type="datetime-local" class="form-control" required></div>
 						<div class="form-group col-md-3"><label for="examCloseAt">Ditutup</label><input id="examCloseAt" name="ditutup_at" type="datetime-local" class="form-control" required></div>
 					</div>
+					<div class="form-row">
+						<div class="form-group col-md-4"><label for="examMinSubmit">Tombol kumpul dibuka setelah (menit)</label><input id="examMinSubmit" name="min_submit_menit" type="number" class="form-control" min="0" step="1" value="20" required><small class="text-muted">Dihitung dari waktu siswa mulai ujian. Isi 0 agar siswa boleh langsung mengumpulkan. Tidak boleh melebihi durasi.</small></div>
+					</div>
 					<div class="form-row border-top pt-3">
 						<div class="form-group col-md-4">
 							<label for="examTargetMode" class="font-weight-bold">Sasaran Kelas</label>
@@ -1169,6 +1172,7 @@
 					<td class="text-nowrap">
 						<div class="font-weight-bold text-dark" style="font-size: 0.9rem;">${exam.waktu_menit} <span class="small font-weight-normal text-muted">menit</span></div>
 						<span class="badge badge-light border text-muted" title="Toleransi waktu pengerjaan">+${exam.toleransi_menit != null ? exam.toleransi_menit : 15}m toleransi</span>
+						<span class="badge badge-light border text-muted" title="Tombol kumpul dibuka setelah N menit pengerjaan">kumpul ≥ ${exam.min_submit_menit != null ? exam.min_submit_menit : 20}m</span>
 					</td>
 					<td class="text-nowrap">
 						<div class="d-flex flex-column align-items-start" style="gap: 4px;">
@@ -1443,6 +1447,7 @@
 			document.getElementById("examCloseAt").value = toLocalInput(later);
 			document.getElementById("examDuration").value = 60;
 			document.getElementById("examTolerance").value = globalCbtSettings.toleransi_menit_default || 15;
+			document.getElementById("examMinSubmit").value = 20;
 			document.getElementById("examTargetMode").value = "semua";
 			document.getElementById("examTargetTingkat").value = "";
 			if (examForm.elements.password_ujian) examForm.elements.password_ujian.value = "";
@@ -1460,6 +1465,7 @@
 			examForm.elements.pelajaran_id.value = String(exam.pelajaran_id);
 			examForm.elements.waktu_menit.value = exam.waktu_menit;
 			examForm.elements.toleransi_menit.value = exam.toleransi_menit != null ? exam.toleransi_menit : 15;
+			examForm.elements.min_submit_menit.value = exam.min_submit_menit != null ? exam.min_submit_menit : 20;
 			examForm.elements.dibuka_at.value = toLocalInput(exam.dibuka_at);
 			examForm.elements.ditutup_at.value = toLocalInput(exam.ditutup_at);
 			examForm.elements.aktif.checked = exam.aktif;
@@ -1590,6 +1596,19 @@
 				return;
 			}
 
+			const minSubmitRaw = form.elements.min_submit_menit ? form.elements.min_submit_menit.value : "";
+			const minSubmit = minSubmitRaw === "" ? 20 : Math.floor(Number(minSubmitRaw));
+			if (!Number.isFinite(minSubmit) || minSubmit < 0) {
+				errorBox.textContent = "Waktu kumpul minimal tidak valid (isi 0 atau lebih).";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+			if (minSubmit > duration) {
+				errorBox.textContent = "Waktu kumpul minimal tidak boleh melebihi durasi ujian (" + duration + " menit).";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
 			button.disabled = true;
 			const targetMode = document.getElementById("examTargetMode")?.value || "semua";
 			let targetTingkat = null;
@@ -1627,6 +1646,7 @@
 				pelajaran_id: subjectId,
 				waktu_menit: duration,
 				toleransi_menit: Number(form.elements.toleransi_menit ? form.elements.toleransi_menit.value : 15) || 15,
+				min_submit_menit: minSubmit,
 				dibuka_at: openedAt.toISOString(),
 				ditutup_at: closedAt.toISOString(),
 				acak_soal: form.elements.acak_soal.checked,
@@ -1655,6 +1675,16 @@
 				if (error && error.message && error.message.includes("toleransi_menit")) {
 					console.warn("Kolom toleransi_menit belum ada, menyimpan tanpa toleransi_menit:", error);
 					delete values.toleransi_menit;
+					const fallbackQuery = editingExamId
+						? client.from("ujian").update(values).eq("id", editingExamId).select("id")
+						: client.from("ujian").insert(values).select("id");
+					const fallbackRes = await fallbackQuery;
+					savedData = fallbackRes.data;
+					error = fallbackRes.error;
+				}
+				if (error && error.message && error.message.includes("min_submit_menit")) {
+					console.warn("Kolom min_submit_menit belum ada, menyimpan tanpa min_submit_menit (jalankan sql/ADD-min-submit-menit.sql):", error);
+					delete values.min_submit_menit;
 					const fallbackQuery = editingExamId
 						? client.from("ujian").update(values).eq("id", editingExamId).select("id")
 						: client.from("ujian").insert(values).select("id");

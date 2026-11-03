@@ -277,6 +277,9 @@
         <span id="examTimerBadge" class="badge badge-primary cbt-timer-badge shadow-sm">
           <i class="fas fa-stopwatch mr-1"></i> <span id="timerCountdown">--:--:--</span>
         </span>
+        <!-- <span id="submitGateBadge" class="badge badge-secondary cbt-timer-badge shadow-sm ml-1 d-none" title="Tombol kumpul akan terbuka setelah hitungan ini selesai">
+          <i class="fas fa-lock mr-1"></i> Kumpul: <span id="submitGateCountdown">--:--</span>
+        </span> -->
       </div>
 
       <!-- Siswa NIS -->
@@ -690,9 +693,8 @@
 
     // Aturan pengumpulan manual
     const SUBMIT_RULES = {
-      minSubmitMinutes: 3,        // siswa baru boleh mengumpulkan setelah N menit pengerjaan
-                                   // (bisa di-override per ujian lewat kolom exam.min_submit_menit bila ada)
-      maxPercentOfDuration: 0.5,   // batas atas: tidak lebih dari 50% durasi ujian
+      minSubmitMinutes: 3,         // DEFAULT jika ujian belum punya pengaturan sendiri (kolom ujian.min_submit_menit)
+      maxPercentOfDuration: 0.5,   // batas atas khusus nilai default: maks 50% durasi ujian
     };
 
     //  Config
@@ -866,6 +868,13 @@
           localStorage.setItem(optKey, JSON.stringify(savedOptionsMap));
         } catch (_) {}
       }
+    }
+
+    // Hapus seluruh data pengerjaan lokal untuk satu ujian (dipakai saat pengerjaan di server sudah direset admin)
+    function clearExamLocalState(examId, nis) {
+      ["completed", "answers", "timer", "options", "order", "anticheat", "attempt"].forEach((k) => {
+        try { localStorage.removeItem(`ypn_cbt_${k}_${examId}_${nis}`); } catch (_) {}
+      });
     }
 
     function loadSavedAnswers(examId) {
@@ -1384,6 +1393,7 @@
 
         const formatted = formatTime(isOvertime ? totalRemainingSec : studentNormalRemainingSec);
         if (countdownText) countdownText.textContent = formatted;
+        updateSubmitGateBadge();
 
         if (isOvertime) {
           timerBadge.className = "badge badge-warning text-dark cbt-timer-badge shadow-sm border border-danger font-weight-bold";
@@ -1688,10 +1698,14 @@
     // Batas minimal waktu pengerjaan sebelum siswa boleh mengumpulkan manual (detik)
     function getMinSubmitSeconds() {
       const duration = Number((activeExam && activeExam.waktu_menit) || 60);
-      const override = activeExam && activeExam.min_submit_menit != null ? Number(activeExam.min_submit_menit) : NaN;
-      let minutes = !isNaN(override) ? override : SUBMIT_RULES.minSubmitMinutes;
-      // Dibatasi maksimal 50% durasi ujian supaya ujian singkat tidak terkunci sampai habis
-      minutes = Math.min(minutes, Math.floor(duration * SUBMIT_RULES.maxPercentOfDuration));
+      const configured = activeExam && activeExam.min_submit_menit != null ? Number(activeExam.min_submit_menit) : NaN;
+      let minutes;
+      if (!isNaN(configured)) {
+        // Diatur admin per ujian (0 = boleh langsung kumpul); tidak boleh melebihi durasi
+        minutes = Math.min(configured, duration);
+      } else {
+        minutes = Math.min(SUBMIT_RULES.minSubmitMinutes, Math.floor(duration * SUBMIT_RULES.maxPercentOfDuration));
+      }
       return Math.max(0, minutes) * 60;
     }
 
@@ -1700,6 +1714,19 @@
       if (!examStartMs) return 0;
       const elapsedSec = Math.floor((Date.now() - examStartMs) / 1000);
       return Math.max(0, getMinSubmitSeconds() - elapsedSec);
+    }
+
+    // Badge hitung mundur "Kumpul" di topbar; ikut berjalan bersama timer ujian (dipanggil tiap tick updateTimer)
+    function updateSubmitGateBadge() {
+      const badge = document.getElementById("submitGateBadge");
+      if (!badge) return;
+      const remainSec = getRemainingMinSubmitSec();
+      if (remainSec > 0) {
+        badge.classList.remove("d-none");
+        safeSetText("submitGateCountdown", formatMMSS(remainSec * 1000));
+      } else {
+        badge.classList.add("d-none");
+      }
     }
 
     // Perbarui isi modal konfirmasi: validasi soal kosong + waktu minimal
@@ -1987,8 +2014,41 @@
           return;
         }
 
-        const alreadyCompleted = localStorage.getItem(`ypn_cbt_completed_${selectedExamId}_${nis}`);
-        if (alreadyCompleted === "true") {
+        // Status selesai/reset ditentukan oleh SERVER (percobaan_ujian), bukan flag localStorage,
+        // supaya pengerjaan yang sudah direset admin tidak lagi terbaca "sudah dikerjakan".
+        let serverAttempt = null;
+        let serverChecked = false;
+        try {
+          const { data: hist, error: histErr } = await supabase.rpc("get_student_exam_history", { p_nis: nis });
+          if (!histErr && hist && hist.success === true) {
+            serverChecked = true;
+            const ex = (hist.exams || []).find((e) => String(e.id) === String(selectedExamId));
+            if (ex && ex.has_attempted) serverAttempt = { id: ex.attempt_id, status: ex.attempt_status };
+          }
+        } catch (_) {}
+
+        const attemptMarkerKey = `ypn_cbt_attempt_${selectedExamId}_${nis}`;
+        if (serverChecked) {
+          if (serverAttempt && (serverAttempt.status === "dikumpulkan" || serverAttempt.status === "dinilai")) {
+            try { localStorage.setItem(`ypn_cbt_completed_${selectedExamId}_${nis}`, "true"); } catch (_) {}
+            safeSetText("completedSubtext", "Anda sudah pernah menyelesaikan dan mengumpulkan ujian ini sebelumnya.");
+            showView("completedView");
+            return;
+          }
+          if (!serverAttempt) {
+            // Belum ada percobaan di server (belum mulai / sudah direset admin) -> mulai bersih
+            clearExamLocalState(selectedExamId, nis);
+          } else {
+            try { localStorage.removeItem(`ypn_cbt_completed_${selectedExamId}_${nis}`); } catch (_) {}
+            const storedAttemptId = localStorage.getItem(attemptMarkerKey);
+            if (storedAttemptId && storedAttemptId !== String(serverAttempt.id)) {
+              // Percobaan di server berbeda dari yang tersimpan di perangkat -> pernah direset admin
+              clearExamLocalState(selectedExamId, nis);
+            }
+            try { localStorage.setItem(attemptMarkerKey, String(serverAttempt.id)); } catch (_) {}
+          }
+        } else if (localStorage.getItem(`ypn_cbt_completed_${selectedExamId}_${nis}`) === "true") {
+          // Server tidak terjangkau: pakai flag lokal sebagai cadangan
           safeSetText("completedSubtext", "Anda sudah pernah menyelesaikan dan mengumpulkan ujian ini sebelumnya.");
           showView("completedView");
           return;
@@ -2099,6 +2159,9 @@
               p_ujian_id: activeExam.id
             });
           if (!startErr && startRes?.success) {
+            if (startRes.percobaan_id != null) {
+              try { localStorage.setItem(`ypn_cbt_attempt_${activeExam.id}_${nis}`, String(startRes.percobaan_id)); } catch (_) {}
+            }
             if (startRes.status === "dikumpulkan" || startRes.status === "dinilai") {
               try { localStorage.setItem(`ypn_cbt_completed_${activeExam.id}_${nis}`, "true"); } catch (_) {}
               safeSetText("completedSubtext", "Anda sudah pernah menyelesaikan dan mengumpulkan ujian ini sebelumnya.");
