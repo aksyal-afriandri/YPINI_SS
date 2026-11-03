@@ -18,6 +18,9 @@
 		.option-row.wrong-choice { border-color: #e74a3b; background-color: #fdf2f2; }
 		.essay-student-box { background: #f8f9fc; border-left: 4px solid #4e73df; border-radius: 4px; padding: 12px 16px; font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; }
 		.essay-reference-box { background: #fffdf5; border-left: 4px solid #f6c23e; border-radius: 4px; padding: 10px 14px; font-size: 0.88rem; line-height: 1.4; white-space: pre-wrap; }
+		.essay-mark-group .btn { min-width: 92px; font-weight: 600; }
+		.essay-mark-group .btn.active-correct { background: #1cc88a; border-color: #1cc88a; color: #fff; }
+		.essay-mark-group .btn.active-wrong { background: #e74a3b; border-color: #e74a3b; color: #fff; }
 		.question-image-thumb { max-height: 180px; max-width: 100%; border-radius: 6px; border: 1px solid #e3e6f0; object-fit: contain; cursor: pointer; transition: transform .2s; }
 		.question-image-thumb:hover { transform: scale(1.02); }
 		/* Header tabel yang bisa diurutkan (gaya DataTables) */
@@ -465,21 +468,14 @@
 					<div class="card shadow-sm border-0 mb-4 bg-white">
 						<div class="card-body py-3 px-4">
 							<div class="row align-items-center">
-								<!-- Jawaban Benar -->
-								<div class="col-md-6 col-sm-12 mb-3 mb-md-0 d-flex align-items-center">
-									<div class="rounded-circle bg-success text-white d-flex align-items-center justify-content-center mr-3 shadow-sm" style="width: 48px; height: 48px; font-size: 1.3rem;">
-										<i class="fas fa-check"></i>
-									</div>
-									<div>
-										<div class="small text-muted font-weight-bold text-uppercase">Jawaban Benar</div>
-										<div class="h4 font-weight-bold text-gray-900 mb-0">
-											<span id="simpleCorrectCount" class="text-success">0</span> <span class="text-muted" style="font-size: 1.1rem; font-weight: normal;">/ <span id="simpleTotalQuestions">0</span> Soal</span>
-										</div>
-									</div>
+								<!-- Jawaban Benar (dipisah per jenis soal) -->
+								<div class="col-lg-7 col-md-12 mb-3 mb-lg-0">
+									<div class="small text-muted font-weight-bold text-uppercase mb-2">Jawaban Benar</div>
+									<div class="d-flex flex-wrap" id="reviewCorrectBreakdown"></div>
 								</div>
 
 								<!-- Nilai Akhir -->
-								<div class="col-md-6 col-sm-12 d-flex align-items-center justify-content-md-end">
+								<div class="col-lg-5 col-md-12 d-flex align-items-center justify-content-lg-end">
 									<div class="mr-3 text-md-right">
 										<label for="inputFinalScore" class="font-weight-bold text-gray-800 mb-0 d-block">Nilai Akhir Siswa:</label>
 										<span class="small text-muted">Tentukan nilai akhir (0 - 100)</span>
@@ -722,6 +718,7 @@
 		let currentAttemptStudentAnswers = new Map();
 		let currentAttemptKunciPg = new Map();
 		let currentAttemptAcuanEssay = new Map();
+		let currentAttemptEssayMarks = new Map(); // soal_id -> true (ceklis) | false (silang) | null (belum diperiksa)
 
 		function showMessage(msg, type = "success") {
 			const box = document.getElementById("pageAlertBox");
@@ -1283,6 +1280,10 @@
 					.eq("percobaan_id", attempt.id);
 				if (aError) throw aError;
 				(answers || []).forEach(a => currentAttemptStudentAnswers.set(String(a.soal_id), a));
+				currentAttemptEssayMarks.clear();
+				(answers || []).forEach(a => {
+					if (a.essay_benar === true || a.essay_benar === false) currentAttemptEssayMarks.set(String(a.soal_id), a.essay_benar);
+				});
 
 				// 5. Informasi audit peninjau
 				let reviewerName = null;
@@ -1437,15 +1438,20 @@
 						? Number(studentAns.nilai_final)
 						: '';
 					const currentNote = studentAns?.catatan_guru || '';
+					const mark = currentAttemptEssayMarks.has(String(q.id)) ? currentAttemptEssayMarks.get(String(q.id)) : null;
+					const markBorder = mark === true ? 'success' : (mark === false ? 'danger' : 'warning');
 
 					html += `
-						<div class="card shadow-sm border-left-warning mb-3">
+						<div class="card shadow-sm border-left-${markBorder} mb-3" id="essayCard-${q.id}">
 							<div class="card-header py-2 bg-white d-flex justify-content-between align-items-center">
 								<div>
 									<span class="font-weight-bold text-gray-800 mr-2">Soal No. ${qNum}</span>
 									<span class="badge badge-warning text-dark">Essay / Uraian</span>
 								</div>
-								<span class="small text-muted"><i class="fas fa-pen-alt mr-1"></i>Perlu Penilaian Guru</span>
+								<div class="btn-group btn-group-sm essay-mark-group" role="group" data-soal-id="${q.id}" aria-label="Periksa jawaban essay">
+									<button type="button" class="btn btn-outline-success essay-mark-btn ${mark === true ? 'active-correct' : ''}" data-mark="benar" title="Tandai benar"><i class="fas fa-check mr-1"></i>Benar</button>
+									<button type="button" class="btn btn-outline-danger essay-mark-btn ${mark === false ? 'active-wrong' : ''}" data-mark="salah" title="Tandai salah"><i class="fas fa-times mr-1"></i>Salah</button>
+								</div>
 							</div>
 							<div class="card-body py-3">
 								<div class="text-gray-900 font-weight-500 mb-2" style="white-space: pre-wrap; font-size: 1rem;">${escapeHtml(q.pertanyaan)}</div>
@@ -1483,23 +1489,75 @@
 
 			container.innerHTML = html;
 
-			// Hitung jawaban benar PG untuk ringkasan
-			let correctCount = 0;
+			updateCorrectSummary();
+		}
+
+		// Ringkasan jawaban benar: dipisah PG, Essay, dan tipe soal lain (jika ada)
+		function updateCorrectSummary() {
+			const box = document.getElementById("reviewCorrectBreakdown");
+			if (!box) return;
+			let pgTotal = 0, pgCorrect = 0, essayTotal = 0, essayCorrect = 0, essayWrong = 0, otherTotal = 0;
 			currentAttemptQuestions.forEach(q => {
+				const key = String(q.id);
 				if (q.soal_type === 'pg') {
-					const ans = currentAttemptStudentAnswers.get(String(q.id));
-					const kunci = currentAttemptKunciPg.get(String(q.id));
-					if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) {
-						correctCount++;
-					}
+					pgTotal++;
+					const ans = currentAttemptStudentAnswers.get(key);
+					const kunci = currentAttemptKunciPg.get(key);
+					if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) pgCorrect++;
+				} else if (q.soal_type === 'essay') {
+					essayTotal++;
+					const m = currentAttemptEssayMarks.get(key);
+					if (m === true) essayCorrect++;
+					else if (m === false) essayWrong++;
+				} else {
+					otherTotal++;
 				}
 			});
-
-			const correctEl = document.getElementById("simpleCorrectCount");
-			const totalEl = document.getElementById("simpleTotalQuestions");
-			if (correctEl) correctEl.textContent = correctCount;
-			if (totalEl) totalEl.textContent = currentAttemptQuestions.length;
+			const essayPending = essayTotal - essayCorrect - essayWrong;
+			const item = (color, icon, label, value, total, extra = '') => `
+				<div class="d-flex align-items-center mr-4 mb-2">
+					<div class="rounded-circle bg-${color} text-white d-flex align-items-center justify-content-center mr-2 shadow-sm" style="width: 40px; height: 40px;">
+						<i class="fas ${icon}"></i>
+					</div>
+					<div>
+						<div class="small text-muted font-weight-bold">${label}</div>
+						<div class="h5 font-weight-bold text-gray-900 mb-0"><span class="text-${color}">${value}</span> <span class="text-muted" style="font-size: .95rem; font-weight: normal;">/ ${total} Soal</span></div>
+						${extra}
+					</div>
+				</div>`;
+			let html = '';
+			if (pgTotal > 0) html += item('success', 'fa-list-ul', 'Pilihan Ganda', pgCorrect, pgTotal);
+			if (essayTotal > 0) {
+				const extra = `<div class="small text-muted">${essayWrong} salah${essayPending > 0 ? ` · ${essayPending} belum diperiksa` : ''}</div>`;
+				html += item('primary', 'fa-pen-alt', 'Essay', essayCorrect, essayTotal, extra);
+			}
+			if (otherTotal > 0) html += item('secondary', 'fa-question', 'Soal Lainnya', 0, otherTotal, '<div class="small text-muted">Dinilai manual</div>');
+			if (!html) html = '<span class="text-muted small">-</span>';
+			box.innerHTML = html;
 		}
+
+		// Ceklis / silang pada soal essay (klik lagi pada tombol yang aktif untuk membatalkan)
+		document.addEventListener("click", (e) => {
+			const btn = e.target.closest(".essay-mark-btn");
+			if (!btn) return;
+			const group = btn.closest(".essay-mark-group");
+			if (!group) return;
+			const soalId = String(group.dataset.soalId);
+			const wanted = btn.dataset.mark === "benar";
+			const current = currentAttemptEssayMarks.has(soalId) ? currentAttemptEssayMarks.get(soalId) : null;
+			const next = current === wanted ? null : wanted;
+			if (next === null) currentAttemptEssayMarks.delete(soalId);
+			else currentAttemptEssayMarks.set(soalId, next);
+
+			group.querySelector('[data-mark="benar"]').classList.toggle("active-correct", next === true);
+			group.querySelector('[data-mark="salah"]').classList.toggle("active-wrong", next === false);
+			const card = document.getElementById("essayCard-" + soalId);
+			if (card) {
+				card.classList.remove("border-left-success", "border-left-danger", "border-left-warning");
+				card.classList.add(next === true ? "border-left-success" : (next === false ? "border-left-danger" : "border-left-warning"));
+			}
+			updateCorrectSummary();
+		});
 
 
 		async function saveGrading(finalize = false) {
@@ -1529,23 +1587,30 @@
 					const note = noteInp.value.trim() || null;
 
 					const existing = currentAttemptStudentAnswers.get(String(soalId));
+					const markVal = currentAttemptEssayMarks.has(String(soalId)) ? currentAttemptEssayMarks.get(String(soalId)) : null;
 					if (existing) {
-						await client.from("jawaban_siswa").update({
+						const { error: updAnsErr } = await client.from("jawaban_siswa").update({
+							essay_benar: markVal,
 							catatan_guru: note,
 							ditinjau_oleh: currentUserId,
 							ditinjau_at: nowIso,
 							updated_at: nowIso
 						}).eq("id", existing.id);
-					} else if (note) {
-						await client.from("jawaban_siswa").insert({
+						if (updAnsErr) throw updAnsErr;
+						existing.essay_benar = markVal;
+						existing.catatan_guru = note;
+					} else if (note || markVal !== null) {
+						const { error: insAnsErr } = await client.from("jawaban_siswa").insert({
 							percobaan_id: attemptId,
 							ujian_id: currentSelectedAttempt.ujian_id,
 							soal_id: Number(soalId),
 							urutan_soal: 1,
+							essay_benar: markVal,
 							catatan_guru: note,
 							ditinjau_oleh: currentUserId,
 							ditinjau_at: nowIso
 						});
+						if (insAnsErr) throw insAnsErr;
 					}
 				}
 
