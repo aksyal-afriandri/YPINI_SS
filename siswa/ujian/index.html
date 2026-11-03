@@ -204,11 +204,6 @@
       color: #ffffff !important;
       border-color: #1cc88a !important;
     }
-    .cbt-grid-btn.doubt {
-      background-color: #f6c23e !important;
-      color: #ffffff !important;
-      border-color: #f6c23e !important;
-    }
     .cbt-grid-btn.current {
       box-shadow: 0 0 0 3px #4e73df !important;
       border-color: #4e73df !important;
@@ -455,14 +450,11 @@
                   <i class="fas fa-chevron-left mr-1"></i> Sebelumnya
                 </button>
 
-                <!-- Tombol Navigasi Modal (Daftar Soal) & Ragu-Ragu -->
+                <!-- Tombol Navigasi Modal (Daftar Soal) -->
                 <div class="d-flex mb-2 mb-sm-0">
                   <button type="button" class="btn btn-outline-primary px-3 mr-2 font-weight-bold" data-toggle="modal" data-target="#navigasiSoalModal">
                     <i class="fas fa-th mr-1"></i>
                   </button>
-                  <!-- <button type="button" class="btn btn-outline-warning px-3" id="btnDoubtQuestion">
-                    <i class="fas fa-flag mr-1"></i> <span id="btnDoubtText">Ragu-Ragu</span>
-                  </button> -->
                 </div>
 
                 <!-- Tombol Berikutnya / Selesai -->
@@ -499,9 +491,6 @@
           <div class="small text-muted mb-3 d-flex justify-content-between flex-wrap border-bottom pb-2">
             <div class="mr-3 mb-1">
               <span class="cbt-legend-dot bg-success"></span> Sudah Dijawab (<strong id="modalCountAnswered" class="text-success">0</strong>)
-            </div>
-            <div class="mr-3 mb-1">
-              <span class="cbt-legend-dot bg-warning"></span> Ragu-Ragu (<strong id="modalCountDoubt" class="text-warning">0</strong>)
             </div>
             <div class="mb-1">
               <span class="cbt-legend-dot border" style="background:#fff;"></span> Belum Dijawab (<strong id="modalCountUnanswered" class="text-danger">0</strong>)
@@ -541,19 +530,13 @@
           <p class="text-gray-800 font-weight-bold mb-3">Ringkasan Pengerjaan Anda:</p>
           
           <div class="row text-center mb-3">
-            <div class="col-4">
+            <div class="col-6">
               <div class="border rounded p-2 bg-light">
                 <div class="h4 text-success font-weight-bold mb-0" id="summaryAnswered">0</div>
                 <small class="text-muted">Dijawab</small>
               </div>
             </div>
-            <div class="col-4">
-              <div class="border rounded p-2 bg-light">
-                <div class="h4 text-warning font-weight-bold mb-0" id="summaryDoubt">0</div>
-                <small class="text-muted">Ragu-ragu</small>
-              </div>
-            </div>
-            <div class="col-4">
+            <div class="col-6">
               <div class="border rounded p-2 bg-light">
                 <div class="h4 text-danger font-weight-bold mb-0" id="summaryUnanswered">0</div>
                 <small class="text-muted">Belum Dijawab</small>
@@ -561,9 +544,17 @@
             </div>
           </div>
 
-          <div id="modalWarningAlert" class="alert alert-warning d-none mb-3 small">
-            <i class="fas fa-exclamation-triangle mr-1"></i>
-            <strong>Perhatian:</strong> Masih ada soal yang belum dijawab atau bertanda ragu-ragu.
+          <div id="modalUnansweredAlert" class="alert alert-danger d-none mb-3 small">
+            <i class="fas fa-times-circle mr-1"></i>
+            <strong>Ujian belum bisa dikumpulkan.</strong> Masih ada <strong id="unansweredCountText">0</strong> soal yang belum dijawab
+            (nomor: <span id="unansweredNumbers"></span>). Semua soal wajib dijawab sebelum mengumpulkan.
+          </div>
+
+          <div id="modalMinTimeAlert" class="alert alert-info d-none mb-3 small">
+            <i class="fas fa-hourglass-half mr-1"></i>
+            <strong>Belum bisa dikumpulkan.</strong> Ujian baru dapat dikumpulkan setelah minimal
+            <strong id="minSubmitMinutesText">20</strong> menit pengerjaan. Sisa waktu tunggu:
+            <strong id="minSubmitCountdown">00:00</strong>
           </div>
 
           <p class="text-muted small mb-0">
@@ -573,6 +564,9 @@
         <div class="modal-footer bg-light">
           <button type="button" class="btn btn-secondary font-weight-bold" data-dismiss="modal">
             <i class="fas fa-undo mr-1"></i> Cek Lagi
+          </button>
+          <button type="button" class="btn btn-danger font-weight-bold d-none" id="btnGoFirstUnanswered">
+            <i class="fas fa-arrow-right mr-1"></i> Ke Soal yang Kosong
           </button>
           <button type="button" class="btn btn-success font-weight-bold" id="btnSubmitFinal">
             <i class="fas fa-check mr-1"></i> Ya, Kumpulkan Jawaban
@@ -688,9 +682,18 @@
     let currentIndex = 0;
     let studentAnswers = {};
     let examTimerInterval = null;
+    let examStartMs = null;          // waktu mulai ujian siswa (ms), dipakai untuk batas minimal submit
+    let submitGateInterval = null;   // interval hitung mundur di modal konfirmasi
     let currentStudentNis = "";
     let isExamActive = false;
     let isExamSubmitted = false;
+
+    // Aturan pengumpulan manual
+    const SUBMIT_RULES = {
+      minSubmitMinutes: 20,        // siswa baru boleh mengumpulkan setelah N menit pengerjaan
+                                   // (bisa di-override per ujian lewat kolom exam.min_submit_menit bila ada)
+      maxPercentOfDuration: 0.5,   // batas atas: tidak lebih dari 50% durasi ujian
+    };
 
     //  Config
     const ANTI_CHEAT_CONFIG = {
@@ -1326,6 +1329,8 @@
         }
       }
 
+      examStartMs = startTime;
+
       // Waktu target selesai normal siswa: waktu mulai + durasi pengerjaan
       const toleranceMinutes = Number(exam.toleransi_menit != null ? exam.toleransi_menit : 15);
       const toleranceSec = toleranceMinutes * 60;
@@ -1434,11 +1439,8 @@
 
         const ans = studentAnswers[question.id];
         const hasAnswer = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
-        const isDoubt = ans && Boolean(ans.doubt);
 
-        if (isDoubt) {
-          btn.classList.add("doubt");
-        } else if (hasAnswer) {
+        if (hasAnswer) {
           btn.classList.add("answered");
         }
 
@@ -1459,28 +1461,12 @@
 
     // Update Counter Jawaban di Topbar dan Modal
     function updateSummaryCounts() {
-      let answered = 0;
-      let doubt = 0;
-      let unanswered = 0;
-
-      questionsList.forEach((q) => {
-        const ans = studentAnswers[q.id];
-        const hasAns = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
-        const isDoubt = ans && Boolean(ans.doubt);
-
-        if (isDoubt) {
-          doubt++;
-        } else if (hasAns) {
-          answered++;
-        } else {
-          unanswered++;
-        }
-      });
-
       const total = questionsList.length;
-      safeSetText("topbarAnsweredBadge", `${answered + doubt}/${total}`);
+      const unanswered = getUnansweredIndexes().length;
+      const answered = total - unanswered;
+
+      safeSetText("topbarAnsweredBadge", `${answered}/${total}`);
       safeSetText("modalCountAnswered", String(answered));
-      safeSetText("modalCountDoubt", String(doubt));
       safeSetText("modalCountUnanswered", String(unanswered));
     }
 
@@ -1496,14 +1482,11 @@
 
       // Status Badge
       const statusBadge = document.getElementById("activeQuestionStatusBadge");
-      const currentAns = studentAnswers[question.id] || { answer: "", doubt: false };
+      const currentAns = studentAnswers[question.id] || { answer: "" };
       const hasAnswer = currentAns.answer && currentAns.answer.trim().length > 0;
 
       if (statusBadge) {
-        if (currentAns.doubt) {
-          statusBadge.className = "badge badge-warning text-dark px-2 py-1 font-weight-bold";
-          statusBadge.textContent = "Ragu-Ragu";
-        } else if (hasAnswer) {
+        if (hasAnswer) {
           statusBadge.className = "badge badge-success px-2 py-1 font-weight-bold";
           if (question.soal_type === "pg") {
             const shuffledKeys = question._shuffledOptionKeys || ['A', 'B', 'C', 'D'];
@@ -1658,7 +1641,7 @@
       if (!question) return;
 
       if (!studentAnswers[question.id]) {
-        studentAnswers[question.id] = { answer: "", doubt: false };
+        studentAnswers[question.id] = { answer: "" };
       }
 
       studentAnswers[question.id].answer = optionValue;
@@ -1672,7 +1655,7 @@
       if (!question) return;
 
       if (!studentAnswers[question.id]) {
-        studentAnswers[question.id] = { answer: "", doubt: false };
+        studentAnswers[question.id] = { answer: "" };
       }
 
       studentAnswers[question.id].answer = value;
@@ -1680,64 +1663,85 @@
       renderGridButtons();
 
       const statusBadge = document.getElementById("activeQuestionStatusBadge");
-      if (value.trim().length > 0) {
-        if (!studentAnswers[question.id].doubt) {
+      if (statusBadge) {
+        if (value.trim().length > 0) {
           statusBadge.className = "badge badge-success px-2 py-1 font-weight-bold";
           statusBadge.textContent = "Sudah Dijawab";
+        } else {
+          statusBadge.className = "badge badge-light border text-muted px-2 py-1";
+          statusBadge.textContent = "Belum Dijawab";
         }
-      } else if (!studentAnswers[question.id].doubt) {
-        statusBadge.className = "badge badge-light border text-muted px-2 py-1";
-        statusBadge.textContent = "Belum Dijawab";
       }
     }
 
-    function toggleDoubt() {
-      const question = questionsList[currentIndex];
-      if (!question) return;
+    // Daftar index soal yang belum terisi (jawaban kosong)
+    function getUnansweredIndexes() {
+      const result = [];
+      questionsList.forEach((q, idx) => {
+        const ans = studentAnswers[q.id];
+        const hasAns = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
+        if (!hasAns) result.push(idx);
+      });
+      return result;
+    }
 
-      if (!studentAnswers[question.id]) {
-        studentAnswers[question.id] = { answer: "", doubt: false };
+    // Batas minimal waktu pengerjaan sebelum siswa boleh mengumpulkan manual (detik)
+    function getMinSubmitSeconds() {
+      const duration = Number((activeExam && activeExam.waktu_menit) || 60);
+      const override = activeExam && activeExam.min_submit_menit != null ? Number(activeExam.min_submit_menit) : NaN;
+      let minutes = !isNaN(override) ? override : SUBMIT_RULES.minSubmitMinutes;
+      // Dibatasi maksimal 50% durasi ujian supaya ujian singkat tidak terkunci sampai habis
+      minutes = Math.min(minutes, Math.floor(duration * SUBMIT_RULES.maxPercentOfDuration));
+      return Math.max(0, minutes) * 60;
+    }
+
+    // Sisa detik sebelum siswa boleh submit manual (0 = sudah boleh)
+    function getRemainingMinSubmitSec() {
+      if (!examStartMs) return 0;
+      const elapsedSec = Math.floor((Date.now() - examStartMs) / 1000);
+      return Math.max(0, getMinSubmitSeconds() - elapsedSec);
+    }
+
+    // Perbarui isi modal konfirmasi: validasi soal kosong + waktu minimal
+    function refreshSubmitGate() {
+      const total = questionsList.length;
+      const emptyIdx = getUnansweredIndexes();
+      const remainSec = getRemainingMinSubmitSec();
+      const blockedEmpty = emptyIdx.length > 0;
+      const blockedTime = remainSec > 0;
+
+      safeSetText("summaryAnswered", String(total - emptyIdx.length));
+      safeSetText("summaryUnanswered", String(emptyIdx.length));
+
+      const alertEmpty = document.getElementById("modalUnansweredAlert");
+      const alertTime = document.getElementById("modalMinTimeAlert");
+      const btnFinal = document.getElementById("btnSubmitFinal");
+      const btnGo = document.getElementById("btnGoFirstUnanswered");
+
+      if (alertEmpty) alertEmpty.classList.toggle("d-none", !blockedEmpty);
+      if (alertTime) alertTime.classList.toggle("d-none", !blockedTime);
+      if (btnFinal) btnFinal.disabled = blockedEmpty || blockedTime;
+      if (btnGo) {
+        btnGo.classList.toggle("d-none", !blockedEmpty);
+        btnGo.dataset.targetIndex = blockedEmpty ? String(emptyIdx[0]) : "";
       }
-
-      studentAnswers[question.id].doubt = !studentAnswers[question.id].doubt;
-      persistAnswers();
-      renderGridButtons();
-      renderCurrentQuestion();
+      if (blockedEmpty) {
+        safeSetText("unansweredCountText", String(emptyIdx.length));
+        safeSetText("unansweredNumbers", emptyIdx.map((i) => i + 1).join(", "));
+      }
+      if (blockedTime) {
+        safeSetText("minSubmitMinutesText", String(Math.round(getMinSubmitSeconds() / 60)));
+        safeSetText("minSubmitCountdown", formatMMSS(remainSec * 1000));
+      }
     }
 
     function openSubmitModal() {
       $("#navigasiSoalModal").modal("hide");
 
-      let answered = 0;
-      let doubt = 0;
-      let unanswered = 0;
-
-      questionsList.forEach((q) => {
-        const ans = studentAnswers[q.id];
-        const hasAns = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
-        const isDoubt = ans && Boolean(ans.doubt);
-
-        if (isDoubt) {
-          doubt++;
-        } else if (hasAns) {
-          answered++;
-        } else {
-          unanswered++;
-        }
-      });
-
-      safeSetText("summaryAnswered", String(answered));
-      safeSetText("summaryDoubt", String(doubt));
-      safeSetText("summaryUnanswered", String(unanswered));
-
-      const warningAlert = document.getElementById("modalWarningAlert");
-      if (warningAlert) {
-        if (unanswered > 0 || doubt > 0) {
-          warningAlert.classList.remove("d-none");
-        } else {
-          warningAlert.classList.add("d-none");
-        }
-      }
+      refreshSubmitGate();
+      // Hitung mundur sisa waktu tunggu selagi modal terbuka
+      clearInterval(submitGateInterval);
+      submitGateInterval = setInterval(refreshSubmitGate, 1000);
 
       $("#confirmSubmitModal").modal("show");
     }
@@ -1747,7 +1751,7 @@
       const payload = questionsList.map((q) => ({
         soal_id: q.id,
         answer: studentAnswers[q.id]?.answer || "",
-        is_doubt: !!studentAnswers[q.id]?.doubt,
+        is_doubt: false, // fitur ragu-ragu dihapus; field dipertahankan agar kompatibel dengan RPC
       }));
 
       const MAX_TRIES = 3;
@@ -2291,9 +2295,6 @@
       const btnNext = document.getElementById("btnNextQuestion");
       if (btnNext) btnNext.addEventListener("click", () => goToQuestion(currentIndex + 1));
 
-      const btnDoubt = document.getElementById("btnDoubtQuestion");
-      if (btnDoubt) btnDoubt.addEventListener("click", toggleDoubt);
-
       const btnFinishInline = document.getElementById("btnFinishExamInline");
       if (btnFinishInline) btnFinishInline.addEventListener("click", openSubmitModal);
 
@@ -2301,7 +2302,23 @@
       if (btnFinishModal) btnFinishModal.addEventListener("click", openSubmitModal);
 
       const btnSubmitFinal = document.getElementById("btnSubmitFinal");
-      if (btnSubmitFinal) btnSubmitFinal.addEventListener("click", () => submitExamAction(false));
+      if (btnSubmitFinal) btnSubmitFinal.addEventListener("click", () => {
+        // Cek ulang saat klik (jaga-jaga tombol di-enable lewat devtools). Auto-submit saat waktu habis tidak lewat sini.
+        if (getUnansweredIndexes().length > 0 || getRemainingMinSubmitSec() > 0) {
+          openSubmitModal();
+          return;
+        }
+        submitExamAction(false);
+      });
+
+      $("#confirmSubmitModal").on("hidden.bs.modal", () => clearInterval(submitGateInterval));
+
+      const btnGoFirstUnanswered = document.getElementById("btnGoFirstUnanswered");
+      if (btnGoFirstUnanswered) btnGoFirstUnanswered.addEventListener("click", () => {
+        const target = parseInt(btnGoFirstUnanswered.dataset.targetIndex, 10);
+        $("#confirmSubmitModal").modal("hide");
+        if (!isNaN(target)) goToQuestion(target);
+      });
 
       // Lightbox modal saat gambar soal diklik
       document.getElementById("questionImagesList").addEventListener("click", (e) => {
