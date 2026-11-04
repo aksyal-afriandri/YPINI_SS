@@ -1272,7 +1272,7 @@
 
 				// 3. Ambil jawaban acuan essay jika ada
 				currentAttemptAcuanEssay.clear();
-				const essayQuestions = currentAttemptQuestions.filter(q => q.soal_type === 'essay');
+				const essayQuestions = currentAttemptQuestions.filter(q => q.soal_type === 'essay' || q.soal_type === 'jawaban_singkat');
 				if (essayQuestions.length > 0) {
 					const { data: acuanList } = await client
 						.from("jawaban_acuan_essay")
@@ -1350,6 +1350,8 @@
 			currentAttemptQuestions.forEach((q, idx) => {
 				const qNum = q.nomor_urut || (idx + 1);
 				const studentAns = currentAttemptStudentAnswers.get(String(q.id));
+				const isPg = q.soal_type === 'pg';
+				const isSingkat = q.soal_type === 'jawaban_singkat';
 				const isEssay = q.soal_type === 'essay';
 
 				// Gambar pendukung
@@ -1371,7 +1373,7 @@
 					`;
 				}
 
-				if (!isEssay) {
+				if (isPg) {
 					// Pilihan Ganda
 					const studentChoice = studentAns?.jawaban_pg ? studentAns.jawaban_pg.toUpperCase() : null;
 					const correctKey = currentAttemptKunciPg.get(String(q.id)) || null;
@@ -1452,7 +1454,7 @@
 							<div class="card-header py-2 bg-white d-flex justify-content-between align-items-center">
 								<div>
 									<span class="font-weight-bold text-gray-800 mr-2">Soal No. ${qNum}</span>
-									<span class="badge badge-warning text-dark">Essay / Uraian</span>
+									<span class="badge ${isSingkat ? 'badge-info text-white' : 'badge-warning text-dark'}">${isSingkat ? 'Jawaban Singkat' : 'Essay / Uraian'}</span>
 									<span class="badge badge-light border text-primary ml-1 font-weight-bold" title="Bobot butir soal"> + ${weightFormatted}</span>
 								</div>
 								<div class="btn-group btn-group-sm essay-mark-group" role="group" data-soal-id="${q.id}" aria-label="Periksa jawaban essay">
@@ -1475,8 +1477,8 @@
 
 								${references.length > 0 ? `
 									<div class="mt-2 mb-3">
-										<label class="small font-weight-bold text-warning">
-											<i class="fas fa-lightbulb mr-1"></i>Kunci / Acuan Jawaban Acuan:
+										<label class="small font-weight-bold ${isSingkat ? 'text-info' : 'text-warning'}">
+											<i class="fas ${isSingkat ? 'fa-key' : 'fa-lightbulb'} mr-1"></i>${isSingkat ? 'Kunci / Acuan Jawaban Benar:' : 'Kunci / Acuan Jawaban Acuan:'}
 										</label>
 										<div class="essay-reference-box">
 											${references.map((ref, rIdx) => `<div>${references.length > 1 ? `<strong>${rIdx + 1}.</strong> ` : ''}${escapeHtml(ref)}</div>`).join('')}
@@ -1521,7 +1523,7 @@
 						pgCorrect++;
 						pgScore += w;
 					}
-				} else if (q.soal_type === 'essay') {
+				} else if (q.soal_type === 'essay' || q.soal_type === 'jawaban_singkat') {
 					essayTotal++;
 					const m = currentAttemptEssayMarks.get(key);
 					if (m === true) {
@@ -2249,9 +2251,11 @@
 				const th = "border: 1px solid #333; padding: 6px 8px; background: #f0f0f0; font-size: 10pt;";
 				const td = "border: 1px solid #333; padding: 5px 8px; vertical-align: top; font-size: 10pt;";
 
-				const pgItems = [], essayItems = [];
+				const pgItems = [], singkatItems = [], essayItems = [];
 				printQuestions.forEach((q, idx) => {
-					(q.soal_type === "essay" ? essayItems : pgItems).push({ q, qNum: numberOf(q, idx) });
+					if (q.soal_type === "pg") pgItems.push({ q, qNum: numberOf(q, idx) });
+					else if (q.soal_type === "jawaban_singkat") singkatItems.push({ q, qNum: numberOf(q, idx) });
+					else essayItems.push({ q, qNum: numberOf(q, idx) });
 				});
 
 				// --- Tabel Pilihan Ganda: No | Soal | Jawaban Siswa | Kunci Jawaban ---
@@ -2271,6 +2275,22 @@
 						<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
 						${studentCell}
 						${keyCell}
+					</tr>`;
+				}).join("");
+
+				// --- Tabel Jawaban Singkat: No | Soal | Jawaban Siswa | Kunci Jawaban ---
+				const singkatRows = singkatItems.map(({ q, qNum }) => {
+					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+					const refs = currentAttemptAcuanEssay.get(String(q.id)) || [];
+					const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
+					const studentBg = !studentText ? GREY : (isCorrect ? GREEN : RED);
+					const keyHtml = refs.length ? refs.map(escapeHtml).join("<br>") : "-";
+					return `<tr>
+						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
+						<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
+						<td style="${td} background: ${studentBg}; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
+						<td style="${td} background: ${GREEN}; white-space: pre-wrap;">${keyHtml}</td>
 					</tr>`;
 				}).join("");
 
@@ -2302,6 +2322,19 @@
 						<tbody>${pgRows}</tbody>
 					</table>`;
 				}
+				if (singkatRows) {
+					bodyHtml += sectionTitle("Soal Jawaban Singkat") + `${tableOpen}
+						<thead>
+							<tr>
+								<th style="${th} width: 34px;">No</th>
+								<th style="${th} text-align: left;">Soal</th>
+								<th style="${th} text-align: left; width: 24%;">Jawaban Siswa</th>
+								<th style="${th} text-align: left; width: 24%;">Kunci Jawaban</th>
+							</tr>
+						</thead>
+						<tbody>${singkatRows}</tbody>
+					</table>`;
+				}
 				if (essayRows) {
 					bodyHtml += sectionTitle("Soal Essay") + `${tableOpen}
 						<thead>
@@ -2322,6 +2355,8 @@
 				const detailHtml = printQuestions.map((q, idx) => {
 					const qNum = numberOf(q, idx);
 					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const isPg = q.soal_type === "pg";
+					const isSingkat = q.soal_type === "jawaban_singkat";
 					const isEssay = q.soal_type === "essay";
 
 					const images = [];
@@ -2334,7 +2369,7 @@
 					const headBase = "font-weight: bold; font-size: 10.5pt; margin-bottom: 4px;";
 					const qText = `<div style="white-space: pre-wrap; font-size: 10.5pt; margin-bottom: 4px;">${escapeHtml(q.pertanyaan)}</div>`;
 
-					if (!isEssay) {
+					if (isPg) {
 						const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
 						const key = (currentAttemptKunciPg.get(String(q.id)) || "").toUpperCase();
 						const isCorrect = choice && key && choice === key;
@@ -2364,6 +2399,32 @@
 								${qText}
 								${imagesHtml}
 								<table style="width: 100%; border-collapse: collapse; margin-top: 4px;">${optRows}</table>
+							</div>`;
+					}
+
+					if (isSingkat) {
+						const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+						const refs = currentAttemptAcuanEssay.get(String(q.id)) || [];
+						const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
+						const result = !studentText ? "TIDAK DIJAWAB" : (isCorrect ? "BENAR" : "SALAH");
+						const resultColor = !studentText ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
+						const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
+							? `<span style="color: ${resultColor};">${result}</span>` : "";
+						const studentBg = !studentText ? GREY : (isCorrect ? GREEN : RED);
+						const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
+
+						return `
+							<div class="ans-q" style="margin-bottom: 14px;">
+								<div style="${headBase} display: flex; justify-content: space-between;">
+									<span>Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Jawaban Singkat)</span></span>
+									${labelHtml}
+								</div>
+								${qText}
+								${imagesHtml}
+								<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
+								<div style="${boxStyle} background: ${studentBg};">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</div>
+								<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci Jawaban:</div>
+								<div style="${boxStyle} background: ${GREEN};">${refs.length ? refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("") : '-'}</div>
 							</div>`;
 					}
 

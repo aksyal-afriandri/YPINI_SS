@@ -482,7 +482,7 @@
 				<div class="modal-body">
 					<div id="questionFormError" class="alert alert-danger d-none" role="alert"></div>
 					<div class="form-row">
-						<div class="form-group col-sm-4"><label for="questionType">Tipe soal</label><select id="questionType" name="soal_type" class="form-control"><option value="pg">Pilihan ganda</option><option value="essay">Essay</option></select></div>
+						<div class="form-group col-sm-4"><label for="questionType">Tipe soal</label><select id="questionType" name="soal_type" class="form-control"><option value="pg">Pilihan ganda</option><option value="jawaban_singkat">Jawaban Singkat</option><option value="essay">Essay</option></select></div>
 						<div class="form-group col-sm-4"><label for="questionNumber">Nomor urut</label><input id="questionNumber" name="nomor_urut" type="number" class="form-control" min="1" step="1" required></div>
 						<div class="form-group col-sm-4">
 							<label for="questionPoints">Nilai / Bobot Soal <small class="text-muted">(Opsional)</small></label>
@@ -574,7 +574,11 @@
 						<div class="form-group"><label for="correctChoice">Kunci jawaban</label><select id="correctChoice" name="jawaban_benar" class="form-control"><option value="">Pilih kunci</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div>
 					</div>
 					<div id="essayFields" class="d-none">
-						<div class="form-group"><label for="essayReferences">Jawaban acuan essay</label><textarea id="essayReferences" name="jawaban_acuan" class="form-control" rows="4" placeholder="Satu variasi jawaban per baris"></textarea><small class="form-text text-muted">Masukkan beberapa jawaban yang dapat diterima, satu per baris. AI belum dijalankan dari halaman ini.</small></div>
+						<div class="form-group">
+							<label for="essayReferences" id="essayReferencesLabel"><i class="fas fa-align-left mr-1 text-primary"></i>Jawaban acuan essay</label>
+							<textarea id="essayReferences" name="jawaban_acuan" class="form-control" rows="4" placeholder="Satu variasi jawaban per baris"></textarea>
+							<small class="form-text text-muted" id="essayReferencesHelp">Masukkan beberapa jawaban yang dapat diterima, satu per baris. AI belum dijalankan dari halaman ini.</small>
+						</div>
 					</div>
 				</div>
 				<div class="modal-footer"><button class="btn btn-light" type="button" data-dismiss="modal">Batal</button><button id="saveQuestionButton" class="btn btn-primary" type="submit">Simpan soal</button></div>
@@ -1218,8 +1222,30 @@
 
 		function setQuestionType(type) {
 			const isMultipleChoice = type === "pg";
+
 			document.getElementById("multipleChoiceFields").classList.toggle("d-none", !isMultipleChoice);
 			document.getElementById("essayFields").classList.toggle("d-none", isMultipleChoice);
+
+			const refLabel = document.getElementById("essayReferencesLabel");
+			const refHelp = document.getElementById("essayReferencesHelp");
+			const refText = document.getElementById("essayReferences");
+
+			if (type === "jawaban_singkat") {
+				if (refLabel) refLabel.innerHTML = '<i class="fas fa-pen mr-1 text-primary"></i>Jawaban acuan jawaban singkat';
+				if (refText) {
+					refText.placeholder = "Satu variasi jawaban acuan per baris";
+					refText.rows = 3;
+				}
+				if (refHelp) refHelp.textContent = "Masukkan jawaban acuan sebagai pedoman pemeriksaan.";
+			} else {
+				if (refLabel) refLabel.innerHTML = '<i class="fas fa-align-left mr-1 text-primary"></i>Jawaban acuan essay';
+				if (refText) {
+					refText.placeholder = "Satu variasi jawaban acuan per baris";
+					refText.rows = 4;
+				}
+				if (refHelp) refHelp.textContent = "Masukkan beberapa jawaban acuan sebagai pedoman pemeriksaan.";
+			}
+
 			document.getElementById("correctChoice").required = isMultipleChoice;
 			document.getElementById("essayReferences").required = !isMultipleChoice;
 		}
@@ -1335,6 +1361,7 @@
 
 			const totalCount = questions.length;
 			const pgCount = questions.filter(q => q.soal_type === "pg").length;
+			const singkatCount = questions.filter(q => q.soal_type === "jawaban_singkat").length;
 			const essayCount = questions.filter(q => q.soal_type === "essay").length;
 			const hasCustomWeights = questions.some(q => q.bobot_nilai !== null && q.bobot_nilai !== undefined && String(q.bobot_nilai).trim() !== "" && Number(q.bobot_nilai) > 0);
 			const autoWeight = totalCount > 0 ? (100 / totalCount) : 0;
@@ -1346,7 +1373,11 @@
 
 			if (totalCount > 0 && summaryBar && badgeEl) {
 				summaryBar.classList.remove("d-none");
-				messageEl.innerHTML = `<i class="fas fa-list-ol mr-1 text-primary"></i> ${totalCount} Soal (${pgCount} PG, ${essayCount} Essay)`;
+				const typeParts = [];
+				if (pgCount > 0) typeParts.push(`${pgCount} PG`);
+				if (singkatCount > 0) typeParts.push(`${singkatCount} Jawaban Singkat`);
+				if (essayCount > 0) typeParts.push(`${essayCount} Essay`);
+				messageEl.innerHTML = `<i class="fas fa-list-ol mr-1 text-primary"></i> ${totalCount} Soal (${typeParts.join(", ")})`;
 				if (!hasCustomWeights) {
 					badgeEl.innerHTML = `<span class="badge badge-info py-2 px-3 font-weight-normal shadow-sm" style="font-size: 0.85rem;" title="Nilai dihitung merata oleh sistem"><i class="fas fa-magic mr-1"></i>Penilaian: <strong>Otomatis Sistem</strong> (~${autoWeight.toFixed(2).replace(/\.00$/, '')} poin/soal &bull; Total 100 jika benar semua)</span>`;
 				} else {
@@ -1397,7 +1428,7 @@
 
 				return `<tr>
 					<td>${question.nomor_urut}</td>
-					<td>${question.soal_type === "pg" ? '<span class="badge badge-light border">PG</span>' : '<span class="badge badge-light border">Essay</span>'}</td>
+					<td>${question.soal_type === "pg" ? '<span class="badge badge-light border">PG</span>' : (question.soal_type === "jawaban_singkat" ? '<span class="badge badge-info border text-white">Singkat</span>' : '<span class="badge badge-warning border text-dark">Essay</span>')}</td>
 					<td>${imgHtml}</td>
 					<td>${escapeHtml(question.pertanyaan)}</td>
 					<td class="text-center align-middle">${weightDisplay}</td>
@@ -1941,11 +1972,13 @@
 				gambar_pilihan_c: type === "pg" ? choiceFinalUrls.C : null,
 				gambar_pilihan_d: type === "pg" ? choiceFinalUrls.D : null,
 			};
-			const essayAnswers = type === "essay"
+			const essayAnswers = type !== "pg"
 				? form.elements.jawaban_acuan.value.split(/\r?\n/).map((answer) => answer.trim()).filter(Boolean)
 				: [];
-			if (type === "essay" && !essayAnswers.length) {
-				errorBox.textContent = "Masukkan setidaknya satu jawaban acuan essay.";
+			if (type !== "pg" && !essayAnswers.length) {
+				errorBox.textContent = type === "jawaban_singkat"
+					? "Masukkan setidaknya satu kunci / variasi jawaban singkat."
+					: "Masukkan setidaknya satu jawaban acuan essay.";
 				errorBox.classList.remove("d-none");
 				button.disabled = false;
 				return;
@@ -2015,7 +2048,8 @@
 			const rows = [
 				["nomor_urut", "soal_type", "bobot_nilai", "pertanyaan", "pilihan_a", "pilihan_b", "pilihan_c", "pilihan_d", "jawaban_benar", "jawaban_acuan", "gambar"],
 				[1, "pg", "2.5", "Perhatikan gambar berikut! Apa nama organel yang ditunjuk?", "Mitokondria", "Ribosom", "Badan Golgi", "Retikulum Endoplasma", "A", "", "1_1.jpg, 1_2.jpg"],
-				[2, "essay", "5", "Jelaskan proses siklus air berdasarkan diagram yang tertera!", "", "", "", "", "", "evaporasi | kondensasi | presipitasi", "siklus_air.png"],
+				[2, "jawaban_singkat", "2.5", "Ibu kota negara Indonesia saat ini adalah?", "", "", "", "", "", "Jakarta | DKI Jakarta", ""],
+				[3, "essay", "5", "Jelaskan proses siklus air berdasarkan diagram yang tertera!", "", "", "", "", "", "evaporasi | kondensasi | presipitasi", "siklus_air.png"],
 			];
 			const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\r\n");
 			const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
@@ -2039,8 +2073,12 @@
 				]));
 				const rowNumber = index + 2;
 				const typeValue = (values.soal_type || "").toLocaleLowerCase();
-				const type = ["pg", "pilihan ganda"].includes(typeValue) ? "pg" : typeValue === "essay" ? "essay" : null;
-				if (!type) throw new Error(`Baris ${rowNumber}: soal_type harus pg atau essay.`);
+				const type = ["pg", "pilihan ganda"].includes(typeValue) 
+					? "pg" 
+					: (["jawaban_singkat", "singkat", "isian", "isian singkat"].includes(typeValue) 
+						? "jawaban_singkat" 
+						: typeValue === "essay" ? "essay" : null);
+				if (!type) throw new Error(`Baris ${rowNumber}: soal_type harus pg, jawaban_singkat, atau essay.`);
 
 				const order = values.nomor_urut ? Number(values.nomor_urut) : nextNumber;
 				if (!Number.isInteger(order) || order < 1) throw new Error(`Baris ${rowNumber}: nomor_urut harus bilangan bulat positif.`);
@@ -2086,7 +2124,7 @@
 					if (!["A", "B", "C", "D"].includes(correctAnswer)) throw new Error(`Baris ${rowNumber}: jawaban_benar harus A, B, C, atau D.`);
 				} else {
 					references = [...new Set((values.jawaban_acuan || "").split(/\s*\|\s*|\r?\n/).map((answer) => answer.trim()).filter(Boolean))];
-					if (!references.length) throw new Error(`Baris ${rowNumber}: isi jawaban_acuan untuk soal essay.`);
+					if (!references.length) throw new Error(`Baris ${rowNumber}: isi jawaban_acuan untuk soal ${type === "jawaban_singkat" ? "jawaban singkat" : "essay"}.`);
 				}
 				return { question, correctAnswer, references };
 			});

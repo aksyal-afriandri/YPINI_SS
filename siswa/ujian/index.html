@@ -392,7 +392,7 @@
                 <span class="badge badge-primary px-3 py-2 mr-2 font-weight-bold" style="font-size: 0.95rem;">
                   SOAL NO. <span id="activeQuestionNumber">1</span>
                 </span>
-                <span class="badge badge-light border text-muted small" id="activeQuestionType">
+                <span class="badge badge-light border text-muted small d-none" id="activeQuestionType">
                   Pilihan Ganda
                 </span>
               </div>
@@ -439,7 +439,7 @@
 
               <!-- Essay Container -->
               <div id="essayContainer" class="d-none">
-                <label for="essayAnswerInput" class="font-weight-bold text-gray-700">Jawaban Anda:</label>
+                <label for="essayAnswerInput" class="font-weight-bold text-gray-700" id="essayAnswerLabel">Jawaban Anda:</label>
                 <textarea id="essayAnswerInput" class="form-control" rows="7" placeholder="Ketik jawaban essay Anda secara lengkap di sini..."></textarea>
                 <small class="text-muted mt-1 d-block"><i class="fas fa-info-circle mr-1"></i> Jawaban otomatis tersimpan saat Anda mengetik.</small>
               </div>
@@ -501,8 +501,8 @@
           </div>
 
           <!-- Grid Nomor Soal -->
-          <div class="cbt-grid-container mb-3" id="cbtGridButtonsModal">
-            <!-- Digenerate dinamis oleh JS -->
+          <div id="cbtGridButtonsModal" class="mb-3" style="max-height: 480px; overflow-y: auto; padding-right: 4px;">
+            <!-- Digenerate dinamis per bagian oleh JS -->
           </div>
         </div>
         <div class="modal-footer bg-light d-flex justify-content-between">
@@ -1434,36 +1434,75 @@
       examTimerInterval = setInterval(updateTimer, 1000);
     }
 
-    // Render Grid Nomor Soal di dalam Modal
+    // Render Grid Nomor Soal di dalam Modal (Dikelompokkan per Bagian)
     function renderGridButtons() {
       const container = document.getElementById("cbtGridButtonsModal");
       if (!container) return;
       container.replaceChildren();
 
-      questionsList.forEach((question, index) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "cbt-grid-btn";
-        btn.dataset.questionIndex = String(index);
-        btn.textContent = String(index + 1);
+      const sections = [
+        { type: "pg", title: "Pilihan Ganda", icon: "fa-list-ul", color: "primary" },
+        { type: "jawaban_singkat", title: "Jawaban Singkat", icon: "fa-pen", color: "info" },
+        { type: "essay", title: "Essay", icon: "fa-align-left", color: "warning" }
+      ];
 
-        const ans = studentAnswers[question.id];
-        const hasAnswer = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
-
-        if (hasAnswer) {
-          btn.classList.add("answered");
-        }
-
-        if (index === currentIndex) {
-          btn.classList.add("current");
-        }
-
-        btn.addEventListener("click", () => {
-          goToQuestion(index);
-          $("#navigasiSoalModal").modal("hide");
+      sections.forEach((sec) => {
+        const sectionItems = [];
+        questionsList.forEach((q, idx) => {
+          const matches = sec.type === "essay"
+            ? (q.soal_type === "essay" || !["pg", "jawaban_singkat"].includes(q.soal_type))
+            : q.soal_type === sec.type;
+          if (matches) {
+            sectionItems.push({ question: q, index: idx });
+          }
         });
 
-        container.appendChild(btn);
+        if (!sectionItems.length) return; // Fleksibel: lewati bagian jika tipe ini tidak ada
+
+        const block = document.createElement("div");
+        block.className = "cbt-section-block mb-3";
+
+        const header = document.createElement("div");
+        header.className = "d-flex align-items-center justify-content-between mb-2 pb-1 border-bottom";
+        header.innerHTML = `
+          <span class="font-weight-bold text-gray-800" style="font-size: 0.95rem;">
+            <i class="fas ${sec.icon} text-${sec.color} mr-2"></i>Bagian: ${sec.title}
+          </span>
+          <span class="badge badge-light border text-muted">${sectionItems.length} Soal</span>
+        `;
+        block.appendChild(header);
+
+        const grid = document.createElement("div");
+        grid.className = "cbt-grid-container";
+
+        sectionItems.forEach(({ question, index }) => {
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cbt-grid-btn";
+          btn.dataset.questionIndex = String(index);
+          btn.textContent = String(index + 1);
+
+          const ans = studentAnswers[question.id];
+          const hasAnswer = ans && typeof ans.answer === "string" && ans.answer.trim().length > 0;
+
+          if (hasAnswer) {
+            btn.classList.add("answered");
+          }
+
+          if (index === currentIndex) {
+            btn.classList.add("current");
+          }
+
+          btn.addEventListener("click", () => {
+            goToQuestion(index);
+            $("#navigasiSoalModal").modal("hide");
+          });
+
+          grid.appendChild(btn);
+        });
+
+        block.appendChild(grid);
+        container.appendChild(block);
       });
 
       updateSummaryCounts();
@@ -1488,7 +1527,7 @@
 
       // Header Info Soal
       safeSetText("activeQuestionNumber", String(currentIndex + 1));
-      safeSetText("activeQuestionType", question.soal_type === "pg" ? "Pilihan Ganda" : "Essay");
+      safeSetText("activeQuestionType", question.soal_type === "pg" ? "Pilihan Ganda" : (question.soal_type === "jawaban_singkat" ? "Jawaban Singkat" : "Essay"));
 
       // Status Badge
       const statusBadge = document.getElementById("activeQuestionStatusBadge");
@@ -1613,7 +1652,17 @@
         optionsContainer.classList.add("d-none");
         essayContainer.classList.remove("d-none");
 
-        const essayInput = document.getElementById("essayAnswerInput");
+                const essayInput = document.getElementById("essayAnswerInput");
+        const essayLabel = document.getElementById("essayAnswerLabel");
+        if (question.soal_type === "jawaban_singkat") {
+          if (essayLabel) essayLabel.innerHTML = '<i class="fas fa-pen mr-1 text-primary"></i>Jawaban Anda:';
+          essayInput.rows = 2;
+          essayInput.placeholder = "Ketik jawaban singkat Anda di sini...";
+        } else {
+          if (essayLabel) essayLabel.innerHTML = '<i class="fas fa-align-left mr-1 text-primary"></i>Jawaban Anda:';
+          essayInput.rows = 7;
+          essayInput.placeholder = "Ketik jawaban essay Anda secara lengkap di sini...";
+        }
         essayInput.value = currentAns.answer || "";
       }
 
@@ -2114,9 +2163,12 @@
           return;
         }
 
-        questionsList = soalData;
+        // Pisahkan soal per bagian: PG (atas) -> Jawaban Singkat (tengah) -> Essay (bawah)
+        const pgList = soalData.filter(q => q.soal_type === "pg");
+        const singkatList = soalData.filter(q => q.soal_type === "jawaban_singkat");
+        const essayList = soalData.filter(q => q.soal_type === "essay" || (!["pg", "jawaban_singkat"].includes(q.soal_type)));
 
-        // Acak Soal jika setting acak_soal aktif
+        // Acak Soal jika setting acak_soal aktif (acak di dalam masing-masing bagian)
         if (activeExam.acak_soal) {
           const shuffleKey = `ypn_cbt_order_${activeExam.id}_${nis}`;
           let savedOrder = null;
@@ -2125,18 +2177,35 @@
             if (raw) savedOrder = JSON.parse(raw);
           } catch (_) {}
 
-          if (savedOrder && Array.isArray(savedOrder) && savedOrder.length === questionsList.length) {
-            const mapById = new Map(questionsList.map((q) => [q.id, q]));
+          if (savedOrder && Array.isArray(savedOrder) && savedOrder.length === soalData.length) {
+            const mapById = new Map(soalData.map((q) => [q.id, q]));
             questionsList = savedOrder.map((id) => mapById.get(id)).filter(Boolean);
           } else {
-            for (let i = questionsList.length - 1; i > 0; i--) {
-              const j = Math.floor(Math.random() * (i + 1));
-              [questionsList[i], questionsList[j]] = [questionsList[j], questionsList[i]];
-            }
+            const shuffleArr = (arr) => {
+              const res = [...arr];
+              for (let i = res.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [res[i], res[j]] = [res[j], res[i]];
+              }
+              return res;
+            };
+            questionsList = [
+              ...shuffleArr(pgList),
+              ...shuffleArr(singkatList),
+              ...shuffleArr(essayList)
+            ];
             try {
               localStorage.setItem(shuffleKey, JSON.stringify(questionsList.map((q) => q.id)));
             } catch (_) {}
           }
+        } else {
+          // Terurut per nomor urut di dalam masing-masing bagian
+          const sortByNum = (a, b) => (Number(a.nomor_urut) || 0) - (Number(b.nomor_urut) || 0);
+          questionsList = [
+            ...pgList.sort(sortByNum),
+            ...singkatList.sort(sortByNum),
+            ...essayList.sort(sortByNum)
+          ];
         }
 
         // Acak Pilihan Jawaban jika setting acak_jawaban aktif
