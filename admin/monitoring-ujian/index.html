@@ -205,32 +205,59 @@
 					<!-- Filter Bar -->
 					<div class="card shadow-sm mb-4 border-left-primary">
 						<div class="card-body py-3">
-							<div class="form-row align-items-center">
+							<div class="form-row align-items-end">
+								<!-- Filter Mata Pelajaran -->
+								<div class="col-lg-3 col-md-6 col-sm-12 mb-2 mb-lg-0" id="filterSubjectWrapper">
+									<label class="small font-weight-bold text-gray-700 mb-1">
+										<i class="fas fa-book mr-1 text-primary"></i>Filter Mata Pelajaran
+									</label>
+									<select id="selectSubjectFilter" class="form-control form-control-sm font-weight-500">
+										<option value="">Semua Mata Pelajaran</option>
+									</select>
+								</div>
+
 								<!-- Pilih Ujian -->
-								<div class="col-md-5 col-sm-12 mb-2 mb-md-0">
-									<label class="small font-weight-bold text-gray-700 mb-1">Pilih Ujian yang Dipantau</label>
+								<div class="col-lg-4 col-md-6 col-sm-12 mb-2 mb-lg-0">
+									<label class="small font-weight-bold text-gray-700 mb-1">
+										<i class="fas fa-file-signature mr-1 text-primary"></i>Pilih Ujian yang Dipantau
+									</label>
 									<select id="selectExam" class="form-control form-control-sm font-weight-bold text-primary">
 										<option value="">Memuat daftar ujian...</option>
 									</select>
 								</div>
 
 								<!-- Pilih Kelas -->
-								<div class="col-md-4 col-sm-12 mb-2 mb-md-0">
-									<label class="small font-weight-bold text-gray-700 mb-1">Pilih Kelas</label>
+								<div class="col-lg-3 col-md-6 col-sm-12 mb-2 mb-lg-0">
+									<label class="small font-weight-bold text-gray-700 mb-1">
+										<i class="fas fa-chalkboard mr-1 text-primary"></i>Pilih Kelas
+									</label>
 									<select id="selectClass" class="form-control form-control-sm">
 										<option value="">Semua Kelas</option>
 									</select>
 								</div>
 
 								<!-- Filter Status Siswa -->
-								<div class="col-md-3 col-sm-12">
-									<label class="small font-weight-bold text-gray-700 mb-1">Filter Status</label>
+								<div class="col-lg-2 col-md-6 col-sm-12">
+									<label class="small font-weight-bold text-gray-700 mb-1">
+										<i class="fas fa-filter mr-1 text-primary"></i>Status Siswa
+									</label>
 									<select id="selectStatusFilter" class="form-control form-control-sm">
-										<option value="">Semua Status Siswa</option>
+										<option value="">Semua Status</option>
 										<option value="berlangsung">Sedang Mengerjakan</option>
-										<option value="selesai">Sudah Selesai / Dikumpulkan</option>
+										<option value="selesai">Sudah Selesai</option>
 										<option value="belum">Belum Mengerjakan</option>
 									</select>
+								</div>
+							</div>
+
+							<!-- Info Hak Akses & Opsi Selesai -->
+							<div class="d-flex flex-wrap justify-content-between align-items-center mt-2 pt-2 border-top">
+								<div id="monitoringRoleNotice" class="small text-muted py-1"></div>
+								<div class="custom-control custom-checkbox small py-1">
+									<input type="checkbox" class="custom-control-input" id="checkShowFinishedExams">
+									<label class="custom-control-label text-muted font-italic" for="checkShowFinishedExams">
+										Tampilkan juga ujian yang sudah selesai
+									</label>
 								</div>
 							</div>
 						</div>
@@ -327,13 +354,22 @@
 
 	<script>
 		let activeAcademicYearId = null;
-		let allExams = [];
+		let allRawExams = [];
+		let accessibleExams = [];
 		let currentSelectedExam = null;
 		let allClasses = [];
 		let selectedClassId = "";
+		let selectedSubjectId = "";
 		let allStudentsInYear = [];
 		let attemptsMap = new Map(); // key: student_id -> attempt
 		let autoRefreshInterval = null;
+
+		// Data hak akses Guru Pengampu vs Walas
+		let isWalas = false;
+		let currentGuruData = null;
+		let currentGuruPelajaranIds = [];
+		let currentGuruKelasList = [];
+		let walasKelasIds = [];
 
 		function escapeHtml(str) {
 			if (str === null || str === undefined) return "";
@@ -376,69 +412,286 @@
 			`;
 		}
 
+		function extractTingkat(namaKelas) {
+			if (!namaKelas) return "";
+			const clean = String(namaKelas).trim();
+
+			if (/\b(?:tujuh)\b/i.test(clean)) return "7";
+			if (/\b(?:delapan)\b/i.test(clean)) return "8";
+			if (/\b(?:sembilan)\b/i.test(clean)) return "9";
+			if (/\b(?:sepuluh)\b/i.test(clean)) return "10";
+			if (/\b(?:sebelas)\b/i.test(clean)) return "11";
+			if (/\b(?:dua\s*belas)\b/i.test(clean)) return "12";
+			if (/\b(?:enam)\b/i.test(clean)) return "6";
+			if (/\b(?:lima)\b/i.test(clean)) return "5";
+			if (/\b(?:empat)\b/i.test(clean)) return "4";
+			if (/\b(?:tiga)\b/i.test(clean)) return "3";
+			if (/\b(?:dua)\b/i.test(clean)) return "2";
+			if (/\b(?:satu)\b/i.test(clean)) return "1";
+
+			if (/\bVIII\b/i.test(clean)) return "8";
+			if (/\bVII\b/i.test(clean)) return "7";
+			if (/\bXII\b/i.test(clean)) return "12";
+			if (/\bXI\b/i.test(clean)) return "11";
+			if (/\bIX\b/i.test(clean)) return "9";
+			if (/\bX\b/i.test(clean)) return "10";
+			if (/\bVI\b/i.test(clean)) return "6";
+			if (/\bIV\b/i.test(clean)) return "4";
+			if (/\bV\b/i.test(clean)) return "5";
+			if (/\bIII\b/i.test(clean)) return "3";
+			if (/\bII\b/i.test(clean)) return "2";
+			if (/\bI\b/i.test(clean)) return "1";
+
+			const numMatch = clean.match(/\b(\d{1,2})\b/) || clean.match(/(?:kelas\s*)?(\d{1,2})/i);
+			if (numMatch) return String(parseInt(numMatch[1], 10));
+
+			return "";
+		}
+
+		async function detectGuruAndWalasStatus() {
+			if (window.currentUserRole !== "guru") return;
+			const client = getSupabaseClient();
+			const userNip = window.currentUserProfile?.nip;
+			const userId = window.currentUser?.id;
+
+			try {
+				let query = client.from("data_guru").select("id, nip, nama, pelajaran_id, pelajaran_ids, kelas_list");
+				if (userId) {
+					query = query.or(`user_id.eq.${userId}${userNip ? `,nip.eq.${userNip}` : ""}`);
+				}
+				const { data: gData, error: gErr } = await query.maybeSingle();
+				if (gErr) throw gErr;
+				if (gData) {
+					currentGuruData = gData;
+					const pIds = Array.isArray(gData.pelajaran_ids) && gData.pelajaran_ids.length
+						? gData.pelajaran_ids.map(Number)
+						: (gData.pelajaran_id ? [Number(gData.pelajaran_id)] : []);
+					currentGuruPelajaranIds = pIds;
+					currentGuruKelasList = (gData.kelas_list || []).map(k => String(k).trim().toUpperCase());
+
+					// Cek apakah guru adalah wali kelas di tahun ajaran aktif
+					let waliQ = client.from("wali_kelas").select("id, kelas_id, kelas_tahun_ajaran_id").eq("guru_id", gData.id);
+					if (activeAcademicYearId) {
+						waliQ = waliQ.eq("tahun_ajaran_id", activeAcademicYearId);
+					}
+					const { data: waliList } = await waliQ;
+					if (waliList && waliList.length > 0) {
+						isWalas = true;
+						walasKelasIds = waliList.map(w => String(w.kelas_tahun_ajaran_id || w.kelas_id));
+					}
+				}
+			} catch (err) {
+				console.warn("Gagal mendeteksi status guru / walas:", err);
+			}
+		}
+
+		function getAccessibleExams(exams, showFinished = false) {
+			const now = new Date();
+
+			// 1. Filter arsip dan ujian yang sudah selesai
+			let filtered = exams.filter(u => {
+				// Ujian yang diarsipkan jangan dimunculkan
+				if (u.is_archived === true) return false;
+
+				// Ujian selesai jika waktu ditutup sudah lewat ATAU ujian dinonaktifkan
+				const isEnded = new Date(u.ditutup_at) < now;
+				const isInactive = u.aktif === false;
+				const isSelesai = isEnded || isInactive;
+
+				if (!showFinished && isSelesai) {
+					return false;
+				}
+				return true;
+			});
+
+			// 2. Hak akses berdasarkan Role:
+			// Jika Walas atau Admin: bisa melihat semua ujian
+			// Jika Guru Pengampu biasa (bukan Walas): hanya ujian untuk mapel dan kelas yang diampu
+			if (window.currentUserRole === "guru" && !isWalas) {
+				filtered = filtered.filter(exam => {
+					// A. Cek mapel
+					const examPelId = Number(exam.pelajaran_id);
+					if (!currentGuruPelajaranIds.includes(examPelId)) {
+						return false;
+					}
+
+					// B. Cek kelas target
+					if (currentGuruKelasList.length > 0) {
+						const tKelas = (exam.target_kelas || "").trim().toUpperCase();
+						const tTingkat = (exam.target_tingkat || "").trim().toUpperCase();
+
+						if (!tKelas && !tTingkat) return true;
+						if (tKelas === "SEMUA" || tTingkat === "SEMUA") return true;
+
+						if (tKelas) {
+							const examClassList = tKelas.split(",").map(c => c.trim().toUpperCase());
+							const hasClassMatch = examClassList.some(c => currentGuruKelasList.includes(c));
+							if (hasClassMatch) return true;
+						}
+						if (tTingkat) {
+							const teacherTingkats = currentGuruKelasList.map(c => extractTingkat(c));
+							if (teacherTingkats.includes(tTingkat)) return true;
+						}
+						return false;
+					}
+
+					return true;
+				});
+			}
+
+			return filtered;
+		}
+
+		function updateSubjectFilterDropdown() {
+			const selectSubject = document.getElementById("selectSubjectFilter");
+			if (!selectSubject) return;
+
+			// Kumpulkan mata pelajaran unik dari ujian yang dapat diakses
+			const subjectMap = new Map();
+			accessibleExams.forEach(u => {
+				const pId = String(u.pelajaran_id);
+				const pName = u.data_pelajaran?.nama_pelajaran || `Mapel #${pId}`;
+				if (!subjectMap.has(pId)) {
+					subjectMap.set(pId, pName);
+				}
+			});
+
+			const prevVal = selectSubject.value;
+			let optionsHtml = '<option value="">Semua Mata Pelajaran</option>';
+			const sortedSubjects = Array.from(subjectMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+			optionsHtml += sortedSubjects.map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`).join('');
+
+			selectSubject.innerHTML = optionsHtml;
+
+			if (prevVal && subjectMap.has(prevVal)) {
+				selectSubject.value = prevVal;
+				selectedSubjectId = prevVal;
+			} else {
+				selectSubject.value = "";
+				selectedSubjectId = "";
+			}
+		}
+
+		function renderExamSelectOptions() {
+			const selectExam = document.getElementById("selectExam");
+			const now = new Date();
+
+			let examsToShow = accessibleExams;
+			if (selectedSubjectId) {
+				examsToShow = examsToShow.filter(u => String(u.pelajaran_id) === String(selectedSubjectId));
+			}
+
+			if (!examsToShow.length) {
+				selectExam.innerHTML = '<option value="">(Tidak ada ujian aktif yang sesuai filter)</option>';
+				currentSelectedExam = null;
+				updateExamInfoBanner();
+				document.getElementById("monitoringTableBody").innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted"><i class="fas fa-info-circle mr-1"></i>Tidak ada ujian yang sedang berlangsung atau terjadwal untuk filter ini.</td></tr>';
+				document.getElementById("statTotalStudents").textContent = "0";
+				document.getElementById("statActiveStudents").textContent = "0";
+				document.getElementById("statFinishedStudents").textContent = "0";
+				document.getElementById("statPendingStudents").textContent = "0";
+				return;
+			}
+
+			selectExam.innerHTML = examsToShow.map(u => {
+				const isOngoing = now >= new Date(u.dibuka_at) && now <= new Date(u.ditutup_at);
+				const statusLabel = isOngoing ? "Sedang Berlangsung" : (now < new Date(u.dibuka_at) ? "Terjadwal" : "Selesai");
+				let targetLabel = "";
+				if (u.target_tingkat && (!u.target_kelas || u.target_kelas === "SEMUA")) {
+					targetLabel = ` [Semua Kelas ${u.target_tingkat}]`;
+				} else if (u.target_kelas) {
+					targetLabel = ` [Kelas ${u.target_kelas}]`;
+				}
+				return `<option value="${u.id}">${escapeHtml(u.nama_ujian)}${targetLabel} (${u.data_pelajaran?.nama_pelajaran || '-'}) - ${statusLabel}</option>`;
+			}).join('');
+
+			const stillSelected = currentSelectedExam && examsToShow.some(u => String(u.id) === String(currentSelectedExam.id));
+			if (stillSelected) {
+				selectExam.value = currentSelectedExam.id;
+			} else {
+				const ongoing = examsToShow.find(u => now >= new Date(u.dibuka_at) && now <= new Date(u.ditutup_at));
+				currentSelectedExam = ongoing || examsToShow[0];
+				selectExam.value = currentSelectedExam.id;
+			}
+
+			updateExamInfoBanner();
+			loadMonitoringData();
+		}
+
+		function renderRoleNotice() {
+			const el = document.getElementById("monitoringRoleNotice");
+			if (!el) return;
+
+			if (window.currentUserRole === "admin") {
+				el.innerHTML = '<span class="badge badge-primary py-1 px-2 font-weight-normal"><i class="fas fa-user-shield mr-1"></i>Akses Administrator: Memantau Seluruh Ujian</span>';
+			} else if (isWalas) {
+				el.innerHTML = '<span class="badge badge-success py-1 px-2 font-weight-normal"><i class="fas fa-user-check mr-1"></i>Akses Wali Kelas: Memantau Seluruh Ujian (Gunakan Filter Mapel untuk Memilih Ujian Tertentu)</span>';
+			} else if (window.currentUserRole === "guru") {
+				const kelasText = currentGuruKelasList.length ? currentGuruKelasList.join(", ") : "Semua Kelas";
+				el.innerHTML = `<span class="badge badge-info py-1 px-2 font-weight-normal"><i class="fas fa-chalkboard-teacher mr-1"></i>Akses Guru Pengampu: Hanya memantau ujian mapel & kelas yang diampu (${escapeHtml(kelasText)})</span>`;
+			}
+		}
+
 		async function initMonitoring() {
 			try {
 				const client = getSupabaseClient();
 				const yearRes = await apiGetAcademicYearSettings();
 				activeAcademicYearId = yearRes.activeYearId;
 
-				// 1. Ambil seluruh data ujian aktif/terbaru
+				// 1. Deteksi status Guru Pengampu vs Wali Kelas
+				await detectGuruAndWalasStatus();
+				renderRoleNotice();
+
+				// 2. Ambil seluruh data ujian
 				const { data: exams, error: exErr } = await client
 					.from("ujian")
-					.select("*, data_pelajaran(nama_pelajaran)")
+					.select("*, data_pelajaran(id, nama_pelajaran)")
 					.order("dibuka_at", { ascending: false });
 
 				if (exErr) throw exErr;
-				allExams = exams || [];
+				allRawExams = exams || [];
 
-				const selectExam = document.getElementById("selectExam");
-				if (!allExams.length) {
-					selectExam.innerHTML = '<option value="">Belum ada ujian dibuat</option>';
-					document.getElementById("monitoringTableBody").innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">Belum ada data ujian untuk dipantau. Buat ujian terlebih dahulu di menu Pengaturan Ujian.</td></tr>';
-					return;
-				}
+				// 3. Terapkan filter hak akses & filter ujian selesai/arsip
+				const showFinished = document.getElementById("checkShowFinishedExams")?.checked || false;
+				accessibleExams = getAccessibleExams(allRawExams, showFinished);
 
-				selectExam.innerHTML = allExams.map(u => {
-					const isOngoing = new Date() >= new Date(u.dibuka_at) && new Date() <= new Date(u.ditutup_at);
-					const statusLabel = isOngoing ? "Sedang Berlangsung" : (new Date() < new Date(u.dibuka_at) ? "Terjadwal" : "Selesai");
-					let targetLabel = "";
-					if (u.target_tingkat && (!u.target_kelas || u.target_kelas === "SEMUA")) {
-						targetLabel = ` [Semua Kelas ${u.target_tingkat}]`;
-					} else if (u.target_kelas) {
-						targetLabel = ` [Kelas ${u.target_kelas}]`;
-					}
-					return `<option value="${u.id}">${escapeHtml(u.nama_ujian)}${targetLabel} (${u.data_pelajaran?.nama_pelajaran || '-'}) - ${statusLabel}</option>`;
-				}).join('');
+				// 4. Update dropdown filter Mata Pelajaran
+				updateSubjectFilterDropdown();
 
-				// Default pilih ujian yang sedang berlangsung atau yang paling baru
-				const ongoing = allExams.find(u => new Date() >= new Date(u.dibuka_at) && new Date() <= new Date(u.ditutup_at));
-				currentSelectedExam = ongoing || allExams[0];
-				selectExam.value = currentSelectedExam.id;
-
-				// 2. Ambil daftar kelas tahun ajaran aktif
+				// 5. Update dropdown kelas
 				if (activeAcademicYearId) {
 					const { data: classesData } = await client
 						.from("kelas_tahun_ajaran")
-						.select("id, jenjang, nama_kelas")
+						.select("id, jenjang, nama_kelas, kelas_id")
 						.eq("tahun_ajaran_id", activeAcademicYearId)
 						.order("nama_kelas");
 					allClasses = classesData || [];
 
+					// Jika guru pengampu biasa (bukan walas), batasi kelas ke kelas yang diampu
+					let availableClasses = allClasses;
+					if (window.currentUserRole === "guru" && !isWalas && currentGuruKelasList.length > 0) {
+						availableClasses = allClasses.filter(c => currentGuruKelasList.includes(String(c.nama_kelas).trim().toUpperCase()));
+					}
+
 					const selectClass = document.getElementById("selectClass");
 					selectClass.innerHTML = '<option value="">Semua Kelas</option>' +
-						allClasses.map(c => `<option value="${c.id}">${escapeHtml([c.jenjang, c.nama_kelas].filter(Boolean).join(' - '))}</option>`).join('');
+						availableClasses.map(c => {
+							const cName = [c.jenjang, c.nama_kelas].filter(Boolean).join(' - ');
+							const isMyWali = isWalas && walasKelasIds.includes(String(c.id));
+							return `<option value="${c.id}">${escapeHtml(cName)}${isMyWali ? ' (Wali Kelas)' : ''}</option>`;
+						}).join('');
 
 					// Cek parameter URL ?kelas=
 					const urlParams = new URLSearchParams(window.location.search);
 					const qClass = urlParams.get("kelas");
-					if (qClass && allClasses.some(c => String(c.id) === String(qClass))) {
+					if (qClass && availableClasses.some(c => String(c.id) === String(qClass))) {
 						selectedClassId = qClass;
 						selectClass.value = qClass;
 					}
 				}
 
-				updateExamInfoBanner();
-				await loadMonitoringData();
+				// 6. Render opsi ujian dan muat data monitoring
+				renderExamSelectOptions();
 				startAutoRefresh();
 			} catch (err) {
 				console.error("Init monitoring error:", err);
@@ -447,16 +700,24 @@
 		}
 
 		function updateExamInfoBanner() {
-			if (!currentSelectedExam) return;
 			const elTitle = document.getElementById("infoExamTitle");
-			if (elTitle) elTitle.textContent = currentSelectedExam.nama_ujian;
 			const elSubject = document.getElementById("infoExamSubject");
-			if (elSubject) elSubject.textContent = currentSelectedExam.data_pelajaran?.nama_pelajaran || "-";
 			const elDuration = document.getElementById("infoExamDuration");
-			if (elDuration) elDuration.textContent = `${currentSelectedExam.waktu_menit} Menit (+${currentSelectedExam.toleransi_menit != null ? currentSelectedExam.toleransi_menit : 15}m Toleransi)`;
 			const elOpen = document.getElementById("infoExamOpen");
-			if (elOpen) elOpen.textContent = formatWibTime(currentSelectedExam.dibuka_at);
 			const elClose = document.getElementById("infoExamClose");
+
+			if (!currentSelectedExam) {
+				if (elTitle) elTitle.textContent = "-";
+				if (elSubject) elSubject.textContent = "-";
+				if (elDuration) elDuration.textContent = "-";
+				if (elOpen) elOpen.textContent = "-";
+				if (elClose) elClose.textContent = "-";
+				return;
+			}
+			if (elTitle) elTitle.textContent = currentSelectedExam.nama_ujian;
+			if (elSubject) elSubject.textContent = currentSelectedExam.data_pelajaran?.nama_pelajaran || "-";
+			if (elDuration) elDuration.textContent = `${currentSelectedExam.waktu_menit} Menit (+${currentSelectedExam.toleransi_menit != null ? currentSelectedExam.toleransi_menit : 15}m Toleransi)`;
+			if (elOpen) elOpen.textContent = formatWibTime(currentSelectedExam.dibuka_at);
 			if (elClose) elClose.textContent = formatWibTime(currentSelectedExam.ditutup_at);
 		}
 
@@ -486,16 +747,44 @@
 				if (stuErr) throw stuErr;
 
 				// Format siswa
-				const studentList = (studentsData || [])
+				let studentList = (studentsData || [])
 					.map(s => ({
 						id: s.data_siswa?.id || s.siswa_id,
 						nis: s.data_siswa?.nis || "-",
 						nama: s.data_siswa?.nama || "Tanpa Nama",
 						photo_path: s.data_siswa?.photo_path,
 						classId: s.kelas_tahun_ajaran_id,
+						rawClassName: s.kelas_tahun_ajaran?.nama_kelas || "",
 						className: s.kelas_tahun_ajaran ? [s.kelas_tahun_ajaran.jenjang, s.kelas_tahun_ajaran.nama_kelas].filter(Boolean).join(" - ") : "-"
 					}))
 					.sort((a, b) => a.nama.localeCompare(b.nama));
+
+				// Jika ujian memiliki target kelas atau target tingkat spesifik dan filter kelas tidak dipilih secara spesifik
+				if (!selectedClassId && currentSelectedExam) {
+					const tKelas = (currentSelectedExam.target_kelas || "").trim().toUpperCase();
+					const tTingkat = (currentSelectedExam.target_tingkat || "").trim().toUpperCase();
+
+					if (tKelas && tKelas !== "SEMUA") {
+						const allowed = tKelas.split(",").map(c => c.trim().toUpperCase());
+						studentList = studentList.filter(s => {
+							const nameUpper = String(s.rawClassName).trim().toUpperCase();
+							return allowed.includes(nameUpper) || allowed.some(al => String(s.className).toUpperCase().includes(al));
+						});
+					} else if (tTingkat && tTingkat !== "SEMUA") {
+						studentList = studentList.filter(s => {
+							const sTingkat = extractTingkat(s.rawClassName || s.className);
+							return sTingkat === tTingkat;
+						});
+					}
+				}
+
+				// Jika guru pengampu biasa (bukan walas) memiliki daftar kelas terbatas dan filter kelas Semua
+				if (window.currentUserRole === "guru" && !isWalas && currentGuruKelasList.length > 0 && !selectedClassId) {
+					studentList = studentList.filter(s => {
+						const nameUpper = String(s.rawClassName).trim().toUpperCase();
+						return currentGuruKelasList.includes(nameUpper) || currentGuruKelasList.some(cg => String(s.className).toUpperCase().includes(cg));
+					});
+				}
 
 				allStudentsInYear = studentList;
 
@@ -685,10 +974,24 @@
 		document.addEventListener("DOMContentLoaded", () => {
 			initMonitoring();
 
+			// Event listener Filter Mata Pelajaran
+			document.getElementById("selectSubjectFilter")?.addEventListener("change", (e) => {
+				selectedSubjectId = e.target.value;
+				renderExamSelectOptions();
+			});
+
+			// Event listener Checkbox Tampilkan Ujian Selesai
+			document.getElementById("checkShowFinishedExams")?.addEventListener("change", (e) => {
+				const showFinished = e.target.checked;
+				accessibleExams = getAccessibleExams(allRawExams, showFinished);
+				updateSubjectFilterDropdown();
+				renderExamSelectOptions();
+			});
+
 			// Event listener dropdown Ujian
 			document.getElementById("selectExam").addEventListener("change", (e) => {
 				const selectedId = e.target.value;
-				currentSelectedExam = allExams.find(u => String(u.id) === String(selectedId)) || null;
+				currentSelectedExam = accessibleExams.find(u => String(u.id) === String(selectedId)) || null;
 				updateExamInfoBanner();
 				loadMonitoringData();
 			});
