@@ -54,6 +54,8 @@ DECLARE
   v_correct_count integer := 0;
   v_total_pg integer := 0;
   v_total_essay integer := 0;
+  v_has_custom_points boolean := false;
+  v_weight numeric(8, 4) := 0;
   v_nilai_pg numeric(8, 2) := 0;
   v_order integer := 1;
 BEGIN
@@ -79,6 +81,12 @@ BEGIN
 
   SELECT count(*) INTO v_total_essay
   FROM public.soal_ujian WHERE ujian_id = p_ujian_id AND soal_type = 'essay';
+
+  -- Cek apakah ada bobot manual pada soal ujian ini
+  SELECT bool_or(bobot_nilai IS NOT NULL AND bobot_nilai > 0) INTO v_has_custom_points
+  FROM public.soal_ujian WHERE ujian_id = p_ujian_id;
+
+  v_has_custom_points := coalesce(v_has_custom_points, false);
 
   SELECT id, status INTO v_percobaan_id, v_status
   FROM public.percobaan_ujian
@@ -108,12 +116,22 @@ BEGIN
     v_soal_id := (v_item->>'soal_id')::bigint;
     v_answer  := btrim(coalesce(v_item->>'answer', ''));
 
-    SELECT (soal_type = 'essay') INTO v_is_essay
+    SELECT (soal_type = 'essay'), coalesce(bobot_nilai, 0)
+    INTO v_is_essay, v_weight
     FROM public.soal_ujian
     WHERE id = v_soal_id AND ujian_id = p_ujian_id;
 
     IF v_is_essay IS NULL THEN
       CONTINUE; -- soal bukan milik ujian ini -> abaikan
+    END IF;
+
+    -- Jika bobot kosong semua, gunakan bobot otomatis merata (100 / total_soal)
+    IF NOT v_has_custom_points THEN
+      IF (v_total_pg + v_total_essay) > 0 THEN
+        v_weight := 100.0 / (v_total_pg + v_total_essay)::numeric;
+      ELSE
+        v_weight := 0;
+      END IF;
     END IF;
 
     IF v_is_essay = false THEN
@@ -126,20 +144,29 @@ BEGIN
       SELECT jawaban_benar INTO v_kunci FROM public.kunci_pg WHERE soal_id = v_soal_id;
       IF v_kunci IS NOT NULL AND v_letter = v_kunci THEN
         v_correct_count := v_correct_count + 1;
-      END IF;
+        v_nilai_pg := v_nilai_pg + v_weight;
 
-      INSERT INTO public.jawaban_siswa (
-        percobaan_id, ujian_id, soal_id, urutan_soal, jawaban_pg, jawaban_essay
-      ) VALUES (
-        v_percobaan_id, p_ujian_id, v_soal_id, v_order, v_letter, NULL
-      )
-      ON CONFLICT (percobaan_id, soal_id) DO UPDATE
-      SET jawaban_pg = EXCLUDED.jawaban_pg, jawaban_essay = NULL, updated_at = now();
+        INSERT INTO public.jawaban_siswa (
+          percobaan_id, ujian_id, soal_id, urutan_soal, jawaban_pg, jawaban_essay, nilai_final
+        ) VALUES (
+          v_percobaan_id, p_ujian_id, v_soal_id, v_order, v_letter, NULL, round(v_weight, 2)
+        )
+        ON CONFLICT (percobaan_id, soal_id) DO UPDATE
+        SET jawaban_pg = EXCLUDED.jawaban_pg, jawaban_essay = NULL, nilai_final = EXCLUDED.nilai_final, updated_at = now();
+      ELSE
+        INSERT INTO public.jawaban_siswa (
+          percobaan_id, ujian_id, soal_id, urutan_soal, jawaban_pg, jawaban_essay, nilai_final
+        ) VALUES (
+          v_percobaan_id, p_ujian_id, v_soal_id, v_order, v_letter, NULL, 0
+        )
+        ON CONFLICT (percobaan_id, soal_id) DO UPDATE
+        SET jawaban_pg = EXCLUDED.jawaban_pg, jawaban_essay = NULL, nilai_final = 0, updated_at = now();
+      END IF;
     ELSE
       INSERT INTO public.jawaban_siswa (
-        percobaan_id, ujian_id, soal_id, urutan_soal, jawaban_pg, jawaban_essay
+        percobaan_id, ujian_id, soal_id, urutan_soal, jawaban_pg, jawaban_essay, nilai_final
       ) VALUES (
-        v_percobaan_id, p_ujian_id, v_soal_id, v_order, NULL, NULLIF(v_answer, '')
+        v_percobaan_id, p_ujian_id, v_soal_id, v_order, NULL, NULLIF(v_answer, ''), NULL
       )
       ON CONFLICT (percobaan_id, soal_id) DO UPDATE
       SET jawaban_essay = EXCLUDED.jawaban_essay, jawaban_pg = NULL, updated_at = now();
@@ -148,14 +175,13 @@ BEGIN
     v_order := v_order + 1;
   END LOOP;
 
-  IF v_total_pg > 0 THEN
-    v_nilai_pg := round((v_correct_count::numeric / v_total_pg::numeric) * 100, 2);
-    UPDATE public.percobaan_ujian
-    SET nilai_pilihan_ganda = v_nilai_pg,
-        nilai_total = CASE WHEN v_total_essay = 0 THEN v_nilai_pg ELSE nilai_total END,
-        updated_at = now()
-    WHERE id = v_percobaan_id;
-  END IF;
+  v_nilai_pg := least(100.0, round(v_nilai_pg, 2));
+
+  UPDATE public.percobaan_ujian
+  SET nilai_pilihan_ganda = v_nilai_pg,
+      nilai_total = v_nilai_pg,
+      updated_at = now()
+  WHERE id = v_percobaan_id;
 
   RETURN jsonb_build_object(
     'success', true,
@@ -164,7 +190,9 @@ BEGIN
     'total_soal', (v_total_pg + v_total_essay),
     'total_pg', v_total_pg,
     'pg_benar', v_correct_count,
-    'nilai_pg', v_nilai_pg
+    'total_essay', v_total_essay,
+    'nilai_pg', v_nilai_pg,
+    'has_custom_points', v_has_custom_points
   );
 END;
 $$;

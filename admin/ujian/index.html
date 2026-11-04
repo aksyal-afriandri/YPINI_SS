@@ -284,10 +284,23 @@
 							</div>
 						</div>
 						<div class="card-body">
-							<div id="questionsMessage" class="small text-muted mb-3"></div>
+							<div id="questionsScoringSummaryBar" class="d-none p-3 mb-3 bg-light rounded border d-flex flex-wrap align-items-center justify-content-between" style="gap: 10px;">
+								<div class="d-flex flex-wrap align-items-center" style="gap: 10px;">
+									<div id="questionsMessage" class="small font-weight-bold text-gray-800 m-0"></div>
+									<div id="questionsScoringBadge"></div>
+								</div>
+								<div class="d-flex flex-wrap align-items-center" style="gap: 6px;">
+									<button id="btnAutoBalanceWeights" class="btn btn-sm btn-outline-primary" type="button" title="Bagi rata nilai seluruh soal hingga akumulasi totalnya pas 100">
+										<i class="fas fa-balance-scale mr-1"></i>Bagi Rata Nilai (Total 100)
+									</button>
+									<button id="btnResetToAutoWeights" class="btn btn-sm btn-outline-secondary" type="button" title="Kosongkan bobot manual agar dinilai otomatis oleh sistem">
+										<i class="fas fa-magic mr-1"></i>Reset ke Otomatis
+									</button>
+								</div>
+							</div>
 							<div class="table-responsive">
 								<table class="table table-hover" id="questionTable">
-									<thead><tr><th>No.</th><th>Tipe</th><th>Gambar</th><th>Soal</th><th>Aksi</th></tr></thead>
+									<thead><tr><th>No.</th><th>Tipe</th><th>Gambar</th><th>Soal</th><th class="text-center" style="width: 130px;">Nilai / Bobot</th><th>Aksi</th></tr></thead>
 									<tbody></tbody>
 								</table>
 							</div>
@@ -471,7 +484,14 @@
 					<div class="form-row">
 						<div class="form-group col-sm-4"><label for="questionType">Tipe soal</label><select id="questionType" name="soal_type" class="form-control"><option value="pg">Pilihan ganda</option><option value="essay">Essay</option></select></div>
 						<div class="form-group col-sm-4"><label for="questionNumber">Nomor urut</label><input id="questionNumber" name="nomor_urut" type="number" class="form-control" min="1" step="1" required></div>
+						<div class="form-group col-sm-4">
+							<label for="questionPoints">Nilai / Bobot Soal <small class="text-muted">(Opsional)</small></label>
+							<input id="questionPoints" name="bobot_nilai" type="number" class="form-control" min="0" max="100" step="any" placeholder="Otomatis sistem">
+						</div>
 					</div>
+					<small class="form-text text-muted mb-3" style="margin-top:-10px;">
+						<i class="fas fa-info-circle mr-1 text-info"></i>Opsional. Kosongkan jika ingin nilai per soal diotomatiskan oleh sistem (total 100 jika benar semua). Jika diisi manual, buat total nilai seluruh soal menjadi 100.
+					</small>
 					<div class="form-group"><label for="questionText">Pertanyaan</label><textarea id="questionText" name="pertanyaan" class="form-control" rows="3" required></textarea></div>
 					
 					<!-- Pengaturan Foto Soal (Bisa 1 s/d 3 Foto) -->
@@ -1312,10 +1332,41 @@
 			if (error) throw error;
 			const questions = data || [];
 			examQuestions = questions;
-			document.getElementById("questionsMessage").textContent = questions.length
-				? `${questions.length} soal` : "Belum ada soal pada ujian ini.";
+
+			const totalCount = questions.length;
+			const pgCount = questions.filter(q => q.soal_type === "pg").length;
+			const essayCount = questions.filter(q => q.soal_type === "essay").length;
+			const hasCustomWeights = questions.some(q => q.bobot_nilai !== null && q.bobot_nilai !== undefined && String(q.bobot_nilai).trim() !== "" && Number(q.bobot_nilai) > 0);
+			const autoWeight = totalCount > 0 ? (100 / totalCount) : 0;
+			const totalWeight = questions.reduce((sum, q) => sum + (Number(q.bobot_nilai) || 0), 0);
+
+			const summaryBar = document.getElementById("questionsScoringSummaryBar");
+			const badgeEl = document.getElementById("questionsScoringBadge");
+			const messageEl = document.getElementById("questionsMessage");
+
+			if (totalCount > 0 && summaryBar && badgeEl) {
+				summaryBar.classList.remove("d-none");
+				messageEl.innerHTML = `<i class="fas fa-list-ol mr-1 text-primary"></i> ${totalCount} Soal (${pgCount} PG, ${essayCount} Essay)`;
+				if (!hasCustomWeights) {
+					badgeEl.innerHTML = `<span class="badge badge-info py-2 px-3 font-weight-normal shadow-sm" style="font-size: 0.85rem;" title="Nilai dihitung merata oleh sistem"><i class="fas fa-magic mr-1"></i>Penilaian: <strong>Otomatis Sistem</strong> (~${autoWeight.toFixed(2).replace(/\.00$/, '')} poin/soal &bull; Total 100 jika benar semua)</span>`;
+				} else {
+					const roundedTotal = Math.round(totalWeight * 100) / 100;
+					if (Math.abs(roundedTotal - 100) < 0.01) {
+						badgeEl.innerHTML = `<span class="badge badge-success py-2 px-3 font-weight-bold shadow-sm" style="font-size: 0.85rem;"><i class="fas fa-check-circle mr-1"></i>Total Nilai: 100 / 100 (Pas &bull; Benar Semua = 100)</span>`;
+					} else if (roundedTotal < 100) {
+						const diff = (100 - roundedTotal).toFixed(2).replace(/\.00$/, '');
+						badgeEl.innerHTML = `<span class="badge badge-warning text-dark py-2 px-3 font-weight-bold shadow-sm" style="font-size: 0.85rem;" title="Total nilai belum mencapai 100"><i class="fas fa-exclamation-triangle mr-1"></i>Total Nilai: ${roundedTotal} / 100 (Kurang ${diff} poin)</span>`;
+					} else {
+						const diff = (roundedTotal - 100).toFixed(2).replace(/\.00$/, '');
+						badgeEl.innerHTML = `<span class="badge badge-danger py-2 px-3 font-weight-bold shadow-sm" style="font-size: 0.85rem;" title="Total nilai melebihi 100"><i class="fas fa-exclamation-circle mr-1"></i>Total Nilai: ${roundedTotal} / 100 (Kelebihan ${diff} poin)</span>`;
+					}
+				}
+			} else if (summaryBar) {
+				summaryBar.classList.add("d-none");
+			}
+
 			if (!questions.length) {
-				questionRows.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">Tambahkan soal untuk ujian ini.</td></tr>';
+				questionRows.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Tambahkan soal untuk ujian ini.</td></tr>';
 				return;
 			}
 			questionRows.innerHTML = questions.map((question) => {
@@ -1339,17 +1390,89 @@
 						`</div>`;
 				}
 
+				const hasWeight = (question.bobot_nilai !== null && question.bobot_nilai !== undefined && String(question.bobot_nilai).trim() !== "");
+				const weightDisplay = hasWeight
+					? `<span class="badge badge-primary font-weight-bold" style="font-size: 0.85rem;">${Number(question.bobot_nilai)} poin</span>`
+					: `<span class="text-muted small" title="Dihitung otomatis oleh sistem (~${autoWeight.toFixed(2)} poin)">Otomatis (~${autoWeight.toFixed(2)})</span>`;
+
 				return `<tr>
 					<td>${question.nomor_urut}</td>
-					<td>${question.soal_type === "pg" ? "Pilihan ganda" : "Essay"}</td>
+					<td>${question.soal_type === "pg" ? '<span class="badge badge-light border">PG</span>' : '<span class="badge badge-light border">Essay</span>'}</td>
 					<td>${imgHtml}</td>
 					<td>${escapeHtml(question.pertanyaan)}</td>
+					<td class="text-center align-middle">${weightDisplay}</td>
 					<td class="text-nowrap">
 						<button class="btn btn-sm btn-outline-secondary" data-question-action="edit" data-id="${question.id}" title="Edit soal"><i class="fas fa-edit"></i></button>
 						<button class="btn btn-sm btn-outline-danger" data-question-action="delete" data-id="${question.id}" title="Hapus soal"><i class="fas fa-trash"></i></button>
 					</td>
 				</tr>`;
 			}).join("");
+		}
+
+		async function autoBalanceQuestionWeights() {
+			if (!selectedExam || !examQuestions.length) return;
+			const allowed = await requireExamAuth(selectedExam, "membagi rata nilai seluruh soal ujian");
+			if (!allowed) return;
+
+			const n = examQuestions.length;
+			if (!window.confirm(`Bagi rata nilai total 100 secara merata ke seluruh ${n} butir soal?`)) return;
+
+			try {
+				const base = Math.floor((100 / n) * 100) / 100;
+				let currentSum = 0;
+
+				for (let i = 0; i < n; i++) {
+					const q = examQuestions[i];
+					let val = base;
+					if (i === n - 1) {
+						val = Math.round((100 - currentSum) * 100) / 100;
+					} else {
+						currentSum += base;
+					}
+
+					const { error } = await client.from("soal_ujian")
+						.update({ bobot_nilai: val })
+						.eq("id", q.id);
+					if (error) {
+						if (error.message && error.message.includes("bobot_nilai")) {
+							throw new Error("Kolom bobot_nilai belum ada di database Supabase. Jalankan skrip 'sql/ADD-exam-question-points-and-auto-grading.sql' di Supabase SQL Editor terlebih dahulu.");
+						}
+						throw error;
+					}
+				}
+
+				showMessage(`Nilai 100 berhasil dibagi rata ke seluruh ${n} soal.`);
+				await loadQuestions();
+			} catch (err) {
+				console.error("Gagal bagi rata bobot:", err);
+				showMessage(err.message, "danger");
+			}
+		}
+
+		async function resetQuestionWeightsToAuto() {
+			if (!selectedExam || !examQuestions.length) return;
+			const allowed = await requireExamAuth(selectedExam, "mereset bobot soal ke otomatis sistem");
+			if (!allowed) return;
+
+			if (!window.confirm("Kosongkan seluruh bobot soal dan kembalikan ke perhitungan otomatis sistem?")) return;
+
+			try {
+				const { error } = await client.from("soal_ujian")
+					.update({ bobot_nilai: null })
+					.eq("ujian_id", selectedExam.id);
+				if (error) {
+					if (error.message && error.message.includes("bobot_nilai")) {
+						throw new Error("Kolom bobot_nilai belum ada di database Supabase. Jalankan skrip 'sql/ADD-exam-question-points-and-auto-grading.sql' di Supabase SQL Editor terlebih dahulu.");
+					}
+					throw error;
+				}
+
+				showMessage("Bobot soal berhasil direset ke mode otomatis sistem.");
+				await loadQuestions();
+			} catch (err) {
+				console.error("Gagal reset bobot:", err);
+				showMessage(err.message, "danger");
+			}
 		}
 
 		async function requireExamAuth(exam, actionDescription = "melakukan aksi pada ujian ini", forcePrompt = false) {
@@ -1506,6 +1629,7 @@
 			document.getElementById("questionImageFilesLabel").textContent = "Pilih file foto (Bisa pilih 1, 2, atau 3 foto)...";
 			document.getElementById("questionImageUrlInput").value = "";
 			questionForm.elements.nomor_urut.value = String(examQuestions.length + 1);
+			if (questionForm.elements.bobot_nilai) questionForm.elements.bobot_nilai.value = "";
 			setQuestionType("pg");
 			$("#questionModal").modal("show");
 		}
@@ -1536,6 +1660,9 @@
 			renderQuestionImagesPreview();
 
 			questionForm.elements.nomor_urut.value = question.nomor_urut;
+			if (questionForm.elements.bobot_nilai) {
+				questionForm.elements.bobot_nilai.value = (question.bobot_nilai !== null && question.bobot_nilai !== undefined) ? question.bobot_nilai : "";
+			}
 			questionForm.elements.pertanyaan.value = question.pertanyaan;
 			questionForm.elements.soal_type.value = question.soal_type;
 			questionForm.elements.pilihan_a.value = question.pilihan_a || "";
@@ -1792,10 +1919,16 @@
 				return;
 			}
 
+			const rawBobot = form.elements.bobot_nilai ? form.elements.bobot_nilai.value.trim() : "";
+			const parsedBobot = (rawBobot !== "" && !isNaN(Number(rawBobot)) && Number(rawBobot) >= 0)
+				? Number(rawBobot)
+				: null;
+
 			const values = {
 				ujian_id: selectedExam.id,
 				nomor_urut: Number(form.elements.nomor_urut.value),
 				soal_type: type,
+				bobot_nilai: parsedBobot,
 				pertanyaan: form.elements.pertanyaan.value.trim(),
 				pilihan_a: type === "pg" ? form.elements.pilihan_a.value.trim() : null,
 				pilihan_b: type === "pg" ? form.elements.pilihan_b.value.trim() : null,
@@ -1825,6 +1958,12 @@
 				const choiceCols = ["gambar_pilihan_a", "gambar_pilihan_b", "gambar_pilihan_c", "gambar_pilihan_d"];
 				let attemptValues = { ...values };
 				let result = await runQuestionQuery(attemptValues);
+
+				// Kolom bobot_nilai belum ada di database
+				if (result.error && result.error.message && result.error.message.includes("bobot_nilai")) {
+					delete attemptValues.bobot_nilai;
+					result = await runQuestionQuery(attemptValues);
+				}
 
 				// Kolom foto pilihan belum ada di database
 				if (result.error && result.error.message && result.error.message.includes("gambar_pilihan")) {
@@ -1874,9 +2013,9 @@
 
 		function downloadQuestionTemplate() {
 			const rows = [
-				["nomor_urut", "soal_type", "pertanyaan", "pilihan_a", "pilihan_b", "pilihan_c", "pilihan_d", "jawaban_benar", "jawaban_acuan", "gambar"],
-				[1, "pg", "Perhatikan gambar berikut! Apa nama organel yang ditunjuk?", "Mitokondria", "Ribosom", "Badan Golgi", "Retikulum Endoplasma", "A", "", "1_1.jpg, 1_2.jpg"],
-				[2, "essay", "Jelaskan proses siklus air berdasarkan diagram yang tertera!", "", "", "", "", "", "evaporasi | kondensasi | presipitasi", "siklus_air.png"],
+				["nomor_urut", "soal_type", "bobot_nilai", "pertanyaan", "pilihan_a", "pilihan_b", "pilihan_c", "pilihan_d", "jawaban_benar", "jawaban_acuan", "gambar"],
+				[1, "pg", "2.5", "Perhatikan gambar berikut! Apa nama organel yang ditunjuk?", "Mitokondria", "Ribosom", "Badan Golgi", "Retikulum Endoplasma", "A", "", "1_1.jpg, 1_2.jpg"],
+				[2, "essay", "5", "Jelaskan proses siklus air berdasarkan diagram yang tertera!", "", "", "", "", "", "evaporasi | kondensasi | presipitasi", "siklus_air.png"],
 			];
 			const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\r\n");
 			const url = URL.createObjectURL(new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }));
@@ -1909,6 +2048,11 @@
 				usedNumbers.add(order);
 				nextNumber = Math.max(nextNumber, order + 1);
 
+				const rawBobot = values.bobot_nilai || values.bobot || values.nilai || values.poin || "";
+				const parsedBobot = (rawBobot !== "" && !isNaN(Number(rawBobot)) && Number(rawBobot) >= 0)
+					? Number(rawBobot)
+					: null;
+
 				const questionText = values.pertanyaan || "";
 				if (!questionText) throw new Error(`Baris ${rowNumber}: pertanyaan wajib diisi.`);
 
@@ -1923,6 +2067,7 @@
 					ujian_id: selectedExam.id,
 					nomor_urut: order,
 					soal_type: type,
+					bobot_nilai: parsedBobot,
 					pertanyaan: questionText,
 					pilihan_a: type === "pg" ? values.pilihan_a : null,
 					pilihan_b: type === "pg" ? values.pilihan_b : null,
@@ -2553,6 +2698,10 @@
 				showMessage(error.message, "danger");
 			}
 		});
+
+		// Event listener Bobot Soal Ujian
+		document.getElementById("btnAutoBalanceWeights")?.addEventListener("click", autoBalanceQuestionWeights);
+		document.getElementById("btnResetToAutoWeights")?.addEventListener("click", resetQuestionWeightsToAuto);
 
 		// Event listener Keamanan CBT Global
 		document.getElementById("btnGlobalSecuritySettings")?.addEventListener("click", openGlobalSecurityModal);

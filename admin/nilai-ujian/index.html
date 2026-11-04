@@ -1244,6 +1244,19 @@
 				currentAttemptQuestions = questions || [];
 				document.getElementById("reviewQuestionsCount").textContent = `${currentAttemptQuestions.length} Soal Ujian`;
 
+				// Tentukan bobot masing-masing butir soal (apakah manual per soal atau otomatis sistem)
+				const hasCustomWeights = currentAttemptQuestions.some(q => q.bobot_nilai !== null && q.bobot_nilai !== undefined && String(q.bobot_nilai).trim() !== "" && Number(q.bobot_nilai) > 0);
+				const totalQCount = currentAttemptQuestions.length;
+				currentAttemptQuestions.forEach(q => {
+					if (hasCustomWeights) {
+						q.weight = (q.bobot_nilai !== null && q.bobot_nilai !== undefined && String(q.bobot_nilai).trim() !== "")
+							? Number(q.bobot_nilai)
+							: 0;
+					} else {
+						q.weight = totalQCount > 0 ? (100.0 / totalQCount) : 0;
+					}
+				});
+
 				const questionIds = currentAttemptQuestions.map(q => q.id);
 
 				// 2. Ambil kunci PG jika ada
@@ -1311,23 +1324,14 @@
 				// 6. Tampilkan pertanyaan, jawaban, dan hitung jawaban benar
 				renderReviewQuestions();
 
-				// Isi nilai akhir (jika sudah ada gunakan nilai tersimpan, jika belum otomatis estimasi dari jawaban benar PG)
-				if (attempt.nilai_total !== null && attempt.nilai_total !== undefined) {
+				// Isi nilai akhir siswa:
+				// Jika status sudah 'dinilai' dan nilai_total ada, gunakan nilai tersimpan.
+				// Jika belum difinalisasi, nilai awal berawal dari PG yang benar dulu, lalu bertambah saat guru menceklis benar essay.
+				const currentScores = calculateCurrentScores();
+				if (attempt.status === 'dinilai' && attempt.nilai_total !== null && attempt.nilai_total !== undefined) {
 					document.getElementById("inputFinalScore").value = Number(attempt.nilai_total).toFixed(2);
 				} else {
-					const pgQuestions = currentAttemptQuestions.filter(q => q.soal_type === 'pg');
-					let correctCount = 0;
-					pgQuestions.forEach(q => {
-						const ans = currentAttemptStudentAnswers.get(String(q.id));
-						const kunci = currentAttemptKunciPg.get(String(q.id));
-						if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) {
-							correctCount++;
-						}
-					});
-					const autoScore = pgQuestions.length > 0 
-						? ((correctCount / pgQuestions.length) * 100).toFixed(2)
-						: "0.00";
-					document.getElementById("inputFinalScore").value = autoScore;
+					document.getElementById("inputFinalScore").value = currentScores.totalScore.toFixed(2);
 				}
 			} catch (err) {
 				console.error("Gagal membuka lembar koreksi:", err);
@@ -1395,6 +1399,7 @@
 								<div>
 									<span class="font-weight-bold text-gray-800 mr-2">Soal No. ${qNum}</span>
 									<span class="badge badge-primary">Pilihan Ganda</span>
+									<span class="badge badge-light border text-primary ml-1 font-weight-bold" title="Bobot butir soal"> + ${q.weight.toFixed(2).replace(/\.00$/, '')}</span>
 								</div>
 								<div>${statusBadge}</div>
 							</div>
@@ -1440,6 +1445,7 @@
 					const currentNote = studentAns?.catatan_guru || '';
 					const mark = currentAttemptEssayMarks.has(String(q.id)) ? currentAttemptEssayMarks.get(String(q.id)) : null;
 					const markBorder = mark === true ? 'success' : (mark === false ? 'danger' : 'warning');
+					const weightFormatted = q.weight.toFixed(2).replace(/\.00$/, '');
 
 					html += `
 						<div class="card shadow-sm border-left-${markBorder} mb-3" id="essayCard-${q.id}">
@@ -1447,10 +1453,11 @@
 								<div>
 									<span class="font-weight-bold text-gray-800 mr-2">Soal No. ${qNum}</span>
 									<span class="badge badge-warning text-dark">Essay / Uraian</span>
+									<span class="badge badge-light border text-primary ml-1 font-weight-bold" title="Bobot butir soal"> + ${weightFormatted}</span>
 								</div>
 								<div class="btn-group btn-group-sm essay-mark-group" role="group" data-soal-id="${q.id}" aria-label="Periksa jawaban essay">
-									<button type="button" class="btn btn-outline-success essay-mark-btn ${mark === true ? 'active-correct' : ''}" data-mark="benar" title="Tandai benar"><i class="fas fa-check mr-1"></i>Benar</button>
-									<button type="button" class="btn btn-outline-danger essay-mark-btn ${mark === false ? 'active-wrong' : ''}" data-mark="salah" title="Tandai salah"><i class="fas fa-times mr-1"></i>Salah</button>
+									<button type="button" class="btn btn-outline-success essay-mark-btn ${mark === true ? 'active-correct' : ''}" data-mark="benar" title="Tandai benar (+${weightFormatted} poin)"><i class="fas fa-check mr-1"></i>Benar (+${weightFormatted})</button>
+									<button type="button" class="btn btn-outline-danger essay-mark-btn ${mark === false ? 'active-wrong' : ''}" data-mark="salah" title="Tandai salah (0 poin)"><i class="fas fa-times mr-1"></i>Salah (0)</button>
 								</div>
 							</div>
 							<div class="card-body py-3">
@@ -1492,46 +1499,92 @@
 			updateCorrectSummary();
 		}
 
-		// Ringkasan jawaban benar: dipisah PG, Essay, dan tipe soal lain (jika ada)
-		function updateCorrectSummary() {
-			const box = document.getElementById("reviewCorrectBreakdown");
-			if (!box) return;
-			let pgTotal = 0, pgCorrect = 0, essayTotal = 0, essayCorrect = 0, essayWrong = 0, otherTotal = 0;
+		// Kalkulasi skor kumulatif terkini (PG + Essay yang telah diperiksa)
+		function calculateCurrentScores() {
+			let pgScore = 0;
+			let pgCorrect = 0;
+			let pgTotal = 0;
+			let essayScore = 0;
+			let essayCorrect = 0;
+			let essayWrong = 0;
+			let essayTotal = 0;
+			let otherTotal = 0;
+
 			currentAttemptQuestions.forEach(q => {
 				const key = String(q.id);
+				const w = Number(q.weight) || 0;
 				if (q.soal_type === 'pg') {
 					pgTotal++;
 					const ans = currentAttemptStudentAnswers.get(key);
 					const kunci = currentAttemptKunciPg.get(key);
-					if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) pgCorrect++;
+					if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) {
+						pgCorrect++;
+						pgScore += w;
+					}
 				} else if (q.soal_type === 'essay') {
 					essayTotal++;
 					const m = currentAttemptEssayMarks.get(key);
-					if (m === true) essayCorrect++;
-					else if (m === false) essayWrong++;
+					if (m === true) {
+						essayCorrect++;
+						essayScore += w;
+					} else if (m === false) {
+						essayWrong++;
+					}
 				} else {
 					otherTotal++;
 				}
 			});
-			const essayPending = essayTotal - essayCorrect - essayWrong;
-			const item = (color, icon, label, value, total, extra = '') => `
+
+			const roundedPg = Math.round(pgScore * 100) / 100;
+			const roundedEssay = Math.round(essayScore * 100) / 100;
+			const totalScore = Math.min(100, Math.round((roundedPg + roundedEssay) * 100) / 100);
+
+			return {
+				pgScore: roundedPg,
+				pgCorrect,
+				pgTotal,
+				essayScore: roundedEssay,
+				essayCorrect,
+				essayWrong,
+				essayTotal,
+				otherTotal,
+				totalScore
+			};
+		}
+
+		// Ringkasan jawaban benar: dipisah PG, Essay, dan tipe soal lain (jika ada)
+		function updateCorrectSummary() {
+			const box = document.getElementById("reviewCorrectBreakdown");
+			if (!box) return;
+			const scores = calculateCurrentScores();
+
+			const item = (color, icon, label, correct, total, points, extra = '') => `
 				<div class="d-flex align-items-center mr-4 mb-2">
 					<div class="rounded-circle bg-${color} text-white d-flex align-items-center justify-content-center mr-2 shadow-sm" style="width: 40px; height: 40px;">
 						<i class="fas ${icon}"></i>
 					</div>
 					<div>
 						<div class="small text-muted font-weight-bold">${label}</div>
-						<div class="h5 font-weight-bold text-gray-900 mb-0"><span class="text-${color}">${value}</span> <span class="text-muted" style="font-size: .95rem; font-weight: normal;">/ ${total} Soal</span></div>
+						<div class="h5 font-weight-bold text-gray-900 mb-0">
+							<span class="text-${color}">${correct}</span> <span class="text-muted" style="font-size: .95rem; font-weight: normal;">/ ${total} Soal</span>
+							<span class="badge badge-light border ml-1 font-weight-bold text-dark"> + ${points}</span>
+						</div>
 						${extra}
 					</div>
 				</div>`;
+
 			let html = '';
-			if (pgTotal > 0) html += item('success', 'fa-list-ul', 'Pilihan Ganda', pgCorrect, pgTotal);
-			if (essayTotal > 0) {
-				const extra = `<div class="small text-muted">${essayWrong} salah${essayPending > 0 ? ` · ${essayPending} belum diperiksa` : ''}</div>`;
-				html += item('primary', 'fa-pen-alt', 'Essay', essayCorrect, essayTotal, extra);
+			if (scores.pgTotal > 0) {
+				html += item('success', 'fa-list-ul', 'Pilihan Ganda', scores.pgCorrect, scores.pgTotal, scores.pgScore);
 			}
-			if (otherTotal > 0) html += item('secondary', 'fa-question', 'Soal Lainnya', 0, otherTotal, '<div class="small text-muted">Dinilai manual</div>');
+			if (scores.essayTotal > 0) {
+				const essayPending = scores.essayTotal - scores.essayCorrect - scores.essayWrong;
+				const extra = `<div class="small text-muted">${scores.essayWrong} salah${essayPending > 0 ? ` · ${essayPending} belum diperiksa` : ''}</div>`;
+				html += item('primary', 'fa-pen-alt', 'Essay', scores.essayCorrect, scores.essayTotal, scores.essayScore, extra);
+			}
+			if (scores.otherTotal > 0) {
+				html += item('secondary', 'fa-question', 'Soal Lainnya', 0, scores.otherTotal, 0, '<div class="small text-muted">Dinilai manual</div>');
+			}
 			if (!html) html = '<span class="text-muted small">-</span>';
 			box.innerHTML = html;
 		}
@@ -1556,6 +1609,11 @@
 				card.classList.remove("border-left-success", "border-left-danger", "border-left-warning");
 				card.classList.add(next === true ? "border-left-success" : (next === false ? "border-left-danger" : "border-left-warning"));
 			}
+
+			// Otomatis hitung dan update nilai akhir siswa secara real-time saat ceklis / silang
+			const scores = calculateCurrentScores();
+			document.getElementById("inputFinalScore").value = scores.totalScore.toFixed(2);
+
 			updateCorrectSummary();
 		});
 
@@ -1580,54 +1638,63 @@
 				const currentUserId = window.currentUser?.id || null;
 				const nowIso = new Date().toISOString();
 
-				// 1. Simpan catatan pada butir soal essay jika ada
+				// 1. Simpan catatan dan nilai pada butir soal essay jika ada
 				const essayNoteInputs = document.querySelectorAll(".essay-note-input");
 				for (const noteInp of essayNoteInputs) {
 					const soalId = noteInp.dataset.soalId;
 					const note = noteInp.value.trim() || null;
+					const qObj = currentAttemptQuestions.find(q => String(q.id) === String(soalId));
+					const qWeight = qObj ? (Number(qObj.weight) || 0) : 0;
 
 					const existing = currentAttemptStudentAnswers.get(String(soalId));
 					const markVal = currentAttemptEssayMarks.has(String(soalId)) ? currentAttemptEssayMarks.get(String(soalId)) : null;
+					const itemFinalScore = markVal === true ? parseFloat(qWeight.toFixed(2)) : (markVal === false ? 0 : null);
+
+					const essayAnsPayload = {
+						essay_benar: markVal,
+						nilai_final: itemFinalScore,
+						catatan_guru: note,
+						ditinjau_oleh: currentUserId,
+						ditinjau_at: nowIso,
+						updated_at: nowIso
+					};
+
 					if (existing) {
-						const { error: updAnsErr } = await client.from("jawaban_siswa").update({
-							essay_benar: markVal,
-							catatan_guru: note,
-							ditinjau_oleh: currentUserId,
-							ditinjau_at: nowIso,
-							updated_at: nowIso
-						}).eq("id", existing.id);
+						let { error: updAnsErr } = await client.from("jawaban_siswa").update(essayAnsPayload).eq("id", existing.id);
+						if (updAnsErr && updAnsErr.message && updAnsErr.message.includes("essay_benar")) {
+							delete essayAnsPayload.essay_benar;
+							const res = await client.from("jawaban_siswa").update(essayAnsPayload).eq("id", existing.id);
+							updAnsErr = res.error;
+						}
 						if (updAnsErr) throw updAnsErr;
 						existing.essay_benar = markVal;
+						existing.nilai_final = itemFinalScore;
 						existing.catatan_guru = note;
 					} else if (note || markVal !== null) {
-						const { error: insAnsErr } = await client.from("jawaban_siswa").insert({
+						let insertPayload = {
 							percobaan_id: attemptId,
 							ujian_id: currentSelectedAttempt.ujian_id,
 							soal_id: Number(soalId),
 							urutan_soal: 1,
-							essay_benar: markVal,
-							catatan_guru: note,
-							ditinjau_oleh: currentUserId,
-							ditinjau_at: nowIso
-						});
+							...essayAnsPayload
+						};
+						delete insertPayload.updated_at;
+						let { error: insAnsErr } = await client.from("jawaban_siswa").insert(insertPayload);
+						if (insAnsErr && insAnsErr.message && insAnsErr.message.includes("essay_benar")) {
+							delete insertPayload.essay_benar;
+							const res = await client.from("jawaban_siswa").insert(insertPayload);
+							insAnsErr = res.error;
+						}
 						if (insAnsErr) throw insAnsErr;
 					}
 				}
 
-				// 2. Hitung statistik jawaban PG
-				const pgQuestions = currentAttemptQuestions.filter(q => q.soal_type === 'pg');
-				let pgCorrectCount = 0;
-				pgQuestions.forEach(q => {
-					const ans = currentAttemptStudentAnswers.get(String(q.id));
-					const kunci = currentAttemptKunciPg.get(String(q.id));
-					if (ans?.jawaban_pg && kunci && ans.jawaban_pg.toUpperCase() === kunci.toUpperCase()) {
-						pgCorrectCount++;
-					}
-				});
-				const pgScore = pgQuestions.length > 0 ? (pgCorrectCount / pgQuestions.length) * 100 : null;
+				// 2. Hitung statistik nilai kumulatif
+				const currentScores = calculateCurrentScores();
 
 				const updatePayload = {
-					nilai_pilihan_ganda: pgScore !== null ? parseFloat(pgScore.toFixed(2)) : null,
+					nilai_pilihan_ganda: currentScores.pgScore,
+					nilai_essay_final: currentScores.essayScore,
 					nilai_total: parseFloat(finalScoreVal.toFixed(2)),
 					updated_at: nowIso
 				};
