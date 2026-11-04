@@ -301,7 +301,7 @@
 				<div class="container-fluid">
 					<div class="d-sm-flex align-items-center justify-content-between mb-3">
 						<div>
-							<h1 class="h3 mb-1 text-gray-800 font-weight-bold" id="examResultClassHeading">Hasil & Penilaian Ujian Siswa</h1>
+							<h1 class="h4 mb-1 text-gray-800 font-weight-bold" id="examResultClassHeading">Hasil & Penilaian Ujian Siswa</h1>
 						</div>
 						<div class="mt-2 mt-sm-0 d-flex flex-wrap align-items-center">
 							<button class="btn btn-sm btn-outline-primary shadow-sm mr-2 mb-1" id="btnRefreshData" title="Muat ulang data nilai">
@@ -310,9 +310,27 @@
 							<button class="btn btn-sm btn-success shadow-sm mr-2 mb-1" id="btnExportExcel" title="Export rekap nilai yang difilter ke file Excel">
 								<i class="fas fa-file-excel fa-sm mr-1"></i>Export Excel
 							</button>
-							<button class="btn btn-sm btn-primary shadow-sm mb-1" id="btnPrintReport" title="Cetak rekap nilai yang difilter">
+							<button class="btn btn-sm btn-primary shadow-sm mr-2 mb-1" id="btnPrintReport" title="Cetak rekap nilai yang difilter">
 								<i class="fas fa-print fa-sm mr-1"></i>Cetak Rekap Nilai
 							</button>
+							<div class="btn-group mb-1">
+								<button type="button" class="btn btn-sm btn-dark shadow-sm dropdown-toggle font-weight-bold" id="btnExportZipDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Download seluruh PDF jawaban &amp; nilai siswa dalam 1 file ZIP">
+									<i class="fas fa-file-archive fa-sm mr-1 text-warning"></i>Cetak Jawaban (ZIP)
+								</button>
+								<div class="dropdown-menu dropdown-menu-right shadow">
+									<h6 class="dropdown-header font-weight-bold text-primary">Cetak Seluruh PDF Ujian (ZIP)</h6>
+									<a class="dropdown-item" href="#" id="btnZipJawabanPerSoal">
+										<i class="fas fa-list-ol text-info fa-fw mr-2"></i>Jawaban per Soal (+ Rekap Nilai)
+									</a>
+									<a class="dropdown-item" href="#" id="btnZipJawabanRekap">
+										<i class="fas fa-table text-success fa-fw mr-2"></i>Jawaban Rekap Tabel (+ Rekap Nilai)
+									</a>
+									<div class="dropdown-divider"></div>
+									<a class="dropdown-item" href="#" id="btnZipSemuaLengkap">
+										<i class="fas fa-folder-plus text-warning fa-fw mr-2"></i>Paket Lengkap (Kedua Format + Rekap Nilai)
+									</a>
+								</div>
+							</div>
 						</div>
 					</div>
 
@@ -660,6 +678,57 @@
 		</div>
 	</div>
 
+	<!-- Modal Peringatan: Filter Mata Pelajaran masih "Semua" -->
+	<div class="modal fade" id="subjectWarningModal" tabindex="-1" role="dialog" aria-labelledby="subjectWarningTitle" aria-hidden="true">
+		<div class="modal-dialog modal-dialog-centered" role="document">
+			<div class="modal-content border-0 shadow">
+				<div class="modal-header bg-warning text-dark">
+					<h5 class="modal-title font-weight-bold" id="subjectWarningTitle">
+						<i class="fas fa-exclamation-triangle mr-2"></i><span id="subjectWarningHeading">Filter Belum Dipilih</span>
+					</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+				</div>
+				<div class="modal-body">
+					<p class="mb-2" id="subjectWarningMissing"></p>
+					<p class="mb-0 text-muted small" id="subjectWarningAction">Hasil download / cetak bisa bercampur antar mata pelajaran. Disarankan memilih satu mata pelajaran terlebih dahulu.</p>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-outline-secondary btn-sm" id="btnSubjectWarningProceed">Tetap Lanjutkan</button>
+					<button type="button" class="btn btn-warning btn-sm font-weight-bold" id="btnSubjectWarningPick"><i class="fas fa-filter mr-1"></i><span id="subjectWarningPickLabel">Pilih Filter</span></button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal Progress Export ZIP PDF -->
+	<div class="modal fade" id="exportZipProgressModal" tabindex="-1" role="dialog" aria-labelledby="exportZipProgressTitle" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+		<div class="modal-dialog modal-dialog-centered" role="document">
+			<div class="modal-content border-0 shadow-lg">
+				<div class="modal-header bg-primary text-white">
+					<h5 class="modal-title font-weight-bold" id="exportZipProgressTitle">
+						<i class="fas fa-file-archive mr-2"></i>Mengekspor Berkas PDF ke ZIP
+					</h5>
+				</div>
+				<div class="modal-body p-4 text-center">
+					<div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
+						<span class="sr-only">Loading...</span>
+					</div>
+					<h6 class="font-weight-bold mb-2" id="exportZipProgressStatus">Menyiapkan data ujian...</h6>
+					<p class="text-muted small mb-3" id="exportZipProgressDetail">Mengunduh soal dan lembar jawaban siswa.</p>
+					<div class="progress mb-2" style="height: 18px;">
+						<div id="exportZipProgressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-success font-weight-bold" role="progressbar" style="width: 0%; font-size: 11px;">0%</div>
+					</div>
+					<small class="text-muted d-block font-italic">Mohon jangan menutup halaman ini sampai pembuatan ZIP selesai.</small>
+				</div>
+				<div class="modal-footer bg-light py-2">
+					<button type="button" class="btn btn-outline-danger btn-sm" id="btnCancelZipExport">
+						<i class="fas fa-stop-circle mr-1"></i>Batalkan
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<!-- Printable Area (Konten & susunan layout dicetak secara dinamis dari JavaScript) -->
 	<div id="printArea"></div>
 
@@ -698,6 +767,11 @@
 
 	<!-- Library SheetJS untuk Export Excel -->
 	<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+	<!-- JSZip, html2canvas & jsPDF untuk Export Berkas PDF ke ZIP -->
+	<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 	<!-- Supabase API & Session -->
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -2185,20 +2259,19 @@
 		   Beberapa bagian bisa dinyalakan lagi lewat PRINT_CONFIG (tampilkan...LembarJawaban).
 		   Hasil dicetak lewat dialog cetak browser -> pilih "Simpan sebagai PDF".
 		   ========================================================================== */
-		async function printStudentAnswerSheet(mode = "butir") {
-			const attempt = currentSelectedAttempt;
-			if (!attempt || !currentAttemptQuestions.length) {
-				showModalMessage("Data soal & jawaban belum termuat, tidak ada yang bisa dicetak.", "warning");
-				return;
-			}
+		function generateStudentAnswerSheetHtml(attempt, questions = [], studentAnswersMap = new Map(), kunciPgMap = new Map(), acuanEssayMap = new Map(), mode = "butir", finalScoreOverride = null) {
 			const isRekap = mode === "rekap";
-
 			const font = PRINT_CONFIG.fontCetak || "Arial, 'Helvetica Neue', Helvetica, sans-serif";
 			const schoolName = PRINT_CONFIG.kop.namaSekolah ? PRINT_CONFIG.kop.namaSekolah.trim() : "";
 			const teacherName = window.currentUserProfile?.name || "";
 			const printDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
-			const finalScoreRaw = document.getElementById("inputFinalScore")?.value;
-			const finalScore = (finalScoreRaw !== undefined && finalScoreRaw !== "") ? finalScoreRaw : "-";
+
+			let finalScore = "-";
+			if (finalScoreOverride !== undefined && finalScoreOverride !== null && String(finalScoreOverride).trim() !== "") {
+				finalScore = String(finalScoreOverride);
+			} else if (attempt.nilai_total !== undefined && attempt.nilai_total !== null) {
+				finalScore = Number(attempt.nilai_total).toFixed(2);
+			}
 
 			const optText = (q, k) => ({ A: q.pilihan_a, B: q.pilihan_b, C: q.pilihan_c, D: q.pilihan_d })[k] || "";
 			const optImg = (q, k) => ({ A: q.gambar_pilihan_a, B: q.gambar_pilihan_b, C: q.gambar_pilihan_c, D: q.gambar_pilihan_d })[k] || "";
@@ -2209,11 +2282,11 @@
 
 			// --- Hitung ringkasan PG (dipakai kotak ringkasan jika diaktifkan) ---
 			let pgTotal = 0, pgCorrect = 0, pgWrong = 0, pgBlank = 0;
-			currentAttemptQuestions.forEach(q => {
-				if (q.soal_type === "essay") return;
-				const ans = currentAttemptStudentAnswers.get(String(q.id));
+			questions.forEach(q => {
+				if (q.soal_type !== "pg") return;
+				const ans = studentAnswersMap.get(String(q.id));
 				const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
-				const key = (currentAttemptKunciPg.get(String(q.id)) || "").toUpperCase();
+				const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
 				pgTotal++;
 				if (choice && key && choice === key) pgCorrect++;
 				else if (choice) pgWrong++;
@@ -2224,7 +2297,7 @@
 			const summaryHtml = PRINT_CONFIG.tampilkanRingkasanLembarJawaban ? `
 				<table style="width: 100%; border-collapse: collapse; margin: 8px 0;">
 					<tr>
-						<td style="${cell} background: #f0f0f0;"><b>Total Soal</b><br>${currentAttemptQuestions.length}</td>
+						<td style="${cell} background: #f0f0f0;"><b>Total Soal</b><br>${questions.length}</td>
 						<td style="${cell} background: ${GREEN};"><b>PG Benar</b><br>${pgCorrect} / ${pgTotal}</td>
 						<td style="${cell} background: ${RED};"><b>PG Salah</b><br>${pgWrong}</td>
 						<td style="${cell} background: ${GREY};"><b>Tidak Dijawab</b><br>${pgBlank}</td>
@@ -2232,13 +2305,14 @@
 					</tr>
 				</table>` : "";
 
-			// --- Urutan cetak: pilihan ganda dulu, essay di akhir (urutan relatif di tiap jenis tetap) ---
-			const originalIndex = new Map(currentAttemptQuestions.map((q, i) => [q.id, i]));
+			// --- Urutan cetak: pilihan ganda dulu, jawaban singkat, lalu essay di akhir ---
+			const originalIndex = new Map(questions.map((q, i) => [q.id, i]));
 			const printQuestions = PRINT_CONFIG.essayDiAkhirLembarJawaban === false
-				? currentAttemptQuestions.slice()
+				? questions.slice()
 				: [
-					...currentAttemptQuestions.filter(q => q.soal_type !== "essay"),
-					...currentAttemptQuestions.filter(q => q.soal_type === "essay")
+					...questions.filter(q => q.soal_type === "pg"),
+					...questions.filter(q => q.soal_type === "jawaban_singkat"),
+					...questions.filter(q => q.soal_type !== "pg" && q.soal_type !== "jawaban_singkat")
 				];
 			const numberOf = (q, idx) => PRINT_CONFIG.pakaiNomorAsliLembarJawaban
 				? (q.nomor_urut || (originalIndex.get(q.id) + 1))
@@ -2246,7 +2320,7 @@
 
 			let bodyHtml = "";
 
-			// ======================= MODE 1: REKAP (tabel PG & tabel essay terpisah) =======================
+			// ======================= MODE 1: REKAP =======================
 			if (isRekap) {
 				const th = "border: 1px solid #333; padding: 6px 8px; background: #f0f0f0; font-size: 10pt;";
 				const td = "border: 1px solid #333; padding: 5px 8px; vertical-align: top; font-size: 10pt;";
@@ -2260,9 +2334,9 @@
 
 				// --- Tabel Pilihan Ganda: No | Soal | Jawaban Siswa | Kunci Jawaban ---
 				const pgRows = pgItems.map(({ q, qNum }) => {
-					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const ans = studentAnswersMap.get(String(q.id));
 					const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
-					const key = (currentAttemptKunciPg.get(String(q.id)) || "").toUpperCase();
+					const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
 					const studentBg = !choice ? GREY : (choice === key ? GREEN : RED);
 					const studentCell = choice
 						? `<td style="${td} background: ${studentBg};"><b>${choice}.</b> ${escapeHtml(optText(q, choice) || (optImg(q, choice) ? "" : "-"))}${optImgHtml(q, choice)}</td>`
@@ -2280,9 +2354,9 @@
 
 				// --- Tabel Jawaban Singkat: No | Soal | Jawaban Siswa | Kunci Jawaban ---
 				const singkatRows = singkatItems.map(({ q, qNum }) => {
-					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const ans = studentAnswersMap.get(String(q.id));
 					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
-					const refs = currentAttemptAcuanEssay.get(String(q.id)) || [];
+					const refs = acuanEssayMap.get(String(q.id)) || [];
 					const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
 					const studentBg = !studentText ? GREY : (isCorrect ? GREEN : RED);
 					const keyHtml = refs.length ? refs.map(escapeHtml).join("<br>") : "-";
@@ -2296,7 +2370,7 @@
 
 				// --- Tabel Essay: No | Soal | Jawaban Siswa (tanpa kunci/acuan) ---
 				const essayRows = essayItems.map(({ q, qNum }) => {
-					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const ans = studentAnswersMap.get(String(q.id));
 					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
 					return `<tr>
 						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
@@ -2354,10 +2428,9 @@
 			if (!isRekap) {
 				const detailHtml = printQuestions.map((q, idx) => {
 					const qNum = numberOf(q, idx);
-					const ans = currentAttemptStudentAnswers.get(String(q.id));
+					const ans = studentAnswersMap.get(String(q.id));
 					const isPg = q.soal_type === "pg";
 					const isSingkat = q.soal_type === "jawaban_singkat";
-					const isEssay = q.soal_type === "essay";
 
 					const images = [];
 					if (q.gambar_url) images.push(q.gambar_url);
@@ -2371,14 +2444,13 @@
 
 					if (isPg) {
 						const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
-						const key = (currentAttemptKunciPg.get(String(q.id)) || "").toUpperCase();
+						const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
 						const isCorrect = choice && key && choice === key;
 						const result = !choice ? "TIDAK DIJAWAB" : (isCorrect ? "BENAR" : "SALAH");
 						const resultColor = !choice ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
 						const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
 							? `<span style="color: ${resultColor};">${result}</span>` : "";
 
-						// Hanya penanda warna: hijau = kunci / jawaban benar, merah = jawaban siswa yang salah
 						const optRows = ["A", "B", "C", "D"].map(k => {
 							let bg = "#fff", weight = "normal";
 							if (k === choice && k === key) { bg = GREEN; weight = "bold"; }
@@ -2391,7 +2463,7 @@
 						}).join("");
 
 						return `
-							<div class="ans-q" style="margin-bottom: 14px;">
+							<div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
 								<div style="${headBase} display: flex; justify-content: space-between;">
 									<span>Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Pilihan Ganda)</span></span>
 									${labelHtml}
@@ -2404,7 +2476,7 @@
 
 					if (isSingkat) {
 						const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
-						const refs = currentAttemptAcuanEssay.get(String(q.id)) || [];
+						const refs = acuanEssayMap.get(String(q.id)) || [];
 						const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
 						const result = !studentText ? "TIDAK DIJAWAB" : (isCorrect ? "BENAR" : "SALAH");
 						const resultColor = !studentText ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
@@ -2414,7 +2486,7 @@
 						const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
 
 						return `
-							<div class="ans-q" style="margin-bottom: 14px;">
+							<div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
 								<div style="${headBase} display: flex; justify-content: space-between;">
 									<span>Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Jawaban Singkat)</span></span>
 									${labelHtml}
@@ -2428,16 +2500,16 @@
 							</div>`;
 					}
 
-					// Essay: hanya jawaban siswa (acuan jawaban hanya jika diaktifkan di PRINT_CONFIG)
+					// Essay: hanya jawaban siswa
 					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
-					const refs = currentAttemptAcuanEssay.get(String(q.id)) || [];
+					const refs = acuanEssayMap.get(String(q.id)) || [];
 					const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
 					const refHtml = PRINT_CONFIG.tampilkanAcuanEssayLembarJawaban && refs.length ? `
 						<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci / Acuan Jawaban:</div>
 						<div style="${boxStyle} background: ${GREEN};">${refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("")}</div>` : "";
 
 					return `
-						<div class="ans-q" style="margin-bottom: 14px;">
+						<div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
 							<div style="${headBase}">Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Essay / Uraian)</span></div>
 							${qText}
 							${imagesHtml}
@@ -2450,9 +2522,9 @@
 				bodyHtml = `<div style="font-weight: bold; font-size: 11pt; margin: 10px 0 8px 0; border-bottom: 1px solid #000;">Perbandingan Jawaban per Butir Soal</div>${detailHtml}`;
 			}
 
-			// ======================= TANDA TANGAN (bisa diaktifkan via PRINT_CONFIG) =======================
+			// ======================= TANDA TANGAN =======================
 			const signatureHtml = PRINT_CONFIG.tampilkanTandaTanganLembarJawaban ? `
-				<div class="print-signature-area" style="margin-top: 20px; display: flex; justify-content: flex-end; font-size: 10.5pt;">
+				<div class="print-signature-area" style="margin-top: 20px; display: flex; justify-content: flex-end; font-size: 10.5pt; page-break-inside: avoid;">
 					<div style="text-align: center; min-width: 220px;">
 						<div>${escapeHtml(printDate)}</div>
 						<div>Guru Pengampu,</div>
@@ -2466,7 +2538,7 @@
 			const legend = `<span style="background: ${GREEN}; padding: 0 6px; border: 1px solid #999;">hijau = jawaban benar / kunci</span>
 				<span style="background: ${RED}; padding: 0 6px; border: 1px solid #999; margin-left: 6px;">merah = jawaban siswa salah</span>`;
 
-			const html = `
+			return `
 				<div style="font-family: ${font}; color: #000; width: 100%; box-sizing: border-box;">
 					<div style="text-align: center; margin-bottom: 12px; border-bottom: 3px double #000; padding-bottom: 8px;">
 						${schoolName ? `<h2 style="margin: 0; font-size: 15pt; text-transform: uppercase;">${escapeHtml(schoolName)}</h2>` : ""}
@@ -2495,6 +2567,26 @@
 					${bodyHtml}
 					${signatureHtml}
 				</div>`;
+		}
+
+		async function printStudentAnswerSheet(mode = "butir") {
+			const attempt = currentSelectedAttempt;
+			if (!attempt || !currentAttemptQuestions.length) {
+				showModalMessage("Data soal & jawaban belum termuat, tidak ada yang bisa dicetak.", "warning");
+				return;
+			}
+			const finalScoreRaw = document.getElementById("inputFinalScore")?.value;
+			const finalScore = (finalScoreRaw !== undefined && finalScoreRaw !== "") ? finalScoreRaw : (attempt.nilai_total !== undefined && attempt.nilai_total !== null ? attempt.nilai_total : "-");
+
+			const html = generateStudentAnswerSheetHtml(
+				attempt,
+				currentAttemptQuestions,
+				currentAttemptStudentAnswers,
+				currentAttemptKunciPg,
+				currentAttemptAcuanEssay,
+				mode,
+				finalScore
+			);
 
 			const printContainer = document.getElementById("printArea");
 			if (!printContainer) { alert("Elemen printArea tidak ditemukan."); return; }
@@ -2512,7 +2604,7 @@
 			// Judul dokumen = nama file PDF default; modal-open dilepas sementara agar isi tidak terpotong
 			const oldTitle = document.title;
 			const safe = (s) => String(s || "").replace(/[\\/:*?"<>|]+/g, " ").trim();
-			document.title = `${isRekap ? "Rekap Jawaban" : "Lembar Jawaban"} - ${safe(attempt.studentName)} - ${safe(attempt.examName)}`;
+			document.title = `${mode === "rekap" ? "Rekap Jawaban" : "Lembar Jawaban"} - ${safe(attempt.studentName)} - ${safe(attempt.examName)}`;
 			const hadModalOpen = document.body.classList.contains("modal-open");
 			document.body.classList.remove("modal-open");
 
@@ -2523,6 +2615,512 @@
 			}, { once: true });
 
 			setTimeout(() => window.print(), 100);
+		}
+
+		/**
+		 * Helper & Logika Export Rekap & Jawaban Siswa ke Berkas ZIP
+		 */
+		function sanitizeFileName(str) {
+			return String(str || "")
+				.replace(/[\\/:*?"<>|]+/g, "_")
+				.replace(/\s+/g, " ")
+				.trim();
+		}
+
+		/**
+		 * Jika filter Mata Pelajaran dan/atau Ujian masih "Semua", tampilkan pop up peringatan sebelum download/cetak.
+		 * @param {string} actionLabel nama aksi (mis. "mencetak rekap nilai")
+		 * @param {Function} proceedFn aksi yang dijalankan bila filter sudah dipilih / user memilih "Tetap Lanjutkan"
+		 */
+		let pendingSubjectAction = null;
+		let pendingFocusSelectId = null;
+		function guardSubjectFilter(actionLabel, proceedFn) {
+			const subjectSelect = document.getElementById("filterSubject");
+			const examSelect = document.getElementById("filterExam");
+			const missingSubject = !!subjectSelect && !subjectSelect.value;
+			const missingExam = !!examSelect && !examSelect.value;
+			if (!missingSubject && !missingExam) {
+				proceedFn();
+				return;
+			}
+			pendingSubjectAction = proceedFn;
+			pendingFocusSelectId = missingSubject ? "filterSubject" : "filterExam";
+
+			let missingHtml, headingText, pickLabel;
+			if (missingSubject && missingExam) {
+				missingHtml = 'Filter <b>Mata Pelajaran</b> masih <b>"Semua Mata Pelajaran"</b> dan filter <b>Ujian</b> masih <b>"Semua Ujian"</b>.';
+				headingText = "Mata Pelajaran & Ujian Belum Dipilih";
+				pickLabel = "Pilih Filter";
+			} else if (missingSubject) {
+				missingHtml = 'Filter <b>Mata Pelajaran</b> masih <b>"Semua Mata Pelajaran"</b>.';
+				headingText = "Mata Pelajaran Belum Dipilih";
+				pickLabel = "Pilih Mata Pelajaran";
+			} else {
+				missingHtml = 'Filter <b>Ujian</b> masih <b>"Semua Ujian"</b>.';
+				headingText = "Ujian Belum Dipilih";
+				pickLabel = "Pilih Ujian";
+			}
+			const setText = (id, fn) => { const el = document.getElementById(id); if (el) fn(el); };
+			setText("subjectWarningMissing", el => { el.innerHTML = missingHtml; });
+			setText("subjectWarningHeading", el => { el.textContent = headingText; });
+			setText("subjectWarningPickLabel", el => { el.textContent = pickLabel; });
+			setText("subjectWarningAction", el => {
+				el.textContent = `Anda akan ${actionLabel} tanpa membatasi ${missingSubject && missingExam ? "mata pelajaran dan ujian" : (missingSubject ? "mata pelajaran" : "ujian")}, sehingga data bisa bercampur. Disarankan memilih terlebih dahulu.`;
+			});
+			$("#subjectWarningModal").modal("show");
+		}
+
+		function initSubjectWarningModal() {
+			document.getElementById("btnSubjectWarningPick")?.addEventListener("click", () => {
+				const focusId = pendingFocusSelectId;
+				pendingSubjectAction = null;
+				$("#subjectWarningModal").one("hidden.bs.modal", () => {
+					// Sorot semua filter yang masih "Semua" (mapel dan/atau ujian), fokus ke yang pertama
+					["filterSubject", "filterExam"].forEach(id => {
+						const sel = document.getElementById(id);
+						if (!sel || sel.value) return;
+						sel.classList.add("border-warning");
+						sel.style.boxShadow = "0 0 0 .2rem rgba(246,194,62,.5)";
+						setTimeout(() => { sel.classList.remove("border-warning"); sel.style.boxShadow = ""; }, 2500);
+					});
+					document.getElementById(focusId)?.focus();
+				});
+				$("#subjectWarningModal").modal("hide");
+			});
+			document.getElementById("btnSubjectWarningProceed")?.addEventListener("click", () => {
+				const fn = pendingSubjectAction;
+				pendingSubjectAction = null;
+				$("#subjectWarningModal").one("hidden.bs.modal", () => { if (typeof fn === "function") fn(); });
+				$("#subjectWarningModal").modal("hide");
+			});
+			$("#subjectWarningModal").on("hidden.bs.modal", () => { pendingSubjectAction = null; });
+		}
+
+		function triggerBlobDownload(blob, filename) {
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = filename;
+			document.body.appendChild(a);
+			a.click();
+			setTimeout(() => {
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+			}, 1500);
+		}
+
+		// ---- Cache gambar: unduh sekali, perkecil, lalu dipakai ulang untuk semua siswa ----
+		const zipImageCache = new Map(); // url asli -> dataURL (sudah diperkecil)
+
+		async function fetchImageAsSmallDataUrl(url, maxW = 700, quality = 0.8) {
+			try {
+				const resp = await fetch(url, { mode: "cors" });
+				if (!resp.ok) return null;
+				const blob = await resp.blob();
+				const bmp = await createImageBitmap(blob);
+				const ratio = Math.min(1, maxW / bmp.width);
+				const canvas = document.createElement("canvas");
+				canvas.width = Math.round(bmp.width * ratio);
+				canvas.height = Math.round(bmp.height * ratio);
+				const ctx = canvas.getContext("2d");
+				ctx.fillStyle = "#fff";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+				return canvas.toDataURL("image/jpeg", quality);
+			} catch (e) {
+				return null; // gagal -> pakai URL asli
+			}
+		}
+
+		async function prefetchQuestionImages(questions) {
+			const urls = new Set();
+			questions.forEach(q => {
+				if (q.gambar_url) urls.add(q.gambar_url);
+				if (Array.isArray(q.gambar_urls)) q.gambar_urls.forEach(u => u && urls.add(u));
+				["a", "b", "c", "d"].forEach(k => { if (q["gambar_pilihan_" + k]) urls.add(q["gambar_pilihan_" + k]); });
+			});
+			const todo = Array.from(urls).filter(u => !zipImageCache.has(u));
+			const POOL = 4;
+			let i = 0;
+			await Promise.all(Array.from({ length: POOL }, async () => {
+				while (i < todo.length) {
+					const u = todo[i++];
+					const d = await fetchImageAsSmallDataUrl(u);
+					if (d) zipImageCache.set(u, d);
+				}
+			}));
+		}
+
+		function inlineCachedImages(html) {
+			zipImageCache.forEach((dataUrl, url) => {
+				const esc = escapeHtml(url);
+				if (html.includes(esc)) html = html.split(esc).join(dataUrl);
+			});
+			return html;
+		}
+
+		const nextFrame = () => new Promise(r => setTimeout(r, 0));
+
+		async function renderHtmlToPdfBlob(htmlString, orientation = "portrait") {
+			// Render sendiri: html2canvas (posisi tetap 0,0 -> tidak ada geser kiri/kanan) + paginasi A4 manual dengan jsPDF.
+			const { jsPDF } = window.jspdf;
+			const pageW = orientation === "landscape" ? 1060 : 794; // lebar render (px CSS)
+			const host = document.createElement("div");
+			// z-index negatif: tersembunyi di belakang halaman, tapi tetap dirender html2canvas
+			host.style.cssText = `position:fixed;left:0;top:0;z-index:-1;width:${pageW}px;background:#fff;color:#000;padding:20px;box-sizing:border-box;pointer-events:none;`;
+			// Samakan ukuran gambar dengan cetak satuan (@media print: .ans-q img { max-height: 60mm; max-width: 100% })
+			const imgSizeCss = "<style>.ans-q img{max-height:60mm;max-width:100%;width:auto;height:auto;object-fit:contain;}</style>";
+			host.innerHTML = imgSizeCss + inlineCachedImages(htmlString);
+			document.body.appendChild(host);
+
+			try {
+				const imgs = Array.from(host.querySelectorAll("img")).filter(img => !img.src.startsWith("data:") && !img.complete);
+				if (imgs.length > 0) {
+					await Promise.race([
+						Promise.all(imgs.map(img => new Promise(resolve => { img.onload = img.onerror = resolve; }))),
+						new Promise(resolve => setTimeout(resolve, 3500))
+					]);
+				}
+				await nextFrame();
+
+				const W = host.offsetWidth;
+				const total = host.scrollHeight;
+				// Batas tinggi canvas browser ~32k px -> turunkan scale jika lembar sangat panjang
+				const scale = Math.max(0.5, Math.min(1.5, 30000 / total));
+
+				const canvas = await html2canvas(host, {
+					scale,
+					useCORS: true,
+					logging: false,
+					backgroundColor: "#ffffff",
+					scrollX: 0,
+					scrollY: 0,
+					imageTimeout: 3500
+				});
+
+				// ---- Ukuran halaman ----
+				const margin = 8; // mm
+				const pageWmm = orientation === "landscape" ? 297 : 210;
+				const pageHmm = orientation === "landscape" ? 210 : 297;
+				const innerW = pageWmm - margin * 2;
+				const innerH = pageHmm - margin * 2;
+				const pageHpx = innerH * (W / innerW); // tinggi 1 halaman dalam px CSS
+
+				// ---- Titik potong aman: bawah tiap blok soal / baris tabel / tanda tangan ----
+				const hostTop = host.getBoundingClientRect().top;
+				const blockSel = ".ans-q, .print-signature-area, tr";
+				const bottoms = Array.from(host.querySelectorAll(blockSel))
+					.filter(el => !el.parentElement.closest(".ans-q, .print-signature-area, tr"))
+					.map(el => Math.round(el.getBoundingClientRect().bottom - hostTop))
+					.filter(v => v > 0)
+					.sort((x, y) => x - y);
+
+				const pages = [];
+				let start = 0;
+				while (start < total - 1) {
+					const limit = start + pageHpx;
+					if (total <= limit + 1) { pages.push([start, total]); break; }
+					let cut = 0;
+					for (const v of bottoms) {
+						if (v <= limit && v > start + pageHpx * 0.25) cut = v;
+					}
+					if (!cut) cut = limit; // blok lebih tinggi dari 1 halaman -> potong paksa
+					pages.push([start, cut]);
+					start = cut;
+				}
+
+				const pdf = new jsPDF({ unit: "mm", format: "a4", orientation, compress: true });
+				const s = canvas.width / W;
+				pages.forEach(([y0, y1], i) => {
+					const sy = Math.min(canvas.height - 1, Math.round(y0 * s));
+					const sh = Math.max(1, Math.min(canvas.height - sy, Math.round((y1 - y0) * s)));
+					const pc = document.createElement("canvas");
+					pc.width = canvas.width;
+					pc.height = sh;
+					const ctx = pc.getContext("2d");
+					ctx.fillStyle = "#fff";
+					ctx.fillRect(0, 0, pc.width, pc.height);
+					ctx.drawImage(canvas, 0, sy, canvas.width, sh, 0, 0, pc.width, sh);
+					const img = pc.toDataURL("image/jpeg", 0.8);
+					if (i > 0) pdf.addPage();
+					pdf.addImage(img, "JPEG", margin, margin, innerW, (sh / s) * (innerW / W), undefined, "FAST");
+					pc.width = pc.height = 0;
+				});
+				canvas.width = canvas.height = 0;
+
+				return pdf.output("blob");
+			} finally {
+				if (host.parentNode) host.parentNode.removeChild(host);
+			}
+		}
+
+		let isZipExportCancelled = false;
+
+		async function exportExamToZip(zipMode = "butir") {
+			if (typeof JSZip === "undefined" || typeof html2canvas === "undefined" || !window.jspdf?.jsPDF) {
+				showModalMessage("Pustaka pengekspor PDF/ZIP (JSZip / html2canvas / jsPDF) belum siap. Silakan muat ulang halaman.", "danger");
+				return;
+			}
+
+			// 1. Tentukan Ujian yang akan diekspor
+			const filterExamSelect = document.getElementById("filterExam");
+			let targetExamId = filterExamSelect?.value || "";
+			let targetExamText = filterExamSelect?.options[filterExamSelect.selectedIndex]?.text || "";
+
+			// Jika filter ujian belum dipilih, periksa apakah seluruh data di filteredSubmissions berasal dari ujian yang sama
+			if (!targetExamId && filteredSubmissions.length > 0) {
+				const uniqueExams = Array.from(new Set(filteredSubmissions.map(s => String(s.ujian_id))));
+				if (uniqueExams.length === 1) {
+					targetExamId = uniqueExams[0];
+					const found = allExams.find(e => String(e.id) === String(targetExamId));
+					targetExamText = found?.judul || filteredSubmissions[0].examName || "Ujian";
+				}
+			}
+
+			if (!targetExamId) {
+				showModalMessage("Silakan pilih salah satu Ujian pada dropdown 'Filter Ujian' terlebih dahulu untuk mengekspor ZIP.", "warning");
+				if (filterExamSelect) filterExamSelect.focus();
+				return;
+			}
+
+			// Filter submission untuk ujian yang ditargetkan
+			const targetSubmissions = filteredSubmissions.filter(s => String(s.ujian_id) === String(targetExamId));
+			if (targetSubmissions.length === 0) {
+				showModalMessage("Tidak ada data siswa / percobaan yang ditemukan untuk ujian yang dipilih.", "warning");
+				return;
+			}
+
+			const examTitle = targetSubmissions[0]?.examName || targetExamText || "Ujian";
+			const subjectTitle = targetSubmissions[0]?.subjectName || "-";
+			const classFilterText = document.getElementById("filterClass")?.options[document.getElementById("filterClass").selectedIndex]?.text || "Semua Kelas";
+
+			// Setup modal progress
+			isZipExportCancelled = false;
+			console.info("[Export ZIP] versi perbaikan v9 aktif");
+			const client = getSupabaseClient();
+			if (!client) {
+				showModalMessage("Koneksi Supabase belum siap. Silakan muat ulang halaman.", "danger");
+				return;
+			}
+			const progressModal = $("#exportZipProgressModal");
+			const statusEl = document.getElementById("exportZipProgressStatus");
+			const detailEl = document.getElementById("exportZipProgressDetail");
+			const barEl = document.getElementById("exportZipProgressBar");
+
+			const updateProgress = (pct, status, detail) => {
+				if (barEl) {
+					barEl.style.width = `${pct}%`;
+					barEl.textContent = `${pct}%`;
+				}
+				if (status && statusEl) statusEl.textContent = status;
+				if (detail && detailEl) detailEl.textContent = detail;
+			};
+
+			updateProgress(5, "Menyiapkan data ujian...", "Mengambil daftar butir soal & kunci...");
+			progressModal.modal({ backdrop: 'static', keyboard: false });
+
+			try {
+				// 1. Ambil data soal ujian
+				const { data: questions, error: qErr } = await client
+					.from("soal_ujian")
+					.select("id, nomor_urut, soal_type, pertanyaan, gambar_url, gambar_urls, pilihan_a, pilihan_b, pilihan_c, pilihan_d, gambar_pilihan_a, gambar_pilihan_b, gambar_pilihan_c, gambar_pilihan_d, bobot_nilai")
+					.eq("ujian_id", targetExamId)
+					.order("nomor_urut", { ascending: true });
+
+				if (qErr) throw qErr;
+				const examQuestions = questions || [];
+
+				if (isZipExportCancelled) throw new Error("Ekspor ZIP dibatalkan oleh pengguna.");
+				updateProgress(12, "Menyiapkan kunci jawaban...", "Mengunduh kunci PG dan acuan essay/jawaban singkat...");
+
+				// 2. Kunci PG
+				const kunciPgMap = new Map();
+				const pgQuestions = examQuestions.filter(q => q.soal_type === 'pg');
+				if (pgQuestions.length > 0) {
+					const { data: kunciList } = await client
+						.from("kunci_pg")
+						.select("soal_id, jawaban_benar")
+						.in("soal_id", pgQuestions.map(q => q.id));
+					(kunciList || []).forEach(k => kunciPgMap.set(String(k.soal_id), k.jawaban_benar));
+				}
+
+				// 3. Acuan Essay / Jawaban Singkat
+				const acuanEssayMap = new Map();
+				const nonPgQuestions = examQuestions.filter(q => q.soal_type === 'essay' || q.soal_type === 'jawaban_singkat');
+				if (nonPgQuestions.length > 0) {
+					const { data: acuanList } = await client
+						.from("jawaban_acuan_essay")
+						.select("soal_id, jawaban")
+						.in("soal_id", nonPgQuestions.map(q => q.id));
+					(acuanList || []).forEach(a => {
+						const list = acuanEssayMap.get(String(a.soal_id)) || [];
+						list.push(a.jawaban);
+						acuanEssayMap.set(String(a.soal_id), list);
+					});
+				}
+
+				if (isZipExportCancelled) throw new Error("Ekspor ZIP dibatalkan oleh pengguna.");
+				updateProgress(20, "Mengunduh lembar jawaban seluruh siswa...", `Mengambil data untuk ${targetSubmissions.length} siswa...`);
+
+				// 4. Batch fetch seluruh jawaban siswa pada ujian ini
+				const attemptIds = targetSubmissions.map(s => s.id);
+				const allAnswers = [];
+				const chunkSize = 100;
+				for (let i = 0; i < attemptIds.length; i += chunkSize) {
+					if (isZipExportCancelled) throw new Error("Ekspor ZIP dibatalkan oleh pengguna.");
+					const chunk = attemptIds.slice(i, i + chunkSize);
+					const { data: ansChunk, error: aError } = await client
+						.from("jawaban_siswa")
+						.select("*")
+						.in("percobaan_id", chunk);
+					if (aError) throw aError;
+					if (ansChunk) allAnswers.push(...ansChunk);
+				}
+
+				const answersByAttempt = new Map();
+				allAnswers.forEach(a => {
+					let m = answersByAttempt.get(String(a.percobaan_id));
+					if (!m) {
+						m = new Map();
+						answersByAttempt.set(String(a.percobaan_id), m);
+					}
+					m.set(String(a.soal_id), a);
+				});
+
+				// Unduh & perkecil semua gambar soal SEKALI saja (bukan per siswa)
+				if (zipMode === "butir" || zipMode === "semua") {
+					updateProgress(23, "Menyiapkan gambar soal...", "Mengunduh & memperkecil gambar satu kali untuk semua siswa...");
+					await prefetchQuestionImages(examQuestions);
+				}
+
+				// Mulai membuat arsip ZIP
+				const zip = new JSZip();
+
+				// 5. Buat Rekap Nilai Ujian PDF
+				updateProgress(25, "Membuat Rekap Nilai Ujian PDF...", "Menyusun tabel hasil ujian...");
+				const teacherName = window.currentUserProfile?.name || PRINT_CONFIG.tandaTangan.namaKananDefault;
+				const printDateFormatted = new Date().toLocaleDateString("id-ID", { day: '2-digit', month: 'long', year: 'numeric' });
+				const meta = {
+					filterClassVal: document.getElementById("filterClass")?.value || "",
+					selectedClassText: classFilterText,
+					filterSubjectVal: document.getElementById("filterSubject")?.value || "",
+					selectedSubjectText: document.getElementById("filterSubject")?.options[document.getElementById("filterSubject")?.selectedIndex]?.text || "Semua Mata Pelajaran",
+					filterExamVal: targetExamId,
+					selectedExamText: examTitle,
+					filterStatusVal: document.getElementById("filterStatus")?.value || "",
+					selectedStatusText: document.getElementById("filterStatus")?.options[document.getElementById("filterStatus")?.selectedIndex]?.text || "Semua Status",
+					subjectText: subjectTitle,
+					isAllExams: false,
+					printDateFormatted,
+					teacherName
+				};
+
+				const rekapHtml = generatePrintHtml(targetSubmissions, meta);
+				const rekapPdfBlob = await renderHtmlToPdfBlob(rekapHtml, "portrait");
+				const safeExam = sanitizeFileName(examTitle);
+				zip.file(`00_REKAP_NILAI_${safeExam}.pdf`, rekapPdfBlob);
+
+				// 6. Buat Lembar Jawaban Setiap Siswa
+				const totalStudents = targetSubmissions.length;
+				const startPct = 30;
+				const endPct = 85;
+
+				const loopStartTs = Date.now();
+				for (let idx = 0; idx < totalStudents; idx++) {
+					if (isZipExportCancelled) throw new Error("Ekspor ZIP dibatalkan oleh pengguna.");
+					const attempt = targetSubmissions[idx];
+					const studentAnswers = answersByAttempt.get(String(attempt.id)) || new Map();
+					const studentNameSafe = sanitizeFileName(attempt.studentName || `Siswa_${idx + 1}`);
+					const studentNisSafe = sanitizeFileName(attempt.studentNis || `${idx + 1}`);
+					const numPrefix = String(idx + 1).padStart(2, "0");
+
+					const currentPct = Math.round(startPct + ((idx / totalStudents) * (endPct - startPct)));
+					let etaText = "";
+					if (idx >= 2) {
+						const perStudent = (Date.now() - loopStartTs) / idx;
+						const remain = Math.round((perStudent * (totalStudents - idx)) / 1000);
+						etaText = ` — sisa ±${remain >= 60 ? Math.ceil(remain / 60) + " menit" : remain + " detik"}`;
+					}
+					updateProgress(
+						currentPct,
+						`Memproses PDF Siswa (${idx + 1}/${totalStudents})`,
+						`${attempt.studentName} (${attempt.studentNis || '-'})${etaText}`
+					);
+					await nextFrame(); // beri kesempatan browser menggambar progress bar
+
+					const finalScore = (attempt.nilai_total !== null && attempt.nilai_total !== undefined)
+						? Number(attempt.nilai_total).toFixed(2)
+						: "-";
+
+					if (zipMode === "butir" || zipMode === "semua") {
+						const htmlButir = generateStudentAnswerSheetHtml(
+							attempt,
+							examQuestions,
+							studentAnswers,
+							kunciPgMap,
+							acuanEssayMap,
+							"butir",
+							finalScore
+						);
+						const pdfButirBlob = await renderHtmlToPdfBlob(htmlButir, "portrait");
+						const fileNameButir = `${numPrefix}_${studentNisSafe}_${studentNameSafe}_Jawaban_Per_Soal.pdf`;
+						if (zipMode === "semua") {
+							zip.folder("Jawaban_Per_Soal").file(fileNameButir, pdfButirBlob);
+						} else {
+							zip.file(fileNameButir, pdfButirBlob);
+						}
+					}
+
+					if (zipMode === "rekap" || zipMode === "semua") {
+						const htmlRekap = generateStudentAnswerSheetHtml(
+							attempt,
+							examQuestions,
+							studentAnswers,
+							kunciPgMap,
+							acuanEssayMap,
+							"rekap",
+							finalScore
+						);
+						const pdfRekapBlob = await renderHtmlToPdfBlob(htmlRekap, "portrait");
+						const fileNameRekap = `${numPrefix}_${studentNisSafe}_${studentNameSafe}_Jawaban_Rekap.pdf`;
+						if (zipMode === "semua") {
+							zip.folder("Jawaban_Rekap").file(fileNameRekap, pdfRekapBlob);
+						} else {
+							zip.file(fileNameRekap, pdfRekapBlob);
+						}
+					}
+				}
+
+				// 7. Kompresi dan download ZIP
+				if (isZipExportCancelled) throw new Error("Ekspor ZIP dibatalkan oleh pengguna.");
+				updateProgress(90, "Mengemas seluruh berkas ke dalam ZIP...", "Kompresi data...");
+
+				const zipBlob = await zip.generateAsync({ type: "blob", compression: "STORE", streamFiles: true }, (metadata) => {
+					const compPct = 90 + Math.round((metadata.percent / 100) * 8);
+					updateProgress(compPct, "Mengompresi ZIP...", `${Math.round(metadata.percent)}% terkompresi`);
+				});
+
+				updateProgress(100, "Selesai!", "Mengunduh file ZIP ke perangkat Anda...");
+				const safeClass = sanitizeFileName(classFilterText);
+				const modeLabel = zipMode === "butir" ? "Jawaban_Per_Soal" : (zipMode === "rekap" ? "Jawaban_Rekap" : "Paket_Lengkap");
+				const downloadFileName = `CBT_${safeExam}_${safeClass}_${modeLabel}.zip`;
+
+				triggerBlobDownload(zipBlob, downloadFileName);
+
+				setTimeout(() => {
+					progressModal.modal("hide");
+					showModalMessage(`Berhasil mengekspor <b>${downloadFileName}</b> (${totalStudents} siswa).`, "success");
+				}, 1200);
+
+			} catch (err) {
+				progressModal.modal("hide");
+				if (err.message && err.message.includes("dibatalkan")) {
+					showModalMessage("Proses ekspor ZIP dibatalkan.", "info");
+				} else {
+					console.error("Export ZIP Error:", err);
+					showModalMessage("Gagal mengekspor ZIP: " + (err.message || err), "danger");
+				}
+			}
 		}
 
 		/**
@@ -2874,8 +3472,17 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 			await loadAllSubmissions();
 
 			document.getElementById("btnRefreshData").addEventListener("click", loadAllSubmissions);
-			document.getElementById("btnExportExcel").addEventListener("click", exportToExcel);
-			document.getElementById("btnPrintReport").addEventListener("click", printReport);
+			document.getElementById("btnExportExcel").addEventListener("click", () => guardSubjectFilter("mengekspor Excel", exportToExcel));
+			document.getElementById("btnPrintReport").addEventListener("click", () => guardSubjectFilter("mencetak rekap nilai", printReport));
+			initSubjectWarningModal();
+			document.getElementById("btnZipJawabanPerSoal")?.addEventListener("click", (e) => { e.preventDefault(); guardSubjectFilter("mengunduh ZIP jawaban", () => exportExamToZip("butir")); });
+			document.getElementById("btnZipJawabanRekap")?.addEventListener("click", (e) => { e.preventDefault(); guardSubjectFilter("mengunduh ZIP jawaban", () => exportExamToZip("rekap")); });
+			document.getElementById("btnZipSemuaLengkap")?.addEventListener("click", (e) => { e.preventDefault(); guardSubjectFilter("mengunduh ZIP jawaban", () => exportExamToZip("semua")); });
+			document.getElementById("btnCancelZipExport")?.addEventListener("click", () => {
+				isZipExportCancelled = true;
+				const statusEl = document.getElementById("exportZipProgressStatus");
+				if (statusEl) statusEl.textContent = "Membatalkan proses...";
+			});
 			document.getElementById("filterClass").addEventListener("change", applyFilters);
 			document.getElementById("filterSubject").addEventListener("change", () => {
 				const subVal = document.getElementById("filterSubject").value;
