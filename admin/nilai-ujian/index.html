@@ -366,7 +366,8 @@
 									<label class="small font-weight-bold text-gray-700">Status Penilaian</label>
 									<select id="filterStatus" class="form-control form-control-sm">
 										<option value="">Semua Status</option>
-										<option value="dikumpulkan">Perlu Dinilai / Dikumpulkan</option>
+										<option value="dikumpulkan">Perlu Dinilai (Belum Diperiksa)</option>
+										<option value="menunggu_walas">Menunggu Konfirmasi Walas</option>
 										<option value="dinilai">Sudah Dinilai / Final</option>
 										<option value="berlangsung">Sedang Berlangsung</option>
 									</select>
@@ -539,8 +540,11 @@
 						<button type="button" class="btn btn-outline-primary" id="btnSaveDraftGrading">
 							<i class="fas fa-save mr-1"></i>Simpan Draf Penilaian
 						</button>
+						<button type="button" class="btn btn-primary font-weight-bold px-3 d-none" id="btnSendToWalas" title="Simpan hasil pemeriksaan dan kirim ke Wali Kelas untuk dikonfirmasi ulang">
+							<i class="fas fa-paper-plane mr-1"></i>Simpan & Kirim ke Walas
+						</button>
 						<button type="button" class="btn btn-success font-weight-bold px-3" id="btnFinalizeGrading">
-							<i class="fas fa-check-circle mr-1"></i>Finalisasi Nilai
+							<i class="fas fa-check-circle mr-1"></i><span id="btnFinalizeLabel">Finalisasi Nilai</span>
 						</button>
 					</div>
 				</div>
@@ -788,6 +792,13 @@
 		let allExams = [];
 		let activeAcademicYearId = null;
 		let currentSelectedAttempt = null;
+		// Crosscheck: guru mapel periksa dulu -> Wali Kelas konfirmasi & finalisasi
+		let isGuruUser = false;
+		let isWalasUser = false;
+		let walasClassIds = [];
+		let classesWithWalasIds = new Set(); // kelas yang punya walas di tahun ajaran aktif
+		let walasDataLoaded = false;
+		let crosscheckAvailable = true; // otomatis false jika kolom SQL belum dijalankan
 		let currentAttemptQuestions = [];
 		let currentAttemptStudentAnswers = new Map();
 		let currentAttemptKunciPg = new Map();
@@ -976,7 +987,7 @@
 				}
 
 				// 2. Ambil seluruh percobaan_ujian
-				const { data: attempts, error } = await client
+				const fetchAttempts = (withCols) => client
 					.from("percobaan_ujian")
 					.select(`
 						id,
@@ -990,6 +1001,7 @@
 						nilai_total,
 						created_at,
 						updated_at,
+						${withCols ? "diperiksa_guru_oleh, diperiksa_guru_at, dikonfirmasi_oleh, dikonfirmasi_at," : ""}
 						data_siswa (
 							id,
 							nis,
@@ -1010,6 +1022,12 @@
 					`)
 					.order("id", { ascending: false });
 
+				let { data: attempts, error } = await fetchAttempts(crosscheckAvailable);
+				if (error && /diperiksa_guru|dikonfirmasi/.test(error.message || "")) {
+					// Kolom crosscheck belum ada di database (SQL belum dijalankan): jalan seperti sebelumnya
+					crosscheckAvailable = false;
+					({ data: attempts, error } = await fetchAttempts(false));
+				}
 				if (error) throw error;
 
 				allSubmissions = (attempts || []).map(att => {
@@ -1067,7 +1085,7 @@
 				if (filterClassVal && String(item.classId) !== filterClassVal) return false;
 				if (filterSubjectVal && String(item.subjectId) !== filterSubjectVal) return false;
 				if (filterExamVal && String(item.ujian_id) !== filterExamVal) return false;
-				if (filterStatusVal && item.status !== filterStatusVal) return false;
+				if (filterStatusVal && getStatusKey(item) !== filterStatusVal) return false;
 				if (searchKeyword) {
 					const matchName = item.studentName.toLowerCase().includes(searchKeyword);
 					const matchNis = item.studentNis.toLowerCase().includes(searchKeyword);
@@ -1115,7 +1133,7 @@
 		   Urutan ini juga dipakai oleh Cetak Rekap Nilai & Export Excel (sesuai tampilan tabel).
 		   ========================================================================== */
 		let submissionSort = { key: "no", dir: "asc" };
-		const SUBMISSION_STATUS_RANK = { dikumpulkan: 0, dinilai: 1 };
+		const SUBMISSION_STATUS_RANK = { dikumpulkan: 0, menunggu_walas: 1, dinilai: 2 };
 		const submissionCollator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
 
 		function getSubmissionSortValue(item, key) {
@@ -1125,7 +1143,7 @@
 				case "kelas": return item.className || "";
 				case "ujian": return `${item.examName || ""} ${item.subjectName || ""}`;
 				case "waktu": return new Date(item.dikumpulkan_at || item.mulai_at).getTime() || 0;
-				case "status": return SUBMISSION_STATUS_RANK[item.status] ?? 2;
+				case "status": return SUBMISSION_STATUS_RANK[getStatusKey(item)] ?? 3;
 				default: return "";
 			}
 		}
@@ -1186,6 +1204,8 @@
 				let statusBadge = '';
 				if (item.status === 'dinilai') {
 					statusBadge = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai</span>';
+				} else if (getStatusKey(item) === 'menunggu_walas') {
+					statusBadge = '<span class="badge badge-primary badge-status" title="Sudah diperiksa guru mapel, menunggu konfirmasi Wali Kelas"><i class="fas fa-user-clock mr-1"></i>Menunggu Walas</span>';
 				} else if (item.status === 'dikumpulkan') {
 					statusBadge = '<span class="badge badge-warning text-dark badge-status"><i class="fas fa-clock mr-1"></i>Perlu Dinilai</span>';
 				} else {
@@ -1243,9 +1263,14 @@
 									<a class="dropdown-item ${item.studentNoWa ? 'text-success font-weight-bold' : 'text-gray-700'}" href="#" data-action="whatsapp" data-attempt-id="${item.id}">
 										<i class="fab fa-whatsapp mr-2 text-success"></i>Kirim Nilai via WhatsApp ${item.studentNoWa ? '' : '<span class="badge badge-light border ml-1">Input Manual</span>'}
 									</a>
-									${item.status === 'dinilai' ? `
+									${item.status === 'dinilai' && canFinalizeAttempt(item) ? `
 										<a class="dropdown-item" href="#" data-action="reopen" data-attempt-id="${item.id}">
 											<i class="fas fa-undo-alt mr-2 text-warning"></i>Buka Kembali Nilai
+										</a>
+									` : ''}
+									${getStatusKey(item) === 'menunggu_walas' && canFinalizeAttempt(item) ? `
+										<a class="dropdown-item" href="#" data-action="return" data-attempt-id="${item.id}">
+											<i class="fas fa-reply mr-2 text-warning"></i>Kembalikan ke Guru Mapel
 										</a>
 									` : ''}
 									<div class="dropdown-divider"></div>
@@ -1294,11 +1319,15 @@
 			const statusContainer = document.getElementById("reviewStatusBadgeContainer");
 			if (attempt.status === 'dinilai') {
 				statusContainer.innerHTML = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai (Final)</span>';
+			} else if (getStatusKey(attempt) === 'menunggu_walas') {
+				statusContainer.innerHTML = '<span class="badge badge-primary badge-status"><i class="fas fa-user-clock mr-1"></i>Sudah Diperiksa Guru - Menunggu Konfirmasi Walas</span>';
 			} else if (attempt.status === 'dikumpulkan') {
 				statusContainer.innerHTML = '<span class="badge badge-warning text-dark badge-status"><i class="fas fa-clock mr-1"></i>Menunggu Finalisasi Nilai</span>';
 			} else {
 				statusContainer.innerHTML = '<span class="badge badge-info badge-status"><i class="fas fa-spinner fa-spin mr-1"></i>Sedang Berlangsung</span>';
 			}
+
+			updateReviewActionButtons(attempt);
 
 			const questionsContainer = document.getElementById("reviewQuestionsList");
 			questionsContainer.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-2 d-block text-primary"></i>Mengambil butir soal, kunci, dan jawaban siswa...</div>';
@@ -1694,8 +1723,16 @@
 		});
 
 
-		async function saveGrading(finalize = false) {
+		async function saveGrading(mode = false) {
+			if (mode === true) mode = 'final';
+			if (mode === false) mode = 'draft';
+			const finalize = mode === 'final';
+			const sendToWalas = mode === 'send';
 			if (!currentSelectedAttempt) return;
+			if (finalize && !canFinalizeAttempt(currentSelectedAttempt)) {
+				showModalMessage("Finalisasi nilai hanya dapat dilakukan oleh Wali Kelas siswa ini atau Admin. Gunakan tombol 'Simpan & Kirim ke Walas'.", "danger");
+				return;
+			}
 			const attemptId = currentSelectedAttempt.id;
 			const finalScoreVal = parseFloat(document.getElementById("inputFinalScore").value);
 
@@ -1706,8 +1743,10 @@
 
 			const saveDraftBtn = document.getElementById("btnSaveDraftGrading");
 			const finalizeBtn = document.getElementById("btnFinalizeGrading");
+			const sendBtn = document.getElementById("btnSendToWalas");
 			saveDraftBtn.disabled = true;
 			finalizeBtn.disabled = true;
+			if (sendBtn) sendBtn.disabled = true;
 
 			try {
 				const client = getSupabaseClient();
@@ -1777,6 +1816,14 @@
 
 				if (finalize) {
 					updatePayload.status = 'dinilai';
+					if (crosscheckAvailable) {
+						updatePayload.dikonfirmasi_oleh = currentUserId;
+						updatePayload.dikonfirmasi_at = nowIso;
+					}
+				}
+				if (sendToWalas && crosscheckAvailable) {
+					updatePayload.diperiksa_guru_oleh = currentUserId;
+					updatePayload.diperiksa_guru_at = nowIso;
 				}
 
 				const { error: updError } = await client
@@ -1789,7 +1836,7 @@
 				showModalMessage(
 					finalize 
 						? "Nilai siswa berhasil difinalisasi! Status telah diubah menjadi 'Sudah Dinilai'." 
-						: "Draf penilaian berhasil disimpan.",
+						: (sendToWalas ? "Hasil pemeriksaan disimpan dan dikirim ke Wali Kelas untuk dikonfirmasi." : "Draf penilaian berhasil disimpan."),
 					"success"
 				);
 
@@ -1797,11 +1844,16 @@
 				currentSelectedAttempt.status = finalize ? 'dinilai' : currentSelectedAttempt.status;
 				currentSelectedAttempt.nilai_total = updatePayload.nilai_total;
 				currentSelectedAttempt.nilai_pilihan_ganda = updatePayload.nilai_pilihan_ganda;
+				if (updatePayload.diperiksa_guru_at) { currentSelectedAttempt.diperiksa_guru_oleh = updatePayload.diperiksa_guru_oleh; currentSelectedAttempt.diperiksa_guru_at = updatePayload.diperiksa_guru_at; }
+				if (updatePayload.dikonfirmasi_at) { currentSelectedAttempt.dikonfirmasi_oleh = updatePayload.dikonfirmasi_oleh; currentSelectedAttempt.dikonfirmasi_at = updatePayload.dikonfirmasi_at; }
 
 				const statusContainer = document.getElementById("reviewStatusBadgeContainer");
 				if (finalize) {
 					statusContainer.innerHTML = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai (Final)</span>';
+				} else if (sendToWalas && crosscheckAvailable) {
+					statusContainer.innerHTML = '<span class="badge badge-primary badge-status"><i class="fas fa-user-clock mr-1"></i>Sudah Diperiksa Guru - Menunggu Konfirmasi Walas</span>';
 				}
+				updateReviewActionButtons(currentSelectedAttempt);
 
 				// Refresh data induk di background
 				await loadAllSubmissions();
@@ -1811,6 +1863,7 @@
 			} finally {
 				saveDraftBtn.disabled = false;
 				finalizeBtn.disabled = false;
+				if (sendBtn) sendBtn.disabled = false;
 			}
 		}
 
@@ -1837,11 +1890,96 @@
 			}
 		}
 
+		/* ==========================================================================
+		   CROSSCHECK: Guru Mapel periksa -> Wali Kelas konfirmasi & finalisasi
+		   - Guru mapel: "Simpan & Kirim ke Walas" (status tetap 'dikumpulkan', diperiksa_guru_at terisi)
+		   - Walas kelas siswa / Admin: "Konfirmasi & Finalisasi" (status -> 'dinilai')
+		   ========================================================================== */
+		async function detectWalasAccess() {
+			isGuruUser = window.currentUserRole === "guru";
+			isWalasUser = false;
+			walasClassIds = [];
+			if (!isGuruUser) return;
+			const userId = window.currentUser?.id;
+			const userNip = window.currentUserProfile?.nip;
+			if (!userId && !userNip) return;
+			try {
+				const client = getSupabaseClient();
+				const orFilter = [userId ? `user_id.eq.${userId}` : null, userNip ? `nip.eq.${userNip}` : null].filter(Boolean).join(",");
+				const { data: gData, error: gErr } = await client.from("data_guru").select("id").or(orFilter).maybeSingle();
+				if (gErr) throw gErr;
+				if (!gData) return;
+				const yearId = await getActiveAcademicYearId().catch(() => null);
+				let waliQ = client.from("wali_kelas").select("guru_id, kelas_id, kelas_tahun_ajaran_id");
+				if (yearId) waliQ = waliQ.eq("tahun_ajaran_id", yearId);
+				const { data: waliList, error: wErr } = await waliQ;
+				if (wErr) throw wErr;
+				const waliKey = w => String(w.kelas_tahun_ajaran_id || w.kelas_id);
+				classesWithWalasIds = new Set((waliList || []).map(waliKey));
+				walasClassIds = (waliList || []).filter(w => String(w.guru_id) === String(gData.id)).map(waliKey);
+				isWalasUser = walasClassIds.length > 0;
+				walasDataLoaded = true;
+			} catch (err) {
+				console.warn("Gagal mendeteksi status walas:", err);
+			}
+		}
+
+		// Status turunan: 'dikumpulkan' + sudah diperiksa guru => 'menunggu_walas'
+		function getStatusKey(item) {
+			if (item.status === 'dikumpulkan' && crosscheckAvailable && item.diperiksa_guru_at) return 'menunggu_walas';
+			return item.status;
+		}
+
+		// Admin & Walas kelas siswa boleh finalisasi. Guru mapel biasa hanya boleh kirim ke walas.
+		function canFinalizeAttempt(item) {
+			if (!crosscheckAvailable) return true;
+			if (!isGuruUser) return true;
+			const cid = item.classId ? String(item.classId) : "";
+			if (cid && walasClassIds.includes(cid)) return true;
+			// Kelas tanpa walas: guru mapel boleh memfinalisasi sendiri (tidak ada yang bisa mengonfirmasi)
+			if (walasDataLoaded && (!cid || !classesWithWalasIds.has(cid))) return true;
+			return false;
+		}
+
+		function updateReviewActionButtons(attempt) {
+			if (!attempt) return;
+			const btnDraft = document.getElementById("btnSaveDraftGrading");
+			const btnSend = document.getElementById("btnSendToWalas");
+			const btnFinal = document.getElementById("btnFinalizeGrading");
+			const label = document.getElementById("btnFinalizeLabel");
+			const allowFinal = canFinalizeAttempt(attempt);
+			const isFinal = attempt.status === 'dinilai';
+			if (btnSend) btnSend.classList.toggle("d-none", !(crosscheckAvailable && !allowFinal && !isFinal));
+			if (btnFinal) btnFinal.classList.toggle("d-none", !allowFinal);
+			if (btnDraft) btnDraft.classList.toggle("d-none", !allowFinal && isFinal);
+			if (label) label.textContent = getStatusKey(attempt) === 'menunggu_walas' ? "Konfirmasi & Finalisasi" : "Finalisasi Nilai";
+		}
+
+		async function returnAttemptToTeacher(attemptId) {
+			const attempt = allSubmissions.find(s => String(s.id) === String(attemptId));
+			if (!attempt) return;
+			if (!canFinalizeAttempt(attempt)) { alert("Hanya Wali Kelas atau Admin yang dapat mengembalikan ke guru mapel."); return; }
+			if (!window.confirm("Kembalikan hasil pemeriksaan ini ke guru mapel? Status akan kembali menjadi 'Perlu Dinilai'.")) return;
+			try {
+				const client = getSupabaseClient();
+				const { error } = await client.from("percobaan_ujian").update({ diperiksa_guru_oleh: null, diperiksa_guru_at: null, updated_at: new Date().toISOString() }).eq("id", attemptId);
+				if (error) throw error;
+				showMessage("Pemeriksaan dikembalikan ke guru mapel.");
+				await loadAllSubmissions();
+			} catch (err) {
+				alert(`Gagal mengembalikan ke guru mapel: ${err.message}`);
+			}
+		}
+
 		async function reopenAttemptGrading(attemptId) {
+			const reopenTarget = allSubmissions.find(s => String(s.id) === String(attemptId));
+			if (reopenTarget && !canFinalizeAttempt(reopenTarget)) { alert("Hanya Wali Kelas atau Admin yang dapat membuka kembali nilai yang sudah final."); return; }
 			if (!window.confirm("Buka kembali status penilaian siswa ini ke status 'Dikumpulkan' untuk merevisi nilai?")) return;
 			try {
 				const client = getSupabaseClient();
-				const { error } = await client.from("percobaan_ujian").update({ status: 'dikumpulkan', updated_at: new Date().toISOString() }).eq("id", attemptId);
+				const reopenPayload = { status: 'dikumpulkan', updated_at: new Date().toISOString() };
+				if (crosscheckAvailable) { reopenPayload.dikonfirmasi_oleh = null; reopenPayload.dikonfirmasi_at = null; }
+				const { error } = await client.from("percobaan_ujian").update(reopenPayload).eq("id", attemptId);
 				if (error) throw error;
 				showMessage("Status penilaian dibuka kembali. Anda dapat mengedit nilai siswa.");
 				await loadAllSubmissions();
@@ -2024,6 +2162,7 @@
 					
 					let statusDisplay = "Sedang Berlangsung";
 					if (s.status === 'dinilai') statusDisplay = "Sudah Dinilai";
+					else if (getStatusKey(s) === 'menunggu_walas') statusDisplay = "Menunggu Konfirmasi Walas";
 					else if (s.status === 'dikumpulkan') statusDisplay = "Perlu Dinilai";
 
 					return `
@@ -3162,6 +3301,7 @@
 			items.forEach((s, idx) => {
 				let statusDisplay = "Sedang Berlangsung";
 				if (s.status === 'dinilai') statusDisplay = "Sudah Dinilai";
+				else if (getStatusKey(s) === 'menunggu_walas') statusDisplay = "Menunggu Konfirmasi Walas";
 				else if (s.status === 'dikumpulkan') statusDisplay = "Perlu Dinilai";
 
 				const nilaiVal = (s.nilai_total !== null && s.nilai_total !== undefined)
@@ -3479,6 +3619,7 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 		document.addEventListener("DOMContentLoaded", async () => {
 			if (!await window.adminSessionReady) return;
 
+			await detectWalasAccess();
 			await loadClasses();
 			await loadSubjects();
 			await loadExams();
@@ -3523,6 +3664,7 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 				const attemptId = btn.dataset.attemptId;
 				if (action === "review") openReviewModal(attemptId);
 				if (action === "reopen") reopenAttemptGrading(attemptId);
+				if (action === "return") returnAttemptToTeacher(attemptId);
 				if (action === "reset") resetStudentAttempt(attemptId);
 				if (action === "whatsapp") openWhatsAppModal(attemptId);
 			});
@@ -3604,8 +3746,9 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 				}
 			});
 
-			document.getElementById("btnSaveDraftGrading").addEventListener("click", () => saveGrading(false));
-			document.getElementById("btnFinalizeGrading").addEventListener("click", () => saveGrading(true));
+			document.getElementById("btnSaveDraftGrading").addEventListener("click", () => saveGrading('draft'));
+			document.getElementById("btnFinalizeGrading").addEventListener("click", () => saveGrading('final'));
+			document.getElementById("btnSendToWalas")?.addEventListener("click", () => saveGrading('send'));
 
 			document.getElementById("btnResetStudentAttemptModal").addEventListener("click", () => {
 				if (currentSelectedAttempt) resetStudentAttempt(currentSelectedAttempt.id);
