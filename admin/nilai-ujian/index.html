@@ -2259,7 +2259,7 @@
 		   Beberapa bagian bisa dinyalakan lagi lewat PRINT_CONFIG (tampilkan...LembarJawaban).
 		   Hasil dicetak lewat dialog cetak browser -> pilih "Simpan sebagai PDF".
 		   ========================================================================== */
-		function generateStudentAnswerSheetHtml(attempt, questions = [], studentAnswersMap = new Map(), kunciPgMap = new Map(), acuanEssayMap = new Map(), mode = "butir", finalScoreOverride = null) {
+		function generateStudentAnswerSheetHtml(attempt, questions = [], studentAnswersMap = new Map(), kunciPgMap = new Map(), acuanEssayMap = new Map(), mode = "butir", finalScoreOverride = null, essayMarks = new Map()) {
 			const isRekap = mode === "rekap";
 			const font = PRINT_CONFIG.fontCetak || "Arial, 'Helvetica Neue', Helvetica, sans-serif";
 			const schoolName = PRINT_CONFIG.kop.namaSekolah ? PRINT_CONFIG.kop.namaSekolah.trim() : "";
@@ -2279,6 +2279,18 @@
 				? `<div><img src="${escapeHtml(optImg(q, k))}" alt="Pilihan ${k}" style="max-width: 160px; max-height: 90px; object-fit: contain; margin-top: 3px;"></div>`
 				: "";
 			const GREEN = "#d4edda", RED = "#f8d7da", GREY = "#e9ecef";
+            // Penanda benar/salah dari finalisasi guru (essay & jawaban singkat): true = hijau, false = merah
+            const markOf = (q, ans) => essayMarks.has(String(q.id))
+                ? essayMarks.get(String(q.id))
+                : (typeof ans?.essay_benar === "boolean" ? ans.essay_benar : null);
+            // keyMatch = null -> tanpa fallback (essay); true/false -> fallback pencocokan kunci (jawaban singkat)
+            const markBg = (q, ans, studentText, keyMatch) => {
+                const m = markOf(q, ans);
+                if (m === true) return GREEN;
+                if (m === false) return RED;
+                if (keyMatch === null) return "";
+                return !studentText ? GREY : (keyMatch ? GREEN : RED);
+            };
 
 			// --- Hitung ringkasan PG (dipakai kotak ringkasan jika diaktifkan) ---
 			let pgTotal = 0, pgCorrect = 0, pgWrong = 0, pgBlank = 0;
@@ -2358,7 +2370,7 @@
 					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
 					const refs = acuanEssayMap.get(String(q.id)) || [];
 					const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
-					const studentBg = !studentText ? GREY : (isCorrect ? GREEN : RED);
+					const studentBg = markBg(q, ans, studentText, isCorrect) || GREY;
 					const keyHtml = refs.length ? refs.map(escapeHtml).join("<br>") : "-";
 					return `<tr>
 						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
@@ -2375,7 +2387,7 @@
 					return `<tr>
 						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
 						<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
-						<td style="${td} white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
+						<td style="${td} background: ${markBg(q, ans, studentText, null) || "transparent"}; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
 					</tr>`;
 				}).join("");
 
@@ -2482,7 +2494,7 @@
 						const resultColor = !studentText ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
 						const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
 							? `<span style="color: ${resultColor};">${result}</span>` : "";
-						const studentBg = !studentText ? GREY : (isCorrect ? GREEN : RED);
+						const studentBg = markBg(q, ans, studentText, isCorrect) || GREY;
 						const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
 
 						return `
@@ -2514,7 +2526,7 @@
 							${qText}
 							${imagesHtml}
 							<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
-							<div style="${boxStyle}">${studentText ? escapeHtml(studentText) : "<i>Siswa tidak mengisi jawaban.</i>"}</div>
+							<div style="${boxStyle} background: ${markBg(q, ans, studentText, null) || "transparent"};">${studentText ? escapeHtml(studentText) : "<i>Siswa tidak mengisi jawaban.</i>"}</div>
 							${refHtml}
 						</div>`;
 				}).join("");
@@ -2585,7 +2597,8 @@
 				currentAttemptKunciPg,
 				currentAttemptAcuanEssay,
 				mode,
-				finalScore
+				finalScore,
+				currentAttemptEssayMarks
 			);
 
 			const printContainer = document.getElementById("printArea");
