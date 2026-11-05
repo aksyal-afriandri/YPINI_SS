@@ -1401,28 +1401,11 @@
 					if (a.essay_benar === true || a.essay_benar === false) currentAttemptEssayMarks.set(String(a.soal_id), a.essay_benar);
 				});
 
-				// 5. Informasi audit peninjau
-				let reviewerName = null;
-				let auditedAt = null;
+				// 5. Informasi audit: Penilai (guru mapel) & Finalisasi (walas/admin)
+				currentAuditFallback = null;
 				const sampleAnswer = (answers || []).find(a => a.ditinjau_oleh);
-				if (sampleAnswer && sampleAnswer.ditinjau_oleh) {
-					auditedAt = sampleAnswer.ditinjau_at;
-					const { data: reviewerProfile } = await client
-						.from("profiles")
-						.select("name, role")
-						.eq("user_id", sampleAnswer.ditinjau_oleh)
-						.maybeSingle();
-					if (reviewerProfile) {
-						reviewerName = `${reviewerProfile.name} (${reviewerProfile.role})`;
-					}
-				}
-
-				const lastAuditedEl = document.getElementById("reviewLastAuditedBy");
-				if (reviewerName) {
-					lastAuditedEl.innerHTML = `<span class="badge badge-light border text-gray-700"><i class="fas fa-user-edit mr-1"></i>Penilai: ${escapeHtml(reviewerName)} (${formatWibDate(auditedAt)})</span>`;
-				} else {
-					lastAuditedEl.textContent = "";
-				}
+				if (sampleAnswer) currentAuditFallback = { oleh: sampleAnswer.ditinjau_oleh, at: sampleAnswer.ditinjau_at };
+				await renderReviewAuditBadges(attempt);
 
 				// 6. Tampilkan pertanyaan, jawaban, dan hitung jawaban benar
 				renderReviewQuestions();
@@ -1854,6 +1837,8 @@
 					statusContainer.innerHTML = '<span class="badge badge-primary badge-status"><i class="fas fa-user-clock mr-1"></i>Sudah Diperiksa Guru - Menunggu Konfirmasi Walas</span>';
 				}
 				updateReviewActionButtons(currentSelectedAttempt);
+				currentAuditFallback = { oleh: currentUserId, at: nowIso };
+				await renderReviewAuditBadges(currentSelectedAttempt);
 
 				// Refresh data induk di background
 				await loadAllSubmissions();
@@ -1969,6 +1954,33 @@
 			} catch (err) {
 				alert(`Gagal mengembalikan ke guru mapel: ${err.message}`);
 			}
+		}
+
+		let currentAuditFallback = null;
+		// Badge kanan atas modal: Penilai (guru mapel yang memeriksa) + Finalisasi (walas/admin yang mengonfirmasi)
+		async function renderReviewAuditBadges(attempt) {
+			const el = document.getElementById("reviewLastAuditedBy");
+			if (!el || !attempt) return;
+			const penilaiId = attempt.diperiksa_guru_oleh || currentAuditFallback?.oleh || null;
+			const penilaiAt = attempt.diperiksa_guru_oleh ? attempt.diperiksa_guru_at : currentAuditFallback?.at;
+			const finalId = attempt.status === 'dinilai' ? (attempt.dikonfirmasi_oleh || null) : null;
+			const finalAt = finalId ? attempt.dikonfirmasi_at : null;
+			const ids = [...new Set([penilaiId, finalId].filter(Boolean))];
+			const names = new Map();
+			if (ids.length) {
+				try {
+					const { data: profs } = await getSupabaseClient().from("profiles").select("user_id, name, role").in("user_id", ids);
+					(profs || []).forEach(pr => names.set(String(pr.user_id), `${pr.name} (${pr.role})`));
+				} catch (err) { console.warn("Gagal memuat nama penilai:", err); }
+			}
+			const badge = (icon, label, id, at, cls) => {
+				const nm = names.get(String(id));
+				if (!nm) return "";
+				return `<span class="badge ${cls} border text-gray-700 mr-1 mb-1"><i class="fas ${icon} mr-1"></i>${label}: ${escapeHtml(nm)}${at ? ` (${formatWibDate(at)})` : ""}</span>`;
+			};
+			el.innerHTML =
+				(penilaiId ? badge("fa-user-edit", "Penilai", penilaiId, penilaiAt, "badge-light") : "") +
+				(finalId ? badge("fa-user-check", "Finalisasi", finalId, finalAt, "badge-light") : "");
 		}
 
 		async function reopenAttemptGrading(attemptId) {
