@@ -363,8 +363,7 @@
 									<label class="small font-weight-bold text-gray-700">Status Penilaian</label>
 									<select id="filterStatus" class="form-control form-control-sm">
 										<option value="">Semua Status</option>
-										<option value="dikumpulkan">Perlu Dinilai (Belum Diperiksa)</option>
-										<option value="menunggu_walas">Menunggu Konfirmasi Walas</option>
+										<option value="dikumpulkan">Perlu Dinilai</option>
 										<option value="dinilai">Sudah Dinilai / Final</option>
 										<option value="berlangsung">Sedang Berlangsung</option>
 									</select>
@@ -537,11 +536,8 @@
 						<button type="button" class="btn btn-outline-primary" id="btnSaveDraftGrading">
 							<i class="fas fa-save mr-1"></i>Simpan Draf Penilaian
 						</button>
-						<button type="button" class="btn btn-primary font-weight-bold px-3 d-none" id="btnSendToWalas" title="Simpan hasil pemeriksaan dan kirim ke Wali Kelas untuk dikonfirmasi ulang">
-							<i class="fas fa-paper-plane mr-1"></i>Simpan & Kirim ke Walas
-						</button>
 						<button type="button" class="btn btn-success font-weight-bold px-3" id="btnFinalizeGrading">
-							<i class="fas fa-check-circle mr-1"></i><span id="btnFinalizeLabel">Finalisasi Nilai</span>
+							<i class="fas fa-check-circle mr-1"></i>Finalisasi Nilai
 						</button>
 					</div>
 				</div>
@@ -789,19 +785,11 @@
 		let allExams = [];
 		let activeAcademicYearId = null;
 		let currentSelectedAttempt = null;
-		// Crosscheck: guru mapel periksa dulu -> Wali Kelas konfirmasi & finalisasi
-		let isGuruUser = false;
-		let isWalasUser = false;
-		let walasClassIds = [];
-		let classesWithWalasIds = new Set(); // kelas yang punya walas di tahun ajaran aktif
-		let walasDataLoaded = false;
-		let crosscheckAvailable = true; // otomatis false jika kolom SQL belum dijalankan
 		let currentAttemptQuestions = [];
 		let currentAttemptStudentAnswers = new Map();
 		let currentAttemptKunciPg = new Map();
 		let currentAttemptAcuanEssay = new Map();
 		let currentAttemptEssayMarks = new Map(); // soal_id -> true | false (diturunkan otomatis dari nilai manual, dipakai cetak PDF)
-		const ESSAY_MAX_POINTS = 5; // nilai maksimal essay & jawaban singkat
 		let currentAttemptEssayScores = new Map(); // soal_id -> nilai manual (angka) untuk essay & jawaban singkat
 
 		function showMessage(msg, type = "success") {
@@ -986,7 +974,7 @@
 				}
 
 				// 2. Ambil seluruh percobaan_ujian
-				const fetchAttempts = (withCols) => client
+				const fetchAttempts = () => client
 					.from("percobaan_ujian")
 					.select(`
 						id,
@@ -1000,7 +988,6 @@
 						nilai_total,
 						created_at,
 						updated_at,
-						${withCols ? "diperiksa_guru_oleh, diperiksa_guru_at, dikonfirmasi_oleh, dikonfirmasi_at," : ""}
 						data_siswa (
 							id,
 							nis,
@@ -1021,12 +1008,7 @@
 					`)
 					.order("id", { ascending: false });
 
-				let { data: attempts, error } = await fetchAttempts(crosscheckAvailable);
-				if (error && /diperiksa_guru|dikonfirmasi/.test(error.message || "")) {
-					// Kolom crosscheck belum ada di database (SQL belum dijalankan): jalan seperti sebelumnya
-					crosscheckAvailable = false;
-					({ data: attempts, error } = await fetchAttempts(false));
-				}
+				const { data: attempts, error } = await fetchAttempts();
 				if (error) throw error;
 
 				allSubmissions = (attempts || []).map(att => {
@@ -1084,7 +1066,7 @@
 				if (filterClassVal && String(item.classId) !== filterClassVal) return false;
 				if (filterSubjectVal && String(item.subjectId) !== filterSubjectVal) return false;
 				if (filterExamVal && String(item.ujian_id) !== filterExamVal) return false;
-				if (filterStatusVal && getStatusKey(item) !== filterStatusVal) return false;
+				if (filterStatusVal && item.status !== filterStatusVal) return false;
 				if (searchKeyword) {
 					const matchName = item.studentName.toLowerCase().includes(searchKeyword);
 					const matchNis = item.studentNis.toLowerCase().includes(searchKeyword);
@@ -1132,7 +1114,7 @@
 		   Urutan ini juga dipakai oleh Cetak Rekap Nilai & Export Excel (sesuai tampilan tabel).
 		   ========================================================================== */
 		let submissionSort = { key: "no", dir: "asc" };
-		const SUBMISSION_STATUS_RANK = { dikumpulkan: 0, menunggu_walas: 1, dinilai: 2 };
+		const SUBMISSION_STATUS_RANK = { dikumpulkan: 0, dinilai: 1 };
 		const submissionCollator = new Intl.Collator("id", { numeric: true, sensitivity: "base" });
 
 		function getSubmissionSortValue(item, key) {
@@ -1142,7 +1124,7 @@
 				case "kelas": return item.className || "";
 				case "ujian": return `${item.examName || ""} ${item.subjectName || ""}`;
 				case "waktu": return new Date(item.dikumpulkan_at || item.mulai_at).getTime() || 0;
-				case "status": return SUBMISSION_STATUS_RANK[getStatusKey(item)] ?? 3;
+				case "status": return SUBMISSION_STATUS_RANK[item.status] ?? 3;
 				default: return "";
 			}
 		}
@@ -1203,8 +1185,6 @@
 				let statusBadge = '';
 				if (item.status === 'dinilai') {
 					statusBadge = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai</span>';
-				} else if (getStatusKey(item) === 'menunggu_walas') {
-					statusBadge = '<span class="badge badge-primary badge-status" title="Sudah diperiksa guru mapel, menunggu konfirmasi Wali Kelas"><i class="fas fa-user-clock mr-1"></i>Menunggu Walas</span>';
 				} else if (item.status === 'dikumpulkan') {
 					statusBadge = '<span class="badge badge-warning text-dark badge-status"><i class="fas fa-clock mr-1"></i>Perlu Dinilai</span>';
 				} else {
@@ -1262,14 +1242,9 @@
 									<a class="dropdown-item ${item.studentNoWa ? 'text-success font-weight-bold' : 'text-gray-700'}" href="#" data-action="whatsapp" data-attempt-id="${item.id}">
 										<i class="fab fa-whatsapp mr-2 text-success"></i>Kirim Nilai via WhatsApp ${item.studentNoWa ? '' : '<span class="badge badge-light border ml-1">Input Manual</span>'}
 									</a>
-									${item.status === 'dinilai' && canFinalizeAttempt(item) ? `
+									${item.status === 'dinilai' ? `
 										<a class="dropdown-item" href="#" data-action="reopen" data-attempt-id="${item.id}">
 											<i class="fas fa-undo-alt mr-2 text-warning"></i>Buka Kembali Nilai
-										</a>
-									` : ''}
-									${getStatusKey(item) === 'menunggu_walas' && canFinalizeAttempt(item) ? `
-										<a class="dropdown-item" href="#" data-action="return" data-attempt-id="${item.id}">
-											<i class="fas fa-reply mr-2 text-warning"></i>Kembalikan ke Guru Mapel
 										</a>
 									` : ''}
 									<div class="dropdown-divider"></div>
@@ -1318,15 +1293,11 @@
 			const statusContainer = document.getElementById("reviewStatusBadgeContainer");
 			if (attempt.status === 'dinilai') {
 				statusContainer.innerHTML = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai (Final)</span>';
-			} else if (getStatusKey(attempt) === 'menunggu_walas') {
-				statusContainer.innerHTML = '<span class="badge badge-primary badge-status"><i class="fas fa-user-clock mr-1"></i>Sudah Diperiksa Guru - Menunggu Konfirmasi Walas</span>';
 			} else if (attempt.status === 'dikumpulkan') {
 				statusContainer.innerHTML = '<span class="badge badge-warning text-dark badge-status"><i class="fas fa-clock mr-1"></i>Menunggu Finalisasi Nilai</span>';
 			} else {
 				statusContainer.innerHTML = '<span class="badge badge-info badge-status"><i class="fas fa-spinner fa-spin mr-1"></i>Sedang Berlangsung</span>';
 			}
-
-			updateReviewActionButtons(attempt);
 
 			const questionsContainer = document.getElementById("reviewQuestionsList");
 			questionsContainer.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-2 d-block text-primary"></i>Mengambil butir soal, kunci, dan jawaban siswa...</div>';
@@ -1346,14 +1317,16 @@
 				currentAttemptQuestions = questions || [];
 				document.getElementById("reviewQuestionsCount").textContent = `${currentAttemptQuestions.length} Soal Ujian`;
 
-				// Poin maksimal tiap butir soal: PG = bobot_nilai (kosong = 1), essay & jawaban singkat = ESSAY_MAX_POINTS (5).
-				// Nilai akhir = total poin diperoleh / total poin maksimal x 100 (otomatis diskalakan ke 100).
+				// Bobot tiap butir soal: gunakan bobot_nilai manual jika diisi, atau hitung otomatis (100 / total_soal)
+				// Semisal 10 soal -> 10 poin per soal; 20 soal -> 5 poin per soal, dst.
+				const totalQCount = currentAttemptQuestions.length;
+				const autoWeight = totalQCount > 0 ? (100.0 / totalQCount) : 0;
 				currentAttemptQuestions.forEach(q => {
-					if (q.soal_type === 'pg') {
-						const bw = Number(q.bobot_nilai);
-						q.weight = (q.bobot_nilai !== null && q.bobot_nilai !== undefined && String(q.bobot_nilai).trim() !== "" && bw > 0) ? bw : 1;
+					const bw = Number(q.bobot_nilai);
+					if (q.bobot_nilai !== null && q.bobot_nilai !== undefined && String(q.bobot_nilai).trim() !== "" && bw > 0) {
+						q.weight = bw;
 					} else {
-						q.weight = ESSAY_MAX_POINTS;
+						q.weight = autoWeight;
 					}
 				});
 
@@ -1400,7 +1373,7 @@
 					if (!q || q.soal_type === 'pg') return;
 					const sid = String(a.soal_id);
 					if (a.nilai_final !== null && a.nilai_final !== undefined && a.nilai_final !== '') {
-						currentAttemptEssayScores.set(sid, Math.min(Number(a.nilai_final), Number(q.weight) || ESSAY_MAX_POINTS));
+						currentAttemptEssayScores.set(sid, Number(a.nilai_final));
 					} else if (a.essay_benar === true) {
 						currentAttemptEssayScores.set(sid, Number(q.weight) || 0); // data lama (ceklis benar)
 					} else if (a.essay_benar === false) {
@@ -1409,7 +1382,7 @@
 					if (currentAttemptEssayScores.has(sid)) currentAttemptEssayMarks.set(sid, currentAttemptEssayScores.get(sid) > 0);
 				});
 
-				// 5. Informasi audit: Penilai (guru mapel) & Finalisasi (walas/admin)
+				// 5. Informasi audit: Penilai terakhir
 				currentAuditFallback = null;
 				const sampleAnswer = (answers || []).find(a => a.ditinjau_oleh);
 				if (sampleAnswer) currentAuditFallback = { oleh: sampleAnswer.ditinjau_oleh, at: sampleAnswer.ditinjau_at };
@@ -1550,12 +1523,12 @@
 								<div>
 									<span class="font-weight-bold text-gray-800 mr-2">Soal No. ${qNum}</span>
 									<span class="badge ${isSingkat ? 'badge-info text-white' : 'badge-warning text-dark'}">${isSingkat ? 'Jawaban Singkat' : 'Essay / Uraian'}</span>
-									<span class="badge badge-light border text-primary ml-1 font-weight-bold" title="Bobot butir soal"> + ${weightFormatted}</span>
+									<span class="badge badge-light border text-primary ml-1 font-weight-bold" title="Bobot acuan butir soal"> + ${weightFormatted}</span>
 								</div>
 								<div class="d-flex align-items-center essay-score-group" data-soal-id="${q.id}">
 									<label class="small font-weight-bold text-gray-700 mb-0 mr-2" for="essayScore-${q.id}">Nilai:</label>
-									<input type="number" id="essayScore-${q.id}" class="form-control form-control-sm text-center font-weight-bold essay-score-input" style="width: 90px;" min="0" max="${q.weight}" step="0.5" data-soal-id="${q.id}" data-max="${q.weight}" value="${scoreVal}" placeholder="0">
-									<span class="small text-muted ml-2">/ ${weightFormatted}</span>
+									<input type="number" id="essayScore-${q.id}" class="form-control form-control-sm text-center font-weight-bold essay-score-input" style="width: 90px;" min="0" step="any" data-soal-id="${q.id}" data-weight="${q.weight}" value="${scoreVal}" placeholder="0">
+									<span class="small text-muted ml-2">poin</span>
 								</div>
 							</div>
 							<div class="card-body py-3">
@@ -1597,7 +1570,7 @@
 			updateCorrectSummary();
 		}
 
-		// Kalkulasi skor kumulatif terkini (PG + Essay yang telah diperiksa)
+		// Kalkulasi skor kumulatif terkini (PG otomatis + Essay & Jawaban Singkat manual input)
 		function calculateCurrentScores() {
 			let pgScore = 0;
 			let pgCorrect = 0;
@@ -1607,7 +1580,6 @@
 			let essayGraded = 0;
 			let essayTotal = 0;
 			let otherTotal = 0;
-			let maxPoints = 0;
 
 			currentAttemptQuestions.forEach(q => {
 				const key = String(q.id);
@@ -1620,30 +1592,26 @@
 						pgCorrect++;
 						pgScore += w;
 					}
-					maxPoints += w;
 				} else if (q.soal_type === 'essay' || q.soal_type === 'jawaban_singkat') {
 					essayTotal++;
-					maxPoints += w;
 					const ans = currentAttemptStudentAnswers.get(key);
 					if (ans?.jawaban_essay && String(ans.jawaban_essay).trim() !== '') essayAnswered++;
 					if (currentAttemptEssayScores.has(key)) {
 						essayGraded++;
-						essayScore += Math.min(Number(currentAttemptEssayScores.get(key)) || 0, w);
+						essayScore += Number(currentAttemptEssayScores.get(key)) || 0;
 					}
 				} else {
 					otherTotal++;
 				}
 			});
 
-			// Skalakan ke 100: poin diperoleh / poin maksimal x 100
-			const scale = maxPoints > 0 ? (100 / maxPoints) : 0;
-			const roundedPg = Math.round(pgScore * scale * 100) / 100;
-			const roundedEssay = Math.round(essayScore * scale * 100) / 100;
-			const totalScore = Math.min(100, Math.round((pgScore + essayScore) * scale * 100) / 100);
+			const roundedPg = Math.round(pgScore * 100) / 100;
+			const roundedEssay = Math.round(essayScore * 100) / 100;
+			// Akumulasi otomatis nilai PG + nilai manual input essay (dibatasi 0 - 100)
+			const totalScore = Math.min(100, Math.max(0, Math.round((roundedPg + roundedEssay) * 100) / 100));
 
 			return {
 				pgScore: roundedPg,
-				maxPoints,
 				pgCorrect,
 				pgTotal,
 				essayScore: roundedEssay,
@@ -1697,10 +1665,8 @@
 			const inp = e.target.closest(".essay-score-input");
 			if (!inp) return;
 			const soalId = String(inp.dataset.soalId);
-			const max = Number(inp.dataset.max) || 0;
 			let v = inp.value === "" ? null : parseFloat(inp.value);
 			if (v !== null && (isNaN(v) || v < 0)) v = 0;
-			if (v !== null && v > max) { v = max; inp.value = String(max); }
 			if (v === null) { currentAttemptEssayScores.delete(soalId); currentAttemptEssayMarks.delete(soalId); }
 			else { currentAttemptEssayScores.set(soalId, v); currentAttemptEssayMarks.set(soalId, v > 0); }
 
@@ -1721,12 +1687,7 @@
 			if (mode === true) mode = 'final';
 			if (mode === false) mode = 'draft';
 			const finalize = mode === 'final';
-			const sendToWalas = mode === 'send';
 			if (!currentSelectedAttempt) return;
-			if (finalize && !canFinalizeAttempt(currentSelectedAttempt)) {
-				showModalMessage("Finalisasi nilai hanya dapat dilakukan oleh Wali Kelas siswa ini atau Admin. Gunakan tombol 'Simpan & Kirim ke Walas'.", "danger");
-				return;
-			}
 			const attemptId = currentSelectedAttempt.id;
 			const finalScoreVal = parseFloat(document.getElementById("inputFinalScore").value);
 
@@ -1737,10 +1698,8 @@
 
 			const saveDraftBtn = document.getElementById("btnSaveDraftGrading");
 			const finalizeBtn = document.getElementById("btnFinalizeGrading");
-			const sendBtn = document.getElementById("btnSendToWalas");
 			saveDraftBtn.disabled = true;
 			finalizeBtn.disabled = true;
-			if (sendBtn) sendBtn.disabled = true;
 
 			try {
 				const client = getSupabaseClient();
@@ -1757,7 +1716,7 @@
 
 					const existing = currentAttemptStudentAnswers.get(String(soalId));
 					const hasManual = currentAttemptEssayScores.has(String(soalId));
-					const itemFinalScore = hasManual ? Math.min(parseFloat(Number(currentAttemptEssayScores.get(String(soalId))).toFixed(2)), qWeight) : null;
+					const itemFinalScore = hasManual ? parseFloat(Number(currentAttemptEssayScores.get(String(soalId))).toFixed(2)) : null;
 					const markVal = itemFinalScore === null ? null : itemFinalScore > 0;
 
 					const essayAnsPayload = {
@@ -1811,14 +1770,6 @@
 
 				if (finalize) {
 					updatePayload.status = 'dinilai';
-					if (crosscheckAvailable) {
-						updatePayload.dikonfirmasi_oleh = currentUserId;
-						updatePayload.dikonfirmasi_at = nowIso;
-					}
-				}
-				if (sendToWalas && crosscheckAvailable) {
-					updatePayload.diperiksa_guru_oleh = currentUserId;
-					updatePayload.diperiksa_guru_at = nowIso;
 				}
 
 				const { error: updError } = await client
@@ -1831,7 +1782,7 @@
 				showModalMessage(
 					finalize 
 						? "Nilai siswa berhasil difinalisasi! Status telah diubah menjadi 'Sudah Dinilai'." 
-						: (sendToWalas ? "Hasil pemeriksaan disimpan dan dikirim ke Wali Kelas untuk dikonfirmasi." : "Draf penilaian berhasil disimpan."),
+						: "Draf penilaian berhasil disimpan.",
 					"success"
 				);
 
@@ -1839,16 +1790,11 @@
 				currentSelectedAttempt.status = finalize ? 'dinilai' : currentSelectedAttempt.status;
 				currentSelectedAttempt.nilai_total = updatePayload.nilai_total;
 				currentSelectedAttempt.nilai_pilihan_ganda = updatePayload.nilai_pilihan_ganda;
-				if (updatePayload.diperiksa_guru_at) { currentSelectedAttempt.diperiksa_guru_oleh = updatePayload.diperiksa_guru_oleh; currentSelectedAttempt.diperiksa_guru_at = updatePayload.diperiksa_guru_at; }
-				if (updatePayload.dikonfirmasi_at) { currentSelectedAttempt.dikonfirmasi_oleh = updatePayload.dikonfirmasi_oleh; currentSelectedAttempt.dikonfirmasi_at = updatePayload.dikonfirmasi_at; }
 
 				const statusContainer = document.getElementById("reviewStatusBadgeContainer");
 				if (finalize) {
 					statusContainer.innerHTML = '<span class="badge badge-success badge-status"><i class="fas fa-check-circle mr-1"></i>Sudah Dinilai (Final)</span>';
-				} else if (sendToWalas && crosscheckAvailable) {
-					statusContainer.innerHTML = '<span class="badge badge-primary badge-status"><i class="fas fa-user-clock mr-1"></i>Sudah Diperiksa Guru - Menunggu Konfirmasi Walas</span>';
 				}
-				updateReviewActionButtons(currentSelectedAttempt);
 				currentAuditFallback = { oleh: currentUserId, at: nowIso };
 				await renderReviewAuditBadges(currentSelectedAttempt);
 
@@ -1887,97 +1833,14 @@
 			}
 		}
 
-		/* ==========================================================================
-		   CROSSCHECK: Guru Mapel periksa -> Wali Kelas konfirmasi & finalisasi
-		   - Guru mapel: "Simpan & Kirim ke Walas" (status tetap 'dikumpulkan', diperiksa_guru_at terisi)
-		   - Walas kelas siswa / Admin: "Konfirmasi & Finalisasi" (status -> 'dinilai')
-		   ========================================================================== */
-		async function detectWalasAccess() {
-			isGuruUser = window.currentUserRole === "guru";
-			isWalasUser = false;
-			walasClassIds = [];
-			if (!isGuruUser) return;
-			const userId = window.currentUser?.id;
-			const userNip = window.currentUserProfile?.nip;
-			if (!userId && !userNip) return;
-			try {
-				const client = getSupabaseClient();
-				const orFilter = [userId ? `user_id.eq.${userId}` : null, userNip ? `nip.eq.${userNip}` : null].filter(Boolean).join(",");
-				const { data: gData, error: gErr } = await client.from("data_guru").select("id").or(orFilter).maybeSingle();
-				if (gErr) throw gErr;
-				if (!gData) return;
-				const yearId = await getActiveAcademicYearId().catch(() => null);
-				let waliQ = client.from("wali_kelas").select("guru_id, kelas_id, kelas_tahun_ajaran_id");
-				if (yearId) waliQ = waliQ.eq("tahun_ajaran_id", yearId);
-				const { data: waliList, error: wErr } = await waliQ;
-				if (wErr) throw wErr;
-				const waliKey = w => String(w.kelas_tahun_ajaran_id || w.kelas_id);
-				classesWithWalasIds = new Set((waliList || []).map(waliKey));
-				walasClassIds = (waliList || []).filter(w => String(w.guru_id) === String(gData.id)).map(waliKey);
-				isWalasUser = walasClassIds.length > 0;
-				walasDataLoaded = true;
-			} catch (err) {
-				console.warn("Gagal mendeteksi status walas:", err);
-			}
-		}
-
-		// Status turunan: 'dikumpulkan' + sudah diperiksa guru => 'menunggu_walas'
-		function getStatusKey(item) {
-			if (item.status === 'dikumpulkan' && crosscheckAvailable && item.diperiksa_guru_at) return 'menunggu_walas';
-			return item.status;
-		}
-
-		// Admin & Walas kelas siswa boleh finalisasi. Guru mapel biasa hanya boleh kirim ke walas.
-		function canFinalizeAttempt(item) {
-			if (!crosscheckAvailable) return true;
-			if (!isGuruUser) return true;
-			const cid = item.classId ? String(item.classId) : "";
-			if (cid && walasClassIds.includes(cid)) return true;
-			// Kelas tanpa walas: guru mapel boleh memfinalisasi sendiri (tidak ada yang bisa mengonfirmasi)
-			if (walasDataLoaded && (!cid || !classesWithWalasIds.has(cid))) return true;
-			return false;
-		}
-
-		function updateReviewActionButtons(attempt) {
-			if (!attempt) return;
-			const btnDraft = document.getElementById("btnSaveDraftGrading");
-			const btnSend = document.getElementById("btnSendToWalas");
-			const btnFinal = document.getElementById("btnFinalizeGrading");
-			const label = document.getElementById("btnFinalizeLabel");
-			const allowFinal = canFinalizeAttempt(attempt);
-			const isFinal = attempt.status === 'dinilai';
-			if (btnSend) btnSend.classList.toggle("d-none", !(crosscheckAvailable && !allowFinal && !isFinal));
-			if (btnFinal) btnFinal.classList.toggle("d-none", !allowFinal);
-			if (btnDraft) btnDraft.classList.toggle("d-none", !allowFinal && isFinal);
-			if (label) label.textContent = getStatusKey(attempt) === 'menunggu_walas' ? "Konfirmasi & Finalisasi" : "Finalisasi Nilai";
-		}
-
-		async function returnAttemptToTeacher(attemptId) {
-			const attempt = allSubmissions.find(s => String(s.id) === String(attemptId));
-			if (!attempt) return;
-			if (!canFinalizeAttempt(attempt)) { alert("Hanya Wali Kelas atau Admin yang dapat mengembalikan ke guru mapel."); return; }
-			if (!window.confirm("Kembalikan hasil pemeriksaan ini ke guru mapel? Status akan kembali menjadi 'Perlu Dinilai'.")) return;
-			try {
-				const client = getSupabaseClient();
-				const { error } = await client.from("percobaan_ujian").update({ diperiksa_guru_oleh: null, diperiksa_guru_at: null, updated_at: new Date().toISOString() }).eq("id", attemptId);
-				if (error) throw error;
-				showMessage("Pemeriksaan dikembalikan ke guru mapel.");
-				await loadAllSubmissions();
-			} catch (err) {
-				alert(`Gagal mengembalikan ke guru mapel: ${err.message}`);
-			}
-		}
-
 		let currentAuditFallback = null;
-		// Badge kanan atas modal: Penilai (guru mapel yang memeriksa) + Finalisasi (walas/admin yang mengonfirmasi)
+		// Badge kanan atas modal: Penilai (yang terakhir meninjau jawaban)
 		async function renderReviewAuditBadges(attempt) {
 			const el = document.getElementById("reviewLastAuditedBy");
 			if (!el || !attempt) return;
-			const penilaiId = attempt.diperiksa_guru_oleh || currentAuditFallback?.oleh || null;
-			const penilaiAt = attempt.diperiksa_guru_oleh ? attempt.diperiksa_guru_at : currentAuditFallback?.at;
-			const finalId = attempt.status === 'dinilai' ? (attempt.dikonfirmasi_oleh || null) : null;
-			const finalAt = finalId ? attempt.dikonfirmasi_at : null;
-			const ids = [...new Set([penilaiId, finalId].filter(Boolean))];
+			const penilaiId = currentAuditFallback?.oleh || null;
+			const penilaiAt = currentAuditFallback?.at || null;
+			const ids = [...new Set([penilaiId].filter(Boolean))];
 			const names = new Map();
 			if (ids.length) {
 				try {
@@ -1991,19 +1854,14 @@
 				return `<span class="badge ${cls} border text-gray-700 mr-1 mb-1"><i class="fas ${icon} mr-1"></i>${label}: ${escapeHtml(nm)}${at ? ` (${formatWibDate(at)})` : ""}</span>`;
 			};
 			el.innerHTML =
-				(penilaiId ? badge("fa-user-edit", "Penilai", penilaiId, penilaiAt, "badge-light") : "") +
-				(finalId ? badge("fa-user-check", "Finalisasi", finalId, finalAt, "badge-light") : "");
+				(penilaiId ? badge("fa-user-edit", "Penilai", penilaiId, penilaiAt, "badge-light") : "");
 		}
 
 		async function reopenAttemptGrading(attemptId) {
-			const reopenTarget = allSubmissions.find(s => String(s.id) === String(attemptId));
-			if (reopenTarget && !canFinalizeAttempt(reopenTarget)) { alert("Hanya Wali Kelas atau Admin yang dapat membuka kembali nilai yang sudah final."); return; }
 			if (!window.confirm("Buka kembali status penilaian siswa ini ke status 'Dikumpulkan' untuk merevisi nilai?")) return;
 			try {
 				const client = getSupabaseClient();
-				const reopenPayload = { status: 'dikumpulkan', updated_at: new Date().toISOString() };
-				if (crosscheckAvailable) { reopenPayload.dikonfirmasi_oleh = null; reopenPayload.dikonfirmasi_at = null; }
-				const { error } = await client.from("percobaan_ujian").update(reopenPayload).eq("id", attemptId);
+				const { error } = await client.from("percobaan_ujian").update({ status: 'dikumpulkan', updated_at: new Date().toISOString() }).eq("id", attemptId);
 				if (error) throw error;
 				showMessage("Status penilaian dibuka kembali. Anda dapat mengedit nilai siswa.");
 				await loadAllSubmissions();
@@ -2186,7 +2044,6 @@
 					
 					let statusDisplay = "Sedang Berlangsung";
 					if (s.status === 'dinilai') statusDisplay = "Sudah Dinilai";
-					else if (getStatusKey(s) === 'menunggu_walas') statusDisplay = "Menunggu Konfirmasi Walas";
 					else if (s.status === 'dikumpulkan') statusDisplay = "Perlu Dinilai";
 
 					return `
@@ -3325,7 +3182,6 @@
 			items.forEach((s, idx) => {
 				let statusDisplay = "Sedang Berlangsung";
 				if (s.status === 'dinilai') statusDisplay = "Sudah Dinilai";
-				else if (getStatusKey(s) === 'menunggu_walas') statusDisplay = "Menunggu Konfirmasi Walas";
 				else if (s.status === 'dikumpulkan') statusDisplay = "Perlu Dinilai";
 
 				const nilaiVal = (s.nilai_total !== null && s.nilai_total !== undefined)
@@ -3643,7 +3499,6 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 		document.addEventListener("DOMContentLoaded", async () => {
 			if (!await window.adminSessionReady) return;
 
-			await detectWalasAccess();
 			await loadClasses();
 			await loadSubjects();
 			await loadExams();
@@ -3688,7 +3543,6 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 				const attemptId = btn.dataset.attemptId;
 				if (action === "review") openReviewModal(attemptId);
 				if (action === "reopen") reopenAttemptGrading(attemptId);
-				if (action === "return") returnAttemptToTeacher(attemptId);
 				if (action === "reset") resetStudentAttempt(attemptId);
 				if (action === "whatsapp") openWhatsAppModal(attemptId);
 			});
@@ -3772,7 +3626,6 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 
 			document.getElementById("btnSaveDraftGrading").addEventListener("click", () => saveGrading('draft'));
 			document.getElementById("btnFinalizeGrading").addEventListener("click", () => saveGrading('final'));
-			document.getElementById("btnSendToWalas")?.addEventListener("click", () => saveGrading('send'));
 
 			document.getElementById("btnResetStudentAttemptModal").addEventListener("click", () => {
 				if (currentSelectedAttempt) resetStudentAttempt(currentSelectedAttempt.id);
