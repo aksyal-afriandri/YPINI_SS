@@ -290,11 +290,9 @@
 									<div id="questionsScoringBadge"></div>
 								</div>
 								<div class="d-flex flex-wrap align-items-center" style="gap: 6px;">
-									<button id="btnAutoBalanceWeights" class="btn btn-sm btn-outline-primary" type="button" title="Bagi rata nilai seluruh soal hingga akumulasi totalnya pas 100">
-										<i class="fas fa-balance-scale mr-1"></i>Bagi Rata Nilai (Total 100)
-									</button>
-									<button id="btnResetToAutoWeights" class="btn btn-sm btn-outline-secondary" type="button" title="Kosongkan bobot manual agar dinilai otomatis oleh sistem">
-										<i class="fas fa-magic mr-1"></i>Reset ke Otomatis
+									
+									<button id="btnResetToAutoWeights" class="btn btn-sm btn-outline-secondary" type="button" title="Kosongkan seluruh bobot PG (dihitung 1 poin per soal)">
+										<i class="fas fa-magic mr-1"></i>Reset Bobot PG
 									</button>
 								</div>
 							</div>
@@ -484,13 +482,13 @@
 					<div class="form-row">
 						<div class="form-group col-sm-4"><label for="questionType">Tipe soal</label><select id="questionType" name="soal_type" class="form-control"><option value="pg">Pilihan ganda</option><option value="jawaban_singkat">Jawaban Singkat</option><option value="essay">Essay</option></select></div>
 						<div class="form-group col-sm-4"><label for="questionNumber">Nomor urut</label><input id="questionNumber" name="nomor_urut" type="number" class="form-control" min="1" step="1" required></div>
-						<div class="form-group col-sm-4">
-							<label for="questionPoints">Nilai / Bobot Soal <small class="text-muted">(Opsional)</small></label>
-							<input id="questionPoints" name="bobot_nilai" type="number" class="form-control" min="0" max="100" step="any" placeholder="Otomatis sistem">
+						<div class="form-group col-sm-4" id="questionPointsGroup">
+							<label for="questionPoints">Bobot Soal PG <small class="text-muted">(Opsional)</small></label>
+							<input id="questionPoints" name="bobot_nilai" type="number" class="form-control" min="0" step="any" placeholder="Otomatis (1 poin)">
 						</div>
 					</div>
-					<small class="form-text text-muted mb-3" style="margin-top:-10px;">
-						<i class="fas fa-info-circle mr-1 text-info"></i>Opsional. Kosongkan jika ingin nilai per soal diotomatiskan oleh sistem (total 100 jika benar semua). Jika diisi manual, buat total nilai seluruh soal menjadi 100.
+					<small class="form-text text-muted mb-3" id="questionPointsHelp" style="margin-top:-10px;">
+						<i class="fas fa-info-circle mr-1 text-info"></i>Bobot hanya untuk soal pilihan ganda (kosong = 1 poin). Nilai akhir otomatis diskalakan ke 100. Soal essay &amp; jawaban singkat tidak perlu bobot: guru memberi nilai 0&ndash;5 saat memeriksa.
 					</small>
 					<div class="form-group"><label for="questionText">Pertanyaan</label><textarea id="questionText" name="pertanyaan" class="form-control" rows="3" required></textarea></div>
 					
@@ -1223,6 +1221,13 @@
 		function setQuestionType(type) {
 			const isMultipleChoice = type === "pg";
 
+			const pointsGroup = document.getElementById("questionPointsGroup");
+			if (pointsGroup) pointsGroup.classList.toggle("d-none", !isMultipleChoice);
+			const pointsHelp = document.getElementById("questionPointsHelp");
+			if (pointsHelp) pointsHelp.classList.toggle("d-none", false);
+			const pointsInput = document.getElementById("questionPoints");
+			if (pointsInput && !isMultipleChoice) pointsInput.value = "";
+
 			document.getElementById("multipleChoiceFields").classList.toggle("d-none", !isMultipleChoice);
 			document.getElementById("essayFields").classList.toggle("d-none", isMultipleChoice);
 
@@ -1363,9 +1368,11 @@
 			const pgCount = questions.filter(q => q.soal_type === "pg").length;
 			const singkatCount = questions.filter(q => q.soal_type === "jawaban_singkat").length;
 			const essayCount = questions.filter(q => q.soal_type === "essay").length;
-			const hasCustomWeights = questions.some(q => q.bobot_nilai !== null && q.bobot_nilai !== undefined && String(q.bobot_nilai).trim() !== "" && Number(q.bobot_nilai) > 0);
-			const autoWeight = totalCount > 0 ? (100 / totalCount) : 0;
-			const totalWeight = questions.reduce((sum, q) => sum + (Number(q.bobot_nilai) || 0), 0);
+			const ESSAY_MAX = 5; // nilai maksimal essay & jawaban singkat
+			const pgWeightOf = (q) => (q.bobot_nilai !== null && q.bobot_nilai !== undefined && String(q.bobot_nilai).trim() !== "" && Number(q.bobot_nilai) > 0) ? Number(q.bobot_nilai) : 1;
+			const pgTotalPoints = questions.filter(q => q.soal_type === "pg").reduce((sum, q) => sum + pgWeightOf(q), 0);
+			const essayTotalPoints = (singkatCount + essayCount) * ESSAY_MAX;
+			const maxPoints = Math.round((pgTotalPoints + essayTotalPoints) * 100) / 100;
 
 			const summaryBar = document.getElementById("questionsScoringSummaryBar");
 			const badgeEl = document.getElementById("questionsScoringBadge");
@@ -1378,20 +1385,7 @@
 				if (singkatCount > 0) typeParts.push(`${singkatCount} Jawaban Singkat`);
 				if (essayCount > 0) typeParts.push(`${essayCount} Essay`);
 				messageEl.innerHTML = `<i class="fas fa-list-ol mr-1 text-primary"></i> ${totalCount} Soal (${typeParts.join(", ")})`;
-				if (!hasCustomWeights) {
-					badgeEl.innerHTML = `<span class="badge badge-info py-2 px-3 font-weight-normal shadow-sm" style="font-size: 0.85rem;" title="Nilai dihitung merata oleh sistem"><i class="fas fa-magic mr-1"></i>Penilaian: <strong>Otomatis Sistem</strong> (~${autoWeight.toFixed(2).replace(/\.00$/, '')} poin/soal &bull; Total 100 jika benar semua)</span>`;
-				} else {
-					const roundedTotal = Math.round(totalWeight * 100) / 100;
-					if (Math.abs(roundedTotal - 100) < 0.01) {
-						badgeEl.innerHTML = `<span class="badge badge-success py-2 px-3 font-weight-bold shadow-sm" style="font-size: 0.85rem;"><i class="fas fa-check-circle mr-1"></i>Total Nilai: 100 / 100 (Pas &bull; Benar Semua = 100)</span>`;
-					} else if (roundedTotal < 100) {
-						const diff = (100 - roundedTotal).toFixed(2).replace(/\.00$/, '');
-						badgeEl.innerHTML = `<span class="badge badge-warning text-dark py-2 px-3 font-weight-bold shadow-sm" style="font-size: 0.85rem;" title="Total nilai belum mencapai 100"><i class="fas fa-exclamation-triangle mr-1"></i>Total Nilai: ${roundedTotal} / 100 (Kurang ${diff} poin)</span>`;
-					} else {
-						const diff = (roundedTotal - 100).toFixed(2).replace(/\.00$/, '');
-						badgeEl.innerHTML = `<span class="badge badge-danger py-2 px-3 font-weight-bold shadow-sm" style="font-size: 0.85rem;" title="Total nilai melebihi 100"><i class="fas fa-exclamation-circle mr-1"></i>Total Nilai: ${roundedTotal} / 100 (Kelebihan ${diff} poin)</span>`;
-					}
-				}
+				badgeEl.innerHTML = `<span class="badge badge-info py-2 px-3 font-weight-normal shadow-sm" style="font-size: 0.85rem;" title="Nilai akhir = poin diperoleh / poin maksimal x 100"><i class="fas fa-balance-scale mr-1"></i>Poin maksimal: <strong>${maxPoints}</strong> (PG ${Math.round(pgTotalPoints * 100) / 100} + Essay/Singkat ${essayTotalPoints}) &bull; Nilai akhir otomatis diskalakan ke 100</span>`;
 			} else if (summaryBar) {
 				summaryBar.classList.add("d-none");
 			}
@@ -1421,10 +1415,12 @@
 						`</div>`;
 				}
 
-				const hasWeight = (question.bobot_nilai !== null && question.bobot_nilai !== undefined && String(question.bobot_nilai).trim() !== "");
-				const weightDisplay = hasWeight
-					? `<span class="badge badge-primary font-weight-bold" style="font-size: 0.85rem;">${Number(question.bobot_nilai)} poin</span>`
-					: `<span class="text-muted small" title="Dihitung otomatis oleh sistem (~${autoWeight.toFixed(2)} poin)">Otomatis (~${autoWeight.toFixed(2)})</span>`;
+				const hasWeight = (question.bobot_nilai !== null && question.bobot_nilai !== undefined && String(question.bobot_nilai).trim() !== "" && Number(question.bobot_nilai) > 0);
+				const weightDisplay = question.soal_type !== "pg"
+					? `<span class="badge badge-light border text-muted" title="Guru memberi nilai 0-5 saat memeriksa">Maks ${ESSAY_MAX} (guru)</span>`
+					: (hasWeight
+						? `<span class="badge badge-primary font-weight-bold" style="font-size: 0.85rem;">${Number(question.bobot_nilai)} poin</span>`
+						: `<span class="text-muted small" title="Bobot kosong dihitung 1 poin">Otomatis (1)</span>`);
 
 				return `<tr>
 					<td>${question.nomor_urut}</td>
@@ -1951,7 +1947,7 @@
 			}
 
 			const rawBobot = form.elements.bobot_nilai ? form.elements.bobot_nilai.value.trim() : "";
-			const parsedBobot = (rawBobot !== "" && !isNaN(Number(rawBobot)) && Number(rawBobot) >= 0)
+			const parsedBobot = (type === "pg" && rawBobot !== "" && !isNaN(Number(rawBobot)) && Number(rawBobot) >= 0)
 				? Number(rawBobot)
 				: null;
 
@@ -2087,9 +2083,9 @@
 				nextNumber = Math.max(nextNumber, order + 1);
 
 				const rawBobot = values.bobot_nilai || values.bobot || values.nilai || values.poin || "";
-				const parsedBobot = (rawBobot !== "" && !isNaN(Number(rawBobot)) && Number(rawBobot) >= 0)
+				const parsedBobot = (type === "pg" && rawBobot !== "" && !isNaN(Number(rawBobot)) && Number(rawBobot) >= 0)
 					? Number(rawBobot)
-					: null;
+					: null; // bobot hanya untuk PG; essay & jawaban singkat nilainya 0-5 diberikan guru
 
 				const questionText = values.pertanyaan || "";
 				if (!questionText) throw new Error(`Baris ${rowNumber}: pertanyaan wajib diisi.`);
