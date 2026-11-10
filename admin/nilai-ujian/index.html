@@ -1944,9 +1944,9 @@
 			// Kotak ringkasan (Total Soal, PG Benar, PG Salah, Tidak Dijawab, Nilai Akhir) di atas lembar jawaban
 			// false = disembunyikan | true = tampilkan lagi
 			tampilkanRingkasanLembarJawaban: false,
-			// Kunci / acuan jawaban essay pada cetak "Jawaban per Butir Soal" (cetak Rekap tidak pernah menampilkannya)
-			// false = hanya jawaban siswa | true = tampilkan juga acuan jawaban
-			tampilkanAcuanEssayLembarJawaban: false,
+			// Kunci / acuan jawaban essay pada cetak "Jawaban per Butir Soal" dan "Jawaban Rekap"
+			// false = hanya jawaban siswa | true = tampilkan juga acuan / kunci jawaban
+			tampilkanAcuanEssayLembarJawaban: true,
 			// Tulisan BENAR / SALAH / TIDAK DIJAWAB di sebelah nomor soal pada cetak "Jawaban per Butir Soal"
 			// false = hanya penanda warna merah/hijau | true = tampilkan tulisannya juga
 			tampilkanLabelBenarSalahLembarJawaban: false,
@@ -2389,25 +2389,26 @@
 					const ans = studentAnswersMap.get(String(q.id));
 					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
 					const refs = acuanEssayMap.get(String(q.id)) || [];
-					const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
-					const studentBg = markBg(q, ans, studentText, isCorrect) || GREY;
 					const keyHtml = refs.length ? refs.map(escapeHtml).join("<br>") : "-";
 					return `<tr>
 						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
 						<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
-						<td style="${td} background: ${studentBg}; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
-						<td style="${td} background: ${GREEN}; white-space: pre-wrap;">${keyHtml}</td>
+						<td style="${td} background: #fff; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
+						<td style="${td} background: #fff; white-space: pre-wrap;">${keyHtml}</td>
 					</tr>`;
 				}).join("");
 
-				// --- Tabel Essay: No | Soal | Jawaban Siswa (tanpa kunci/acuan) ---
+				// --- Tabel Essay: No | Soal | Jawaban Siswa | Kunci Jawaban ---
 				const essayRows = essayItems.map(({ q, qNum }) => {
 					const ans = studentAnswersMap.get(String(q.id));
 					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+					const refs = acuanEssayMap.get(String(q.id)) || [];
+					const keyHtml = refs.length ? refs.map(escapeHtml).join("<br>") : "-";
 					return `<tr>
 						<td style="${td} text-align: center; width: 34px;">${qNum}</td>
 						<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
-						<td style="${td} background: ${markBg(q, ans, studentText, null) || "transparent"}; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
+						<td style="${td} background: #fff; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
+						<td style="${td} background: #fff; white-space: pre-wrap;">${keyHtml}</td>
 					</tr>`;
 				}).join("");
 
@@ -2446,8 +2447,9 @@
 						<thead>
 							<tr>
 								<th style="${th} width: 34px;">No</th>
-								<th style="${th} text-align: left; width: 38%;">Soal</th>
-								<th style="${th} text-align: left;">Jawaban Siswa</th>
+								<th style="${th} text-align: left;">Soal</th>
+								<th style="${th} text-align: left; width: 24%;">Jawaban Siswa</th>
+								<th style="${th} text-align: left; width: 24%;">Kunci Jawaban</th>
 							</tr>
 						</thead>
 						<tbody>${essayRows}</tbody>
@@ -2514,7 +2516,6 @@
 						const resultColor = !studentText ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
 						const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
 							? `<span style="color: ${resultColor};">${result}</span>` : "";
-						const studentBg = markBg(q, ans, studentText, isCorrect) || GREY;
 						const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
 
 						return `
@@ -2526,19 +2527,19 @@
 								${qText}
 								${imagesHtml}
 								<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
-								<div style="${boxStyle} background: ${studentBg};">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</div>
+								<div style="${boxStyle} background: #fff;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</div>
 								<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci Jawaban:</div>
-								<div style="${boxStyle} background: ${GREEN};">${refs.length ? refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("") : '-'}</div>
+								<div style="${boxStyle} background: #fff;">${refs.length ? refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("") : '-'}</div>
 							</div>`;
 					}
 
-					// Essay: hanya jawaban siswa
+					// Essay: jawaban siswa dan kunci / acuan jawaban (warna putih tanpa background)
 					const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
 					const refs = acuanEssayMap.get(String(q.id)) || [];
 					const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
-					const refHtml = PRINT_CONFIG.tampilkanAcuanEssayLembarJawaban && refs.length ? `
+					const refHtml = `
 						<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci / Acuan Jawaban:</div>
-						<div style="${boxStyle} background: ${GREEN};">${refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("")}</div>` : "";
+						<div style="${boxStyle} background: #fff;">${refs.length ? refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("") : '-'}</div>`;
 
 					return `
 						<div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
@@ -2546,7 +2547,7 @@
 							${qText}
 							${imagesHtml}
 							<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
-							<div style="${boxStyle} background: ${markBg(q, ans, studentText, null) || "transparent"};">${studentText ? escapeHtml(studentText) : "<i>Siswa tidak mengisi jawaban.</i>"}</div>
+							<div style="${boxStyle} background: #fff;">${studentText ? escapeHtml(studentText) : "<i>Siswa tidak mengisi jawaban.</i>"}</div>
 							${refHtml}
 						</div>`;
 				}).join("");
@@ -2595,7 +2596,7 @@
 						</tr>
 					</table>
 					${summaryHtml}
-					<div style="font-size: 9pt; margin: 6px 0;">Keterangan warna: ${legend}</div>
+					<div style="font-size: 9pt; margin: 6px 0;">Keterangan warna (Pilihan Ganda): ${legend}</div>
 					${bodyHtml}
 					${signatureHtml}
 				</div>`;
