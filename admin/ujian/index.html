@@ -330,7 +330,7 @@
 						<div class="form-group col-md-3"><label for="examCloseAt">Ditutup</label><input id="examCloseAt" name="ditutup_at" type="datetime-local" class="form-control" required></div>
 					</div>
 					<div class="form-row">
-						<div class="form-group col-md-4"><label for="examMinSubmit">Tombol kumpul dibuka setelah (menit)</label><input id="examMinSubmit" name="min_submit_menit" type="number" class="form-control" min="0" step="1" value="20" required><small class="text-muted">Dihitung dari waktu siswa mulai ujian. Isi 0 agar siswa boleh langsung mengumpulkan. Tidak boleh melebihi durasi.</small></div>
+						<div class="form-group col-md-4"><label for="examMinSubmit">Waktu Tunggu Kumpul (menit)</label><input id="examMinSubmit" name="min_submit_menit" type="number" class="form-control" min="0" step="1" value="0" required><small class="text-muted">Waktu tunggu sebelum tombol kumpul dibuka (dihitung sejak mulai). Isi 0 agar siswa langsung dapat mengumpulkan kapan saja.</small></div>
 					</div>
 					<div class="form-row border-top pt-3">
 						<div class="form-group col-md-4">
@@ -389,6 +389,137 @@
 				<div class="modal-footer"><button class="btn btn-light" type="button" data-dismiss="modal">Batal</button><button id="saveExamButton" class="btn btn-primary" type="submit">Simpan ujian</button></div>
 			</form>
 		</div></div>
+	</div>
+
+	<!-- Modal Duplikat Ujian -->
+	<div class="modal fade" id="duplicateExamModal" tabindex="-1" role="dialog" aria-labelledby="duplicateExamModalTitle" aria-hidden="true">
+		<div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable" role="document">
+			<div class="modal-content shadow border-0">
+				<form id="duplicateExamForm">
+					<div class="modal-header bg-primary text-white">
+						<h5 class="modal-title font-weight-bold" id="duplicateExamModalTitle">
+							<i class="fas fa-clone mr-2"></i>Duplikat Ujian
+						</h5>
+						<button class="close text-white" type="button" data-dismiss="modal" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+					</div>
+					<div class="modal-body">
+						<div id="duplicateExamError" class="alert alert-danger d-none" role="alert"></div>
+
+						<div class="alert alert-info border-left-info shadow-sm py-2">
+							<div class="d-flex align-items-center">
+								<i class="fas fa-info-circle fa-2x mr-3 text-info"></i>
+								<div>
+									<div class="font-weight-bold text-dark">Duplikasi Pengaturan Ujian Baru</div>
+									<div class="small text-muted">
+										Seluruh pengaturan ujian (mata pelajaran, durasi, toleransi, waktu tunggu kumpul, acak soal/opsi, dan sasaran kelas) akan disalin ke ujian baru.
+										<strong>Jawaban dan hasil pengerjaan siswa tidak akan diduplikat</strong>, sehingga ujian baru benar-benar bersih seolah-olah baru dibuat.
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="form-row">
+							<div class="form-group col-md-6">
+								<label for="dupSourceExamName" class="font-weight-bold small text-muted text-uppercase">Ujian Sumber</label>
+								<input type="text" id="dupSourceExamName" class="form-control bg-light" readonly>
+							</div>
+							<div class="form-group col-md-6">
+								<label for="dupSourceSubjectName" class="font-weight-bold small text-muted text-uppercase">Mata Pelajaran</label>
+								<input type="text" id="dupSourceSubjectName" class="form-control bg-light" readonly>
+							</div>
+						</div>
+
+						<div class="form-group">
+							<label for="dupNewExamName" class="font-weight-bold">Nama Ujian Baru <span class="text-danger">*</span></label>
+							<input type="text" id="dupNewExamName" name="nama_ujian" class="form-control" maxlength="255" required placeholder="Contoh: Penilaian Harian Bab 1-1">
+						</div>
+
+						<!-- Opsi Duplikat Soal & Kunci Jawaban -->
+						<div class="card bg-light border mb-3">
+							<div class="card-body py-2 px-3">
+								<div class="custom-control custom-checkbox">
+									<input type="checkbox" class="custom-control-input" id="dupCopyQuestions" checked>
+									<label class="custom-control-label font-weight-bold text-dark" for="dupCopyQuestions">
+										<i class="fas fa-list-ol mr-1 text-primary"></i>Duplikat Butir Soal dan Kunci Jawaban
+									</label>
+								</div>
+								<small class="text-muted d-block ml-4 mt-1">
+									Jika dicentang, seluruh butir soal (Pilihan Ganda, Jawaban Singkat, Essay), opsi jawaban, foto soal/opsi, bobot nilai, dan kunci jawaban akan disalin secara otomatis.
+								</small>
+								<div id="dupQuestionsCountNotice" class="small font-weight-bold text-primary ml-4 mt-1">
+									Memeriksa butir soal...
+								</div>
+							</div>
+						</div>
+
+						<div class="form-row">
+							<div class="form-group col-md-6">
+								<label for="dupOpenAt" class="font-weight-bold">Mulai Dibuka <span class="text-danger">*</span></label>
+								<input id="dupOpenAt" name="dibuka_at" type="datetime-local" class="form-control" required>
+							</div>
+							<div class="form-group col-md-6">
+								<label for="dupCloseAt" class="font-weight-bold">Ditutup <span class="text-danger">*</span></label>
+								<input id="dupCloseAt" name="ditutup_at" type="datetime-local" class="form-control" required>
+							</div>
+						</div>
+
+						<div class="form-row">
+							<div class="form-group col-md-4">
+								<label for="dupDuration" class="font-weight-bold">Durasi (menit) <span class="text-danger">*</span></label>
+								<input id="dupDuration" name="waktu_menit" type="number" class="form-control" min="1" step="1" required>
+							</div>
+							<div class="form-group col-md-4">
+								<label for="dupTolerance" class="font-weight-bold">Toleransi (menit)</label>
+								<input id="dupTolerance" name="toleransi_menit" type="number" class="form-control" min="0" step="1" required>
+								<small class="text-muted">Ekstra waktu pengerjaan</small>
+							</div>
+							<div class="form-group col-md-4">
+								<label for="dupMinSubmit" class="font-weight-bold">Waktu Tunggu Kumpul (menit)</label>
+								<input id="dupMinSubmit" name="min_submit_menit" type="number" class="form-control" min="0" step="1" value="0" required>
+								<small class="text-muted">Isi 0 = boleh langsung kumpul</small>
+							</div>
+						</div>
+
+						<div class="form-group mb-3">
+							<label class="font-weight-bold small text-muted text-uppercase mb-1">Sasaran Kelas Ujian</label>
+							<div id="dupTargetSummary" class="border rounded p-2 bg-light text-dark small">
+								-
+							</div>
+						</div>
+
+						<div class="form-group mb-3">
+							<label for="dupPassword" class="font-weight-bold text-dark">
+								<i class="fas fa-lock text-warning mr-1"></i>Password Pengaturan Ujian <span class="badge badge-light border text-muted ml-1">Opsional</span>
+							</label>
+							<div class="input-group">
+								<input type="password" id="dupPassword" class="form-control" placeholder="Kosongkan jika tidak ingin diproteksi password..." autocomplete="off">
+								<div class="input-group-append">
+									<button class="btn btn-outline-secondary" type="button" id="toggleDupPassword" title="Lihat/Sembunyikan password">
+										<i class="fas fa-eye" id="toggleDupPasswordIcon"></i>
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div class="form-row border-top pt-3">
+							<div class="form-group col-md-12 mb-0">
+								<div class="custom-control custom-switch">
+									<input id="dupIsActive" type="checkbox" class="custom-control-input">
+									<label class="custom-control-label font-weight-bold" for="dupIsActive">Langsung aktifkan ujian hasil duplikasi</label>
+									<small class="text-muted d-block">Secara default nonaktif agar Anda dapat memeriksa atau menyesuaikan soal terlebih dahulu sebelum dibuka untuk siswa.</small>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="modal-footer bg-light">
+						<button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+						<button class="btn btn-primary" type="submit" id="btnSubmitDuplicateExam">
+							<i class="fas fa-clone mr-1"></i>Duplikat Sekarang
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
 	</div>
 
 	<!-- Modal Pengaturan Keamanan Global CBT -->
@@ -1196,7 +1327,7 @@
 					<td class="text-nowrap">
 						<div class="font-weight-bold text-dark" style="font-size: 0.9rem;">${exam.waktu_menit} <span class="small font-weight-normal text-muted">menit</span></div>
 						<span class="badge badge-light border text-muted" title="Toleransi waktu pengerjaan">+${exam.toleransi_menit != null ? exam.toleransi_menit : 15}m toleransi</span>
-						<span class="badge badge-light border text-muted" title="Tombol kumpul dibuka setelah N menit pengerjaan">kumpul ≥ ${exam.min_submit_menit != null ? exam.min_submit_menit : 20}m</span>
+						<span class="badge badge-light border text-muted" title="Waktu tunggu sebelum tombol kumpul dibuka">${(exam.min_submit_menit != null ? exam.min_submit_menit : 0) > 0 ? `tunggu ≥ ${exam.min_submit_menit}m` : 'tunggu: 0m (langsung)'}</span>
 					</td>
 					<td class="text-nowrap">
 						<div class="d-flex flex-column align-items-start" style="gap: 4px;">
@@ -1211,8 +1342,10 @@
 						<div class="btn-group btn-group-sm" role="group">
 							${!isArchived ? `<button class="btn btn-outline-primary" data-action="questions" data-id="${exam.id}" title="Atur soal"><i class="fas fa-list-ol"></i></button>
 							<button class="btn btn-outline-secondary" data-action="edit-exam" data-id="${exam.id}" title="Edit ujian"><i class="fas fa-edit"></i></button>
+							<button class="btn btn-outline-info" data-action="duplicate-exam" data-id="${exam.id}" title="Duplikat ujian"><i class="fas fa-clone"></i></button>
 							<button class="btn btn-outline-warning" data-action="archive-exam" data-id="${exam.id}" title="Arsipkan ujian"><i class="fas fa-archive"></i></button>` 
-							: `<button class="btn btn-outline-success" data-action="restore-exam" data-id="${exam.id}" title="Pulihkan dari arsip"><i class="fas fa-undo"></i></button>`}
+							: `<button class="btn btn-outline-info" data-action="duplicate-exam" data-id="${exam.id}" title="Duplikat ujian"><i class="fas fa-clone"></i></button>
+							<button class="btn btn-outline-success" data-action="restore-exam" data-id="${exam.id}" title="Pulihkan dari arsip"><i class="fas fa-undo"></i></button>`}
 							<button class="btn btn-outline-danger" data-action="delete-exam" data-id="${exam.id}" title="Hapus ujian"><i class="fas fa-trash"></i></button>
 						</div>
 					</td>
@@ -1604,7 +1737,7 @@
 			document.getElementById("examCloseAt").value = toLocalInput(later);
 			document.getElementById("examDuration").value = 60;
 			document.getElementById("examTolerance").value = globalCbtSettings.toleransi_menit_default || 15;
-			document.getElementById("examMinSubmit").value = 20;
+			document.getElementById("examMinSubmit").value = 0;
 			document.getElementById("examTargetMode").value = "semua";
 			document.getElementById("examTargetTingkat").value = "";
 			if (examForm.elements.password_ujian) examForm.elements.password_ujian.value = "";
@@ -1622,7 +1755,7 @@
 			examForm.elements.pelajaran_id.value = String(exam.pelajaran_id);
 			examForm.elements.waktu_menit.value = exam.waktu_menit;
 			examForm.elements.toleransi_menit.value = exam.toleransi_menit != null ? exam.toleransi_menit : 15;
-			examForm.elements.min_submit_menit.value = exam.min_submit_menit != null ? exam.min_submit_menit : 20;
+			examForm.elements.min_submit_menit.value = exam.min_submit_menit != null ? exam.min_submit_menit : 0;
 			examForm.elements.dibuka_at.value = toLocalInput(exam.dibuka_at);
 			examForm.elements.ditutup_at.value = toLocalInput(exam.ditutup_at);
 			examForm.elements.aktif.checked = exam.aktif;
@@ -1758,7 +1891,7 @@
 			}
 
 			const minSubmitRaw = form.elements.min_submit_menit ? form.elements.min_submit_menit.value : "";
-			const minSubmit = minSubmitRaw === "" ? 20 : Math.floor(Number(minSubmitRaw));
+			const minSubmit = minSubmitRaw === "" ? 0 : Math.floor(Number(minSubmitRaw));
 			if (!Number.isFinite(minSubmit) || minSubmit < 0) {
 				errorBox.textContent = "Waktu kumpul minimal tidak valid (isi 0 atau lebih).";
 				errorBox.classList.remove("d-none");
@@ -1883,6 +2016,296 @@
 				errorBox.classList.remove("d-none");
 			} finally {
 				button.disabled = false;
+			}
+		}
+
+		let duplicatingExam = null;
+
+		function generateDuplicateExamName(sourceName, existingExams = []) {
+			const trimmed = (sourceName || "").trim();
+			// Deteksi apakah nama ujian sumber sudah memiliki akhiran "-N" (misal: "Ujian Harian-1" atau "Ujian Harian - 1")
+			const suffixMatch = trimmed.match(/^(.*?)(?:\s*-\s*)(\d+)$/);
+			const baseName = suffixMatch ? suffixMatch[1].trim() : trimmed;
+
+			// Cari seluruh nama ujian yang cocok dengan pola baseName atau baseName-N
+			const escapedBase = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const pattern = new RegExp(`^${escapedBase}(?:\\s*-\\s*(\\d+))?$`, 'i');
+
+			let maxNum = 0;
+			existingExams.forEach((e) => {
+				const name = (e.nama_ujian || "").trim();
+				const m = name.match(pattern);
+				if (m && m[1]) {
+					const num = parseInt(m[1], 10);
+					if (!isNaN(num) && num > maxNum) {
+						maxNum = num;
+					}
+				}
+			});
+
+			// Jika sudah ada duplikat berakhiran nomor, naikkan nomor berikutnya (misal -1, -2, -3)
+			const nextNum = maxNum > 0 ? maxNum + 1 : 1;
+			return `${baseName}-${nextNum}`;
+		}
+
+		async function openDuplicateExamModal(exam) {
+			duplicatingExam = exam;
+			const form = document.getElementById("duplicateExamForm");
+			form.reset();
+			const errorBox = document.getElementById("duplicateExamError");
+			errorBox.classList.add("d-none");
+			errorBox.textContent = "";
+
+			const subjectName = exam.data_pelajaran?.nama_pelajaran || subjects.find((s) => s.id === exam.pelajaran_id)?.nama_pelajaran || "-";
+			document.getElementById("dupSourceExamName").value = exam.nama_ujian || "-";
+			document.getElementById("dupSourceSubjectName").value = subjectName;
+			document.getElementById("dupNewExamName").value = generateDuplicateExamName(exam.nama_ujian, exams);
+			document.getElementById("dupCopyQuestions").checked = true;
+
+			// Jadwal buka dan tutup
+			document.getElementById("dupOpenAt").value = toLocalInput(exam.dibuka_at);
+			document.getElementById("dupCloseAt").value = toLocalInput(exam.ditutup_at);
+
+			document.getElementById("dupDuration").value = exam.waktu_menit || 60;
+			document.getElementById("dupTolerance").value = exam.toleransi_menit != null ? exam.toleransi_menit : (globalCbtSettings.toleransi_menit_default || 15);
+			document.getElementById("dupMinSubmit").value = exam.min_submit_menit != null ? exam.min_submit_menit : 0;
+			document.getElementById("dupPassword").value = exam.password_ujian || "";
+			document.getElementById("dupIsActive").checked = false;
+
+			// Tampilkan ringkasan sasaran kelas
+			const targetBadgeHtml = getExamTargetBadge(exam);
+			document.getElementById("dupTargetSummary").innerHTML = targetBadgeHtml;
+
+			const noticeEl = document.getElementById("dupQuestionsCountNotice");
+			noticeEl.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Memeriksa butir soal...';
+			$("#duplicateExamModal").modal("show");
+
+			try {
+				const { count, error } = await client.from("soal_ujian")
+					.select("id", { count: "exact", head: true })
+					.eq("ujian_id", exam.id);
+				if (error) throw error;
+				if (count > 0) {
+					noticeEl.innerHTML = `<i class="fas fa-check-circle text-success mr-1"></i> Ditemukan <strong>${count} butir soal</strong> siap diduplikat ke ujian baru.`;
+				} else {
+					noticeEl.innerHTML = `<i class="fas fa-info-circle text-muted mr-1"></i> Ujian sumber ini belum memiliki butir soal.`;
+				}
+			} catch (e) {
+				noticeEl.innerHTML = `<span class="text-muted small">Soal akan disalin jika ada.</span>`;
+			}
+		}
+
+		async function handleDuplicateExamSubmit(event) {
+			event.preventDefault();
+			if (!duplicatingExam) return;
+
+			const errorBox = document.getElementById("duplicateExamError");
+			const submitBtn = document.getElementById("btnSubmitDuplicateExam");
+			errorBox.classList.add("d-none");
+
+			const newName = document.getElementById("dupNewExamName").value.trim();
+			if (!newName) {
+				errorBox.textContent = "Nama ujian baru wajib diisi.";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
+			const openAtVal = document.getElementById("dupOpenAt").value;
+			const closeAtVal = document.getElementById("dupCloseAt").value;
+			if (!openAtVal || !closeAtVal) {
+				errorBox.textContent = "Jadwal buka dan tutup ujian wajib diisi.";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
+			const openedAt = new Date(openAtVal);
+			const closedAt = new Date(closeAtVal);
+			if (isNaN(openedAt.getTime()) || isNaN(closedAt.getTime()) || !(openedAt < closedAt)) {
+				errorBox.textContent = "Waktu tutup harus setelah waktu buka.";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
+			const duration = Number(document.getElementById("dupDuration").value);
+			if (!duration || duration <= 0) {
+				errorBox.textContent = "Durasi ujian harus lebih dari 0 menit.";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
+			const tolerance = Number(document.getElementById("dupTolerance").value) || 0;
+			const minSubmitRaw = document.getElementById("dupMinSubmit").value;
+			const minSubmit = minSubmitRaw === "" ? 0 : Math.floor(Number(minSubmitRaw));
+			if (!Number.isFinite(minSubmit) || minSubmit < 0) {
+				errorBox.textContent = "Waktu kumpul minimal tidak valid (isi 0 atau lebih).";
+				errorBox.classList.remove("d-none");
+				return;
+			}
+			if (minSubmit > duration) {
+				errorBox.textContent = `Waktu kumpul minimal (${minSubmit} menit) tidak boleh melebihi durasi ujian (${duration} menit).`;
+				errorBox.classList.remove("d-none");
+				return;
+			}
+
+			const copyQuestions = document.getElementById("dupCopyQuestions").checked;
+			const isActive = document.getElementById("dupIsActive").checked;
+			const passwordVal = document.getElementById("dupPassword").value.trim();
+
+			submitBtn.disabled = true;
+			submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menduplikat...';
+
+			try {
+				// 1. Duplikasi Pengaturan Ujian
+				const values = {
+					nama_ujian: newName,
+					pelajaran_id: duplicatingExam.pelajaran_id,
+					waktu_menit: duration,
+					toleransi_menit: tolerance,
+					min_submit_menit: minSubmit,
+					dibuka_at: openedAt.toISOString(),
+					ditutup_at: closedAt.toISOString(),
+					acak_soal: Boolean(duplicatingExam.acak_soal),
+					acak_jawaban: Boolean(duplicatingExam.acak_jawaban),
+					aktif: isActive,
+					target_tingkat: duplicatingExam.target_tingkat || null,
+					target_kelas: duplicatingExam.target_kelas || null,
+					password_ujian: passwordVal || null,
+				};
+
+				let insertRes = await client.from("ujian").insert(values).select("id").single();
+
+				if (insertRes.error && insertRes.error.message && (insertRes.error.message.includes("target_tingkat") || insertRes.error.message.includes("target_kelas"))) {
+					console.warn("Kolom target_tingkat/target_kelas belum ada di DB, menyimpan tanpa sasaran:", insertRes.error);
+					delete values.target_tingkat;
+					delete values.target_kelas;
+					insertRes = await client.from("ujian").insert(values).select("id").single();
+				}
+				if (insertRes.error && insertRes.error.message && insertRes.error.message.includes("toleransi_menit")) {
+					console.warn("Kolom toleransi_menit belum ada, menyimpan tanpa toleransi_menit:", insertRes.error);
+					delete values.toleransi_menit;
+					insertRes = await client.from("ujian").insert(values).select("id").single();
+				}
+				if (insertRes.error && insertRes.error.message && insertRes.error.message.includes("min_submit_menit")) {
+					console.warn("Kolom min_submit_menit belum ada, menyimpan tanpa min_submit_menit:", insertRes.error);
+					delete values.min_submit_menit;
+					insertRes = await client.from("ujian").insert(values).select("id").single();
+				}
+				if (insertRes.error && insertRes.error.message && insertRes.error.message.includes("password_ujian")) {
+					console.warn("Kolom password_ujian belum ada di DB, menyimpan tanpa password_ujian:", insertRes.error);
+					delete values.password_ujian;
+					insertRes = await client.from("ujian").insert(values).select("id").single();
+				}
+
+				if (insertRes.error) throw insertRes.error;
+				const newExamId = insertRes.data.id;
+
+				let copiedQuestionsCount = 0;
+
+				// 2. Duplikasi Butir Soal & Kunci Jawaban jika dipilih
+				// PENTING: Jawaban siswa (percobaan_ujian & jawaban_siswa) TIDAK diduplikat, sehingga ujian bersih seolah-olah baru
+				if (copyQuestions) {
+					submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Menyalin butir soal...';
+					const { data: questions, error: qErr } = await client.from("soal_ujian")
+						.select("*")
+						.eq("ujian_id", duplicatingExam.id)
+						.order("nomor_urut");
+					if (qErr) throw qErr;
+
+					if (questions && questions.length > 0) {
+						const questionIds = questions.map(q => q.id);
+
+						// Ambil semua kunci PG dan acuan essay
+						const [{ data: keysData }, { data: essayRefsData }] = await Promise.all([
+							client.from("kunci_pg").select("*").in("soal_id", questionIds),
+							client.from("jawaban_acuan_essay").select("*").in("soal_id", questionIds)
+						]);
+
+						const keyMap = new Map();
+						(keysData || []).forEach(k => keyMap.set(k.soal_id, k.jawaban_benar));
+
+						const essayRefMap = new Map();
+						(essayRefsData || []).forEach(r => {
+							if (!essayRefMap.has(r.soal_id)) essayRefMap.set(r.soal_id, []);
+							essayRefMap.get(r.soal_id).push(r.jawaban);
+						});
+
+						for (const oldQ of questions) {
+							const qPayload = {
+								ujian_id: newExamId,
+								nomor_urut: oldQ.nomor_urut,
+								soal_type: oldQ.soal_type,
+								bobot_nilai: oldQ.bobot_nilai,
+								pertanyaan: oldQ.pertanyaan,
+								pilihan_a: oldQ.pilihan_a,
+								pilihan_b: oldQ.pilihan_b,
+								pilihan_c: oldQ.pilihan_c,
+								pilihan_d: oldQ.pilihan_d,
+								gambar_url: oldQ.gambar_url,
+								gambar_urls: oldQ.gambar_urls,
+								gambar_pilihan_a: oldQ.gambar_pilihan_a,
+								gambar_pilihan_b: oldQ.gambar_pilihan_b,
+								gambar_pilihan_c: oldQ.gambar_pilihan_c,
+								gambar_pilihan_d: oldQ.gambar_pilihan_d
+							};
+
+							let qAttempt = { ...qPayload };
+							let qRes = await client.from("soal_ujian").insert(qAttempt).select("id").single();
+							if (qRes.error && qRes.error.message && qRes.error.message.includes("bobot_nilai")) {
+								delete qAttempt.bobot_nilai;
+								qRes = await client.from("soal_ujian").insert(qAttempt).select("id").single();
+							}
+							if (qRes.error && qRes.error.message && qRes.error.message.includes("gambar_pilihan")) {
+								delete qAttempt.gambar_pilihan_a;
+								delete qAttempt.gambar_pilihan_b;
+								delete qAttempt.gambar_pilihan_c;
+								delete qAttempt.gambar_pilihan_d;
+								qRes = await client.from("soal_ujian").insert(qAttempt).select("id").single();
+							}
+							if (qRes.error && qRes.error.message && qRes.error.message.includes("gambar_urls")) {
+								qAttempt.gambar_url = Array.isArray(oldQ.gambar_urls) ? oldQ.gambar_urls.join(",") : oldQ.gambar_url;
+								delete qAttempt.gambar_urls;
+								qRes = await client.from("soal_ujian").insert(qAttempt).select("id").single();
+							}
+
+							if (qRes.error) throw qRes.error;
+							const newQId = qRes.data.id;
+							copiedQuestionsCount++;
+
+							// Salin kunci jawaban PG
+							if (oldQ.soal_type === "pg") {
+								const correctKey = keyMap.get(oldQ.id);
+								if (correctKey) {
+									await client.from("kunci_pg").insert({
+										soal_id: newQId,
+										jawaban_benar: correctKey
+									});
+								}
+							} else {
+								// Salin acuan jawaban essay / jawaban singkat
+								const refs = essayRefMap.get(oldQ.id);
+								if (refs && refs.length > 0) {
+									await client.from("jawaban_acuan_essay").insert(
+										refs.map(ans => ({ soal_id: newQId, jawaban: ans }))
+									);
+								}
+							}
+						}
+					}
+				}
+
+				$("#duplicateExamModal").modal("hide");
+				const msg = copyQuestions 
+					? `Ujian "${newName}" berhasil diduplikat beserta ${copiedQuestionsCount} butir soal dan kunci jawabannya (tanpa riwayat pengerjaan siswa).`
+					: `Pengaturan ujian "${newName}" berhasil diduplikat (tanpa butir soal dan tanpa riwayat pengerjaan siswa).`;
+				showMessage(msg, "success");
+				await loadExams();
+			} catch (err) {
+				console.error("Gagal menduplikat ujian:", err);
+				errorBox.textContent = "Gagal menduplikat ujian: " + (err.message || err);
+				errorBox.classList.remove("d-none");
+			} finally {
+				submitBtn.disabled = false;
+				submitBtn.innerHTML = '<i class="fas fa-clone mr-1"></i>Duplikat Sekarang';
 			}
 		}
 
@@ -2634,6 +3057,7 @@
 
 		document.getElementById("questionType").addEventListener("change", (event) => setQuestionType(event.target.value));
 		examForm.addEventListener("submit", saveExam);
+		document.getElementById("duplicateExamForm")?.addEventListener("submit", handleDuplicateExamSubmit);
 		questionForm.addEventListener("submit", saveQuestion);
 
 		document.getElementById("examTable").addEventListener("click", async (event) => {
@@ -2646,6 +3070,11 @@
 					const allowed = await requireExamAuth(exam, "mengedit pengaturan ujian", true);
 					if (!allowed) return;
 					openEditExam(exam);
+				}
+				if (button.dataset.action === "duplicate-exam") {
+					const allowed = await requireExamAuth(exam, "menduplikat ujian ini", true);
+					if (!allowed) return;
+					await openDuplicateExamModal(exam);
 				}
 				if (button.dataset.action === "archive-exam") {
 					const allowed = await requireExamAuth(exam, "mengarsipkan ujian", true);
@@ -2774,6 +3203,18 @@
 		document.getElementById("toggleExamAuthPassword")?.addEventListener("click", () => {
 			const passInput = document.getElementById("examAuthPasswordInput");
 			const icon = document.getElementById("toggleExamAuthPasswordIcon");
+			if (passInput.type === "password") {
+				passInput.type = "text";
+				icon.className = "fas fa-eye-slash";
+			} else {
+				passInput.type = "password";
+				icon.className = "fas fa-eye";
+			}
+		});
+
+		document.getElementById("toggleDupPassword")?.addEventListener("click", () => {
+			const passInput = document.getElementById("dupPassword");
+			const icon = document.getElementById("toggleDupPasswordIcon");
 			if (passInput.type === "password") {
 				passInput.type = "text";
 				icon.className = "fas fa-eye-slash";
