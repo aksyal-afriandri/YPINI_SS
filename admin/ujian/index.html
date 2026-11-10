@@ -1327,7 +1327,7 @@
 					<td class="text-nowrap">
 						<div class="font-weight-bold text-dark" style="font-size: 0.9rem;">${exam.waktu_menit} <span class="small font-weight-normal text-muted">menit</span></div>
 						<span class="badge badge-light border text-muted" title="Toleransi waktu pengerjaan">+${exam.toleransi_menit != null ? exam.toleransi_menit : 15}m toleransi</span>
-						<span class="badge badge-light border text-muted" title="Waktu tunggu sebelum tombol kumpul dibuka">${(exam.min_submit_menit != null ? exam.min_submit_menit : 0) > 0 ? `tunggu ≥ ${exam.min_submit_menit}m` : 'tunggu: 0m (langsung)'}</span>
+						<span class="badge badge-light border text-muted" title="Waktu tunggu sebelum tombol kumpul dibuka">${(exam.min_submit_menit != null ? exam.min_submit_menit : 0) > 0 ? `tunggu ≥ ${exam.min_submit_menit}m` : 'tunggu: 0m'}</span>
 					</td>
 					<td class="text-nowrap">
 						<div class="d-flex flex-column align-items-start" style="gap: 4px;">
