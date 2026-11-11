@@ -438,6 +438,8 @@ async function apiRecordAttendance(rawCode) {
     throwSupabaseError(attendanceError);
   }
 
+  // Pengiriman WA otomatis dimatikan sementara
+  /*
   // Trigger Edge Function wasender-send langsung (jaminan jika database webhook belum disetup)
   if (!alreadyRecorded && record?.id) {
     client.functions.invoke("wasender-send", {
@@ -454,6 +456,7 @@ async function apiRecordAttendance(rawCode) {
       console.warn("Pemberitahuan Edge Function wasender-send:", funcError);
     });
   }
+  */
 
   let photoUrl = null;
   if (student.photo_path) {

@@ -945,11 +945,14 @@
                     let successMessage = result.alreadyRecorded
                         ? `${result.student.nama} sudah tercatat hadir hari ini.`
                         : `${result.student.nama} berhasil dicatat hadir.`;
+                    /*
+                    // Notifikasi WA otomatis dimatikan sementara
                     if (!result.alreadyRecorded) {
                         successMessage += result.student.no_wa
                             ? ' (Notifikasi WA dikirim ke orang tua).'
                             : ' (Nomor WA orang tua belum didaftarkan).';
                     }
+                    */
                     setAttendanceStatus(successMessage, false, !result.alreadyRecorded);
                     try {
                         await refreshTodayAttendance();
