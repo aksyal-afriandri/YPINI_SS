@@ -1281,7 +1281,9 @@
         console.log("[CBT Fullscreen] Keluar dari mode Fullscreen.");
         if (fsBadge) fsBadge.classList.add("d-none");
         unlockKeyboardEsc();
-        if (isExamActive && !isExamSubmitted && !IS_IOS) {
+        // iOS: abaikan hanya jika keluarnya akibat keyboard/kolom ketik; selain itu tetap diperingatkan
+        const iosKeyboardCaused = IS_IOS && (isTypingField(document.activeElement) || Date.now() < acState.kbUntil);
+        if (isExamActive && !isExamSubmitted && !iosKeyboardCaused) {
           registerViolation("Terdeteksi keluar dari mode layar penuh (fullscreen).", "fullscreen");
         }
       }
