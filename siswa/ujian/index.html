@@ -607,7 +607,7 @@
         <div class="modal-header bg-warning text-dark py-3">
           <h5 class="modal-title font-weight-bold">
             <i class="fas fa-exclamation-triangle mr-2"></i>
-            Peringatan <span id="acWarnNumber">1</span> dari <span id="acWarnMax">3</span>
+            Peringatan <span id="acWarnNumber">1</span><span id="acWarnOfMax"> dari <span id="acWarnMax">3</span></span>
           </h5>
         </div>
         <div class="modal-body p-4 text-center">
@@ -1005,6 +1005,17 @@
     // =====================================================================
     //  ENGINE ANTI-CHEAT: peringatan bertingkat -> kunci -> password admin
     // =====================================================================
+    // Perangkat iOS / iPadOS: hanya diberi peringatan (tanpa kunci & tanpa password admin).
+    // Perangkat lain tetap memakai alur lengkap: peringatan -> kunci -> password admin.
+    function isIOSDevice() {
+      const ua = navigator.userAgent || "";
+      const isClassicIOS = /iPad|iPhone|iPod/i.test(ua);
+      // iPadOS 13+ memakai UA "Macintosh" tetapi punya layar sentuh
+      const isIPadOS = (navigator.platform === "MacIntel" || /Macintosh/i.test(ua)) && navigator.maxTouchPoints > 1;
+      return isClassicIOS || isIPadOS;
+    }
+    const WARNING_ONLY_MODE = isIOSDevice();
+
     const acState = {
       warnings: 0,
       locked: false,
@@ -1076,7 +1087,9 @@
       acSave();
       console.warn(`[CBT Anti-Cheat] Pelanggaran ${acState.warnings}: ${reason}`);
 
-      if (acState.warnings > ANTI_CHEAT_CONFIG.maxWarnings) {
+      if (WARNING_ONLY_MODE) {
+        showWarning(reason); // iOS/iPad: selalu peringatan saja, tidak pernah dikunci
+      } else if (acState.warnings > ANTI_CHEAT_CONFIG.maxWarnings) {
         lockExam(reason);
       } else {
         showWarning(reason);
@@ -1089,10 +1102,14 @@
 
       acSetText("acWarnNumber", String(acState.warnings));
       acSetText("acWarnMax", String(max));
+      const ofMax = document.getElementById("acWarnOfMax");
+      if (ofMax) ofMax.classList.toggle("d-none", WARNING_ONLY_MODE);
       acSetText("acWarnReason", reason);
       acSetText(
         "acWarnInfo",
-        left > 0
+        WARNING_ONLY_MODE
+          ? "Tindakan ini melanggar aturan ujian. Mohon tetap berada di halaman ujian dan jangan keluar dari mode layar penuh. Pelanggaran akan dicatat."
+          : left > 0
           ? `Tindakan ini melanggar aturan ujian. Sisa peringatan: ${left}. Jika terjadi lagi melebihi batas, ujian akan dikunci selama ${ANTI_CHEAT_CONFIG.lockMinutes} menit.`
           : `Ini PERINGATAN TERAKHIR. Pelanggaran berikutnya akan mengunci ujian selama ${ANTI_CHEAT_CONFIG.lockMinutes} menit dan membutuhkan admin/pengawas.`
       );
@@ -1209,7 +1226,7 @@
       if (!data) return;
 
       acState.warnings = Number(data.warnings) || 0;
-      if (data.lockUntil) {
+      if (data.lockUntil && !WARNING_ONLY_MODE) {
         lockExam("Halaman dimuat ulang saat ujian sedang dikunci.", data.lockUntil - Date.now());
       }
     }
