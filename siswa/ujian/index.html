@@ -922,14 +922,6 @@
       return [];
     }
 
-    // ---- Deteksi iOS (iPhone/iPad, termasuk iPadOS yang menyamar sebagai Mac). Android/desktop TIDAK terpengaruh ----
-    const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-    function isTypingField(el) {
-      return !!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName || "");
-    }
-
     // Status fullscreen terakhir yang diketahui (dipakai agar handler tidak jalan 2x untuk 1 perubahan)
     let lastFullscreenState = false;
 
@@ -952,7 +944,6 @@
     }
 
     async function requestFullScreenSafe(element = document.documentElement) {
-      if (IS_IOS) return; // iOS: fullscreen tidak andal & bentrok dengan keyboard
       if (isFullscreenActive()) return;
       try {
         // Jika halaman ini berjalan di dalam iframe, fullscreen-kan container milik parent
@@ -1020,7 +1011,6 @@
       lockUntil: 0,
       ignoreUntil: 0,
       paused: false,
-      kbUntil: 0,
       timer: null
     };
 
@@ -1082,14 +1072,15 @@
       if (acState.locked || acState.paused || now < acState.ignoreUntil) return;
       acState.ignoreUntil = now + ANTI_CHEAT_CONFIG.cooldownMs;
 
-      // Tanpa kunci: setelah peringatan ke-maxWarnings, pelanggaran berikutnya tidak memunculkan apa pun
-      if (acState.warnings >= ANTI_CHEAT_CONFIG.maxWarnings) return;
-
       acState.warnings += 1;
       acSave();
       console.warn(`[CBT Anti-Cheat] Pelanggaran ${acState.warnings}: ${reason}`);
 
-      showWarning(reason);
+      if (acState.warnings > ANTI_CHEAT_CONFIG.maxWarnings) {
+        lockExam(reason);
+      } else {
+        showWarning(reason);
+      }
     }
 
     function showWarning(reason) {
@@ -1102,8 +1093,8 @@
       acSetText(
         "acWarnInfo",
         left > 0
-          ? `Tindakan ini melanggar aturan ujian. Sisa peringatan: ${left}. Harap tetap fokus pada halaman ujian.`
-          : `Ini PERINGATAN TERAKHIR. Harap tetap fokus pada halaman ujian dan jangan membuka aplikasi lain.`
+          ? `Tindakan ini melanggar aturan ujian. Sisa peringatan: ${left}. Jika terjadi lagi melebihi batas, ujian akan dikunci selama ${ANTI_CHEAT_CONFIG.lockMinutes} menit.`
+          : `Ini PERINGATAN TERAKHIR. Pelanggaran berikutnya akan mengunci ujian selama ${ANTI_CHEAT_CONFIG.lockMinutes} menit dan membutuhkan admin/pengawas.`
       );
 
       if (!$("#antiCheatWarningModal").hasClass("show")) {
@@ -1218,39 +1209,21 @@
       if (!data) return;
 
       acState.warnings = Number(data.warnings) || 0;
-      // Kunci ujian dinonaktifkan: lockUntil lama di localStorage diabaikan
+      if (data.lockUntil) {
+        lockExam("Halaman dimuat ulang saat ujian sedang dikunci.", data.lockUntil - Date.now());
+      }
     }
 
     // Deteksi pindah tab / minimize / pindah jendela
     function bindAntiCheatListeners() {
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
-          if (IS_IOS) {
-            // iOS: abaikan kedipan singkat akibat keyboard; hanya hitung jika benar-benar tersembunyi > 1,5 detik
-            if (Date.now() < acState.kbUntil) return;
-            setTimeout(() => {
-              if (document.hidden && Date.now() >= acState.kbUntil) {
-                registerViolation("Terdeteksi berpindah tab atau meminimalkan jendela browser.", "tabHidden");
-              }
-            }, 1500);
-            return;
-          }
           registerViolation("Terdeteksi berpindah tab atau meminimalkan jendela browser.", "tabHidden");
         }
       });
       window.addEventListener("blur", () => {
-        // iOS: keyboard / bar autofill memicu blur palsu; pindah aplikasi sudah tertangkap visibilitychange
-        if (IS_IOS) return;
         registerViolation("Terdeteksi berpindah ke aplikasi atau jendela lain.", "windowBlur");
       });
-
-      // iOS: masa tenggang saat keyboard muncul/hilang (termasuk tombol tutup keyboard)
-      if (IS_IOS) {
-        const kbGrace = () => { acState.kbUntil = Date.now() + 2000; };
-        document.addEventListener("focusin", (e) => { if (isTypingField(e.target)) kbGrace(); });
-        document.addEventListener("focusout", (e) => { if (isTypingField(e.target)) kbGrace(); });
-        if (window.visualViewport) window.visualViewport.addEventListener("resize", kbGrace);
-      }
 
       const btnAck = document.getElementById("btnAckWarning");
       if (btnAck) btnAck.addEventListener("click", acknowledgeWarning);
@@ -1281,9 +1254,7 @@
         console.log("[CBT Fullscreen] Keluar dari mode Fullscreen.");
         if (fsBadge) fsBadge.classList.add("d-none");
         unlockKeyboardEsc();
-        // iOS: abaikan hanya jika keluarnya akibat keyboard/kolom ketik; selain itu tetap diperingatkan
-        const iosKeyboardCaused = IS_IOS && (isTypingField(document.activeElement) || Date.now() < acState.kbUntil);
-        if (isExamActive && !isExamSubmitted && !iosKeyboardCaused) {
+        if (isExamActive && !isExamSubmitted) {
           registerViolation("Terdeteksi keluar dari mode layar penuh (fullscreen).", "fullscreen");
         }
       }
