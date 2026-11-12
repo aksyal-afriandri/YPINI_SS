@@ -922,7 +922,7 @@
       return [];
     }
 
-    // ---- Deteksi iOS (iPhone/iPad, termasuk iPadOS yang menyamar sebagai Mac) ----
+    // ---- Deteksi iOS (iPhone/iPad, termasuk iPadOS yang menyamar sebagai Mac). Android/desktop TIDAK terpengaruh ----
     const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
@@ -952,7 +952,7 @@
     }
 
     async function requestFullScreenSafe(element = document.documentElement) {
-      if (IS_IOS) return; // iOS: fullscreen tidak andal & bentrok dengan keyboard -> dilewati
+      if (IS_IOS) return; // iOS: fullscreen tidak andal & bentrok dengan keyboard
       if (isFullscreenActive()) return;
       try {
         // Jika halaman ini berjalan di dalam iframe, fullscreen-kan container milik parent
@@ -1080,18 +1080,16 @@
 
       const now = Date.now();
       if (acState.locked || acState.paused || now < acState.ignoreUntil) return;
-      if (IS_IOS && (type === "fullscreen" || type === "windowBlur")) return;
       acState.ignoreUntil = now + ANTI_CHEAT_CONFIG.cooldownMs;
+
+      // Tanpa kunci: setelah peringatan ke-maxWarnings, pelanggaran berikutnya tidak memunculkan apa pun
+      if (acState.warnings >= ANTI_CHEAT_CONFIG.maxWarnings) return;
 
       acState.warnings += 1;
       acSave();
       console.warn(`[CBT Anti-Cheat] Pelanggaran ${acState.warnings}: ${reason}`);
 
-      if (acState.warnings > ANTI_CHEAT_CONFIG.maxWarnings) {
-        lockExam(reason);
-      } else {
-        showWarning(reason);
-      }
+      showWarning(reason);
     }
 
     function showWarning(reason) {
@@ -1104,8 +1102,8 @@
       acSetText(
         "acWarnInfo",
         left > 0
-          ? `Tindakan ini melanggar aturan ujian. Sisa peringatan: ${left}. Jika terjadi lagi melebihi batas, ujian akan dikunci selama ${ANTI_CHEAT_CONFIG.lockMinutes} menit.`
-          : `Ini PERINGATAN TERAKHIR. Pelanggaran berikutnya akan mengunci ujian selama ${ANTI_CHEAT_CONFIG.lockMinutes} menit dan membutuhkan admin/pengawas.`
+          ? `Tindakan ini melanggar aturan ujian. Sisa peringatan: ${left}. Harap tetap fokus pada halaman ujian.`
+          : `Ini PERINGATAN TERAKHIR. Harap tetap fokus pada halaman ujian dan jangan membuka aplikasi lain.`
       );
 
       if (!$("#antiCheatWarningModal").hasClass("show")) {
@@ -1220,35 +1218,39 @@
       if (!data) return;
 
       acState.warnings = Number(data.warnings) || 0;
-      if (data.lockUntil) {
-        lockExam("Halaman dimuat ulang saat ujian sedang dikunci.", data.lockUntil - Date.now());
-      }
+      // Kunci ujian dinonaktifkan: lockUntil lama di localStorage diabaikan
     }
 
     // Deteksi pindah tab / minimize / pindah jendela
     function bindAntiCheatListeners() {
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
-          if (IS_IOS && Date.now() < acState.kbUntil) return;
+          if (IS_IOS) {
+            // iOS: abaikan kedipan singkat akibat keyboard; hanya hitung jika benar-benar tersembunyi > 1,5 detik
+            if (Date.now() < acState.kbUntil) return;
+            setTimeout(() => {
+              if (document.hidden && Date.now() >= acState.kbUntil) {
+                registerViolation("Terdeteksi berpindah tab atau meminimalkan jendela browser.", "tabHidden");
+              }
+            }, 1500);
+            return;
+          }
           registerViolation("Terdeteksi berpindah tab atau meminimalkan jendela browser.", "tabHidden");
         }
       });
       window.addEventListener("blur", () => {
-        // iOS: membuka/menutup keyboard (dan bar autofill) memicu blur palsu
-        if (IS_IOS) {
-          if (isTypingField(document.activeElement)) return;
-          if (Date.now() < acState.kbUntil) return;
-          // Di iOS pindah aplikasi sudah tertangkap visibilitychange -> blur saja tidak dihitung
-          return;
-        }
+        // iOS: keyboard / bar autofill memicu blur palsu; pindah aplikasi sudah tertangkap visibilitychange
+        if (IS_IOS) return;
         registerViolation("Terdeteksi berpindah ke aplikasi atau jendela lain.", "windowBlur");
       });
 
-      // iOS: beri masa tenggang saat keyboard muncul/hilang
-      const kbGrace = () => { acState.kbUntil = Date.now() + 2000; };
-      document.addEventListener("focusin", (e) => { if (isTypingField(e.target)) kbGrace(); });
-      document.addEventListener("focusout", (e) => { if (isTypingField(e.target)) kbGrace(); });
-      if (window.visualViewport) window.visualViewport.addEventListener("resize", kbGrace);
+      // iOS: masa tenggang saat keyboard muncul/hilang (termasuk tombol tutup keyboard)
+      if (IS_IOS) {
+        const kbGrace = () => { acState.kbUntil = Date.now() + 2000; };
+        document.addEventListener("focusin", (e) => { if (isTypingField(e.target)) kbGrace(); });
+        document.addEventListener("focusout", (e) => { if (isTypingField(e.target)) kbGrace(); });
+        if (window.visualViewport) window.visualViewport.addEventListener("resize", kbGrace);
+      }
 
       const btnAck = document.getElementById("btnAckWarning");
       if (btnAck) btnAck.addEventListener("click", acknowledgeWarning);
