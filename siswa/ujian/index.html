@@ -922,6 +922,14 @@
       return [];
     }
 
+    // ---- Deteksi iOS (iPhone/iPad, termasuk iPadOS yang menyamar sebagai Mac) ----
+    const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+    function isTypingField(el) {
+      return !!el && /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName || "");
+    }
+
     // Status fullscreen terakhir yang diketahui (dipakai agar handler tidak jalan 2x untuk 1 perubahan)
     let lastFullscreenState = false;
 
@@ -944,6 +952,7 @@
     }
 
     async function requestFullScreenSafe(element = document.documentElement) {
+      if (IS_IOS) return; // iOS: fullscreen tidak andal & bentrok dengan keyboard -> dilewati
       if (isFullscreenActive()) return;
       try {
         // Jika halaman ini berjalan di dalam iframe, fullscreen-kan container milik parent
@@ -1011,6 +1020,7 @@
       lockUntil: 0,
       ignoreUntil: 0,
       paused: false,
+      kbUntil: 0,
       timer: null
     };
 
@@ -1070,6 +1080,7 @@
 
       const now = Date.now();
       if (acState.locked || acState.paused || now < acState.ignoreUntil) return;
+      if (IS_IOS && (type === "fullscreen" || type === "windowBlur")) return;
       acState.ignoreUntil = now + ANTI_CHEAT_CONFIG.cooldownMs;
 
       acState.warnings += 1;
@@ -1218,12 +1229,26 @@
     function bindAntiCheatListeners() {
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
+          if (IS_IOS && Date.now() < acState.kbUntil) return;
           registerViolation("Terdeteksi berpindah tab atau meminimalkan jendela browser.", "tabHidden");
         }
       });
       window.addEventListener("blur", () => {
+        // iOS: membuka/menutup keyboard (dan bar autofill) memicu blur palsu
+        if (IS_IOS) {
+          if (isTypingField(document.activeElement)) return;
+          if (Date.now() < acState.kbUntil) return;
+          // Di iOS pindah aplikasi sudah tertangkap visibilitychange -> blur saja tidak dihitung
+          return;
+        }
         registerViolation("Terdeteksi berpindah ke aplikasi atau jendela lain.", "windowBlur");
       });
+
+      // iOS: beri masa tenggang saat keyboard muncul/hilang
+      const kbGrace = () => { acState.kbUntil = Date.now() + 2000; };
+      document.addEventListener("focusin", (e) => { if (isTypingField(e.target)) kbGrace(); });
+      document.addEventListener("focusout", (e) => { if (isTypingField(e.target)) kbGrace(); });
+      if (window.visualViewport) window.visualViewport.addEventListener("resize", kbGrace);
 
       const btnAck = document.getElementById("btnAckWarning");
       if (btnAck) btnAck.addEventListener("click", acknowledgeWarning);
@@ -1254,7 +1279,7 @@
         console.log("[CBT Fullscreen] Keluar dari mode Fullscreen.");
         if (fsBadge) fsBadge.classList.add("d-none");
         unlockKeyboardEsc();
-        if (isExamActive && !isExamSubmitted) {
+        if (isExamActive && !isExamSubmitted && !IS_IOS) {
           registerViolation("Terdeteksi keluar dari mode layar penuh (fullscreen).", "fullscreen");
         }
       }
