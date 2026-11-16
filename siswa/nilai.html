@@ -400,7 +400,7 @@
             kop: { namaSekolah: "" },
             tampilkanTandaTanganLembarJawaban: false,
             tampilkanRingkasanLembarJawaban: false,
-            tampilkanAcuanEssayLembarJawaban: false,
+            tampilkanAcuanEssayLembarJawaban: true,
             tampilkanLabelBenarSalahLembarJawaban: false,
             essayDiAkhirLembarJawaban: true,
             pakaiNomorAsliLembarJawaban: false
@@ -446,25 +446,25 @@
         const formatWibDate = formatDateTimeId;
 
         function generateStudentAnswerSheetHtml(attempt, questions = [], studentAnswersMap = new Map(), kunciPgMap = new Map(), acuanEssayMap = new Map(), mode = "butir", finalScoreOverride = null, essayMarks = new Map()) {
-            const isRekap = mode === "rekap";
-            const font = PRINT_CONFIG.fontCetak || "Arial, 'Helvetica Neue', Helvetica, sans-serif";
-            const schoolName = PRINT_CONFIG.kop.namaSekolah ? PRINT_CONFIG.kop.namaSekolah.trim() : "";
-            const teacherName = window.currentUserProfile?.name || "";
-            const printDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
+        	const isRekap = mode === "rekap";
+        	const font = PRINT_CONFIG.fontCetak || "Arial, 'Helvetica Neue', Helvetica, sans-serif";
+        	const schoolName = PRINT_CONFIG.kop.namaSekolah ? PRINT_CONFIG.kop.namaSekolah.trim() : "";
+        	const teacherName = window.currentUserProfile?.name || "";
+        	const printDate = new Date().toLocaleDateString("id-ID", { day: "2-digit", month: "long", year: "numeric" });
 
-            let finalScore = "-";
-            if (finalScoreOverride !== undefined && finalScoreOverride !== null && String(finalScoreOverride).trim() !== "") {
-                finalScore = String(finalScoreOverride);
-            } else if (attempt.nilai_total !== undefined && attempt.nilai_total !== null) {
-                finalScore = Number(attempt.nilai_total).toFixed(2);
-            }
+        	let finalScore = "-";
+        	if (finalScoreOverride !== undefined && finalScoreOverride !== null && String(finalScoreOverride).trim() !== "") {
+        		finalScore = String(finalScoreOverride);
+        	} else if (attempt.nilai_total !== undefined && attempt.nilai_total !== null) {
+        		finalScore = Number(attempt.nilai_total).toFixed(2);
+        	}
 
-            const optText = (q, k) => ({ A: q.pilihan_a, B: q.pilihan_b, C: q.pilihan_c, D: q.pilihan_d })[k] || "";
-            const optImg = (q, k) => ({ A: q.gambar_pilihan_a, B: q.gambar_pilihan_b, C: q.gambar_pilihan_c, D: q.gambar_pilihan_d })[k] || "";
-            const optImgHtml = (q, k) => optImg(q, k)
-                ? `<div><img src="${escapeHtml(optImg(q, k))}" alt="Pilihan ${k}" style="max-width: 160px; max-height: 90px; object-fit: contain; margin-top: 3px;"></div>`
-                : "";
-            const GREEN = "#d4edda", RED = "#f8d7da", GREY = "#e9ecef";
+        	const optText = (q, k) => ({ A: q.pilihan_a, B: q.pilihan_b, C: q.pilihan_c, D: q.pilihan_d })[k] || "";
+        	const optImg = (q, k) => ({ A: q.gambar_pilihan_a, B: q.gambar_pilihan_b, C: q.gambar_pilihan_c, D: q.gambar_pilihan_d })[k] || "";
+        	const optImgHtml = (q, k) => optImg(q, k)
+        		? `<div><img src="${escapeHtml(optImg(q, k))}" alt="Pilihan ${k}" style="max-width: 160px; max-height: 90px; object-fit: contain; margin-top: 3px;"></div>`
+        		: "";
+        	const GREEN = "#d4edda", RED = "#f8d7da", GREY = "#e9ecef";
             // Penanda benar/salah dari finalisasi guru (essay & jawaban singkat): true = hijau, false = merah
             const markOf = (q, ans) => essayMarks.has(String(q.id))
                 ? essayMarks.get(String(q.id))
@@ -478,293 +478,294 @@
                 return !studentText ? GREY : (keyMatch ? GREEN : RED);
             };
 
-            // --- Hitung ringkasan PG (dipakai kotak ringkasan jika diaktifkan) ---
-            let pgTotal = 0, pgCorrect = 0, pgWrong = 0, pgBlank = 0;
-            questions.forEach(q => {
-                if (q.soal_type !== "pg") return;
-                const ans = studentAnswersMap.get(String(q.id));
-                const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
-                const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
-                pgTotal++;
-                if (choice && key && choice === key) pgCorrect++;
-                else if (choice) pgWrong++;
-                else pgBlank++;
-            });
+        	// --- Hitung ringkasan PG (dipakai kotak ringkasan jika diaktifkan) ---
+        	let pgTotal = 0, pgCorrect = 0, pgWrong = 0, pgBlank = 0;
+        	questions.forEach(q => {
+        		if (q.soal_type !== "pg") return;
+        		const ans = studentAnswersMap.get(String(q.id));
+        		const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
+        		const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
+        		pgTotal++;
+        		if (choice && key && choice === key) pgCorrect++;
+        		else if (choice) pgWrong++;
+        		else pgBlank++;
+        	});
 
-            const cell = "border: 1px solid #333; padding: 3px 6px; text-align: center; font-size: 9.5pt;";
-            const summaryHtml = PRINT_CONFIG.tampilkanRingkasanLembarJawaban ? `
-                <table style="width: 100%; border-collapse: collapse; margin: 8px 0;">
-                    <tr>
-                        <td style="${cell} background: #f0f0f0;"><b>Total Soal</b><br>${questions.length}</td>
-                        <td style="${cell} background: ${GREEN};"><b>PG Benar</b><br>${pgCorrect} / ${pgTotal}</td>
-                        <td style="${cell} background: ${RED};"><b>PG Salah</b><br>${pgWrong}</td>
-                        <td style="${cell} background: ${GREY};"><b>Tidak Dijawab</b><br>${pgBlank}</td>
-                        <td style="${cell} background: #fff3cd;"><b>Nilai Akhir</b><br><span style="font-size: 12pt; font-weight: bold;">${escapeHtml(finalScore)}</span></td>
-                    </tr>
-                </table>` : "";
+        	const cell = "border: 1px solid #333; padding: 3px 6px; text-align: center; font-size: 9.5pt;";
+        	const summaryHtml = PRINT_CONFIG.tampilkanRingkasanLembarJawaban ? `
+        		<table style="width: 100%; border-collapse: collapse; margin: 8px 0;">
+        			<tr>
+        				<td style="${cell} background: #f0f0f0;"><b>Total Soal</b><br>${questions.length}</td>
+        				<td style="${cell} background: ${GREEN};"><b>PG Benar</b><br>${pgCorrect} / ${pgTotal}</td>
+        				<td style="${cell} background: ${RED};"><b>PG Salah</b><br>${pgWrong}</td>
+        				<td style="${cell} background: ${GREY};"><b>Tidak Dijawab</b><br>${pgBlank}</td>
+        				<td style="${cell} background: #fff3cd;"><b>Nilai Akhir</b><br><span style="font-size: 12pt; font-weight: bold;">${escapeHtml(finalScore)}</span></td>
+        			</tr>
+        		</table>` : "";
 
-            // --- Urutan cetak: pilihan ganda dulu, jawaban singkat, lalu essay di akhir ---
-            const originalIndex = new Map(questions.map((q, i) => [q.id, i]));
-            const printQuestions = PRINT_CONFIG.essayDiAkhirLembarJawaban === false
-                ? questions.slice()
-                : [
-                    ...questions.filter(q => q.soal_type === "pg"),
-                    ...questions.filter(q => q.soal_type === "jawaban_singkat"),
-                    ...questions.filter(q => q.soal_type !== "pg" && q.soal_type !== "jawaban_singkat")
-                ];
-            const numberOf = (q, idx) => PRINT_CONFIG.pakaiNomorAsliLembarJawaban
-                ? (q.nomor_urut || (originalIndex.get(q.id) + 1))
-                : (idx + 1);
+        	// --- Urutan cetak: pilihan ganda dulu, jawaban singkat, lalu essay di akhir ---
+        	const originalIndex = new Map(questions.map((q, i) => [q.id, i]));
+        	const printQuestions = PRINT_CONFIG.essayDiAkhirLembarJawaban === false
+        		? questions.slice()
+        		: [
+        			...questions.filter(q => q.soal_type === "pg"),
+        			...questions.filter(q => q.soal_type === "jawaban_singkat"),
+        			...questions.filter(q => q.soal_type !== "pg" && q.soal_type !== "jawaban_singkat")
+        		];
+        	const numberOf = (q, idx) => PRINT_CONFIG.pakaiNomorAsliLembarJawaban
+        		? (q.nomor_urut || (originalIndex.get(q.id) + 1))
+        		: (idx + 1);
 
-            let bodyHtml = "";
+        	let bodyHtml = "";
 
-            // ======================= MODE 1: REKAP =======================
-            if (isRekap) {
-                const th = "border: 1px solid #333; padding: 6px 8px; background: #f0f0f0; font-size: 10pt;";
-                const td = "border: 1px solid #333; padding: 5px 8px; vertical-align: top; font-size: 10pt;";
+        	// ======================= MODE 1: REKAP =======================
+        	if (isRekap) {
+        		const th = "border: 1px solid #333; padding: 6px 8px; background: #f0f0f0; font-size: 10pt;";
+        		const td = "border: 1px solid #333; padding: 5px 8px; vertical-align: top; font-size: 10pt;";
 
-                const pgItems = [], singkatItems = [], essayItems = [];
-                printQuestions.forEach((q, idx) => {
-                    if (q.soal_type === "pg") pgItems.push({ q, qNum: numberOf(q, idx) });
-                    else if (q.soal_type === "jawaban_singkat") singkatItems.push({ q, qNum: numberOf(q, idx) });
-                    else essayItems.push({ q, qNum: numberOf(q, idx) });
-                });
+        		const pgItems = [], singkatItems = [], essayItems = [];
+        		printQuestions.forEach((q, idx) => {
+        			if (q.soal_type === "pg") pgItems.push({ q, qNum: numberOf(q, idx) });
+        			else if (q.soal_type === "jawaban_singkat") singkatItems.push({ q, qNum: numberOf(q, idx) });
+        			else essayItems.push({ q, qNum: numberOf(q, idx) });
+        		});
 
-                // --- Tabel Pilihan Ganda: No | Soal | Jawaban Siswa | Kunci Jawaban ---
-                const pgRows = pgItems.map(({ q, qNum }) => {
-                    const ans = studentAnswersMap.get(String(q.id));
-                    const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
-                    const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
-                    const studentBg = !choice ? GREY : (choice === key ? GREEN : RED);
-                    const studentCell = choice
-                        ? `<td style="${td} background: ${studentBg};"><b>${choice}.</b> ${escapeHtml(optText(q, choice) || (optImg(q, choice) ? "" : "-"))}${optImgHtml(q, choice)}</td>`
-                        : `<td style="${td} background: ${studentBg}; font-style: italic; color: #555;">Tidak dijawab</td>`;
-                    const keyCell = key
-                        ? `<td style="${td} background: ${GREEN};"><b>${key}.</b> ${escapeHtml(optText(q, key) || (optImg(q, key) ? "" : "-"))}${optImgHtml(q, key)}</td>`
-                        : `<td style="${td} font-style: italic; color: #555;">Kunci belum diatur</td>`;
-                    return `<tr>
-                        <td style="${td} text-align: center; width: 34px;">${qNum}</td>
-                        <td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
-                        ${studentCell}
-                        ${keyCell}
-                    </tr>`;
-                }).join("");
+        		// --- Tabel Pilihan Ganda: No | Soal | Jawaban Siswa | Kunci Jawaban ---
+        		const pgRows = pgItems.map(({ q, qNum }) => {
+        			const ans = studentAnswersMap.get(String(q.id));
+        			const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
+        			const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
+        			const studentBg = !choice ? GREY : (choice === key ? GREEN : RED);
+        			const studentCell = choice
+        				? `<td style="${td} background: ${studentBg};"><b>${choice}.</b> ${escapeHtml(optText(q, choice) || (optImg(q, choice) ? "" : "-"))}${optImgHtml(q, choice)}</td>`
+        				: `<td style="${td} background: ${studentBg}; font-style: italic; color: #555;">Tidak dijawab</td>`;
+        			const keyCell = key
+        				? `<td style="${td} background: ${GREEN};"><b>${key}.</b> ${escapeHtml(optText(q, key) || (optImg(q, key) ? "" : "-"))}${optImgHtml(q, key)}</td>`
+        				: `<td style="${td} font-style: italic; color: #555;">Kunci belum diatur</td>`;
+        			return `<tr>
+        				<td style="${td} text-align: center; width: 34px;">${qNum}</td>
+        				<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
+        				${studentCell}
+        				${keyCell}
+        			</tr>`;
+        		}).join("");
 
-                // --- Tabel Jawaban Singkat: No | Soal | Jawaban Siswa | Kunci Jawaban ---
-                const singkatRows = singkatItems.map(({ q, qNum }) => {
-                    const ans = studentAnswersMap.get(String(q.id));
-                    const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
-                    const refs = acuanEssayMap.get(String(q.id)) || [];
-                    const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
-                    const studentBg = markBg(q, ans, studentText, isCorrect) || GREY;
-                    const keyHtml = refs.length ? refs.map(escapeHtml).join("<br>") : "-";
-                    return `<tr>
-                        <td style="${td} text-align: center; width: 34px;">${qNum}</td>
-                        <td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
-                        <td style="${td} background: ${studentBg}; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
-                        <td style="${td} background: ${GREEN}; white-space: pre-wrap;">${keyHtml}</td>
-                    </tr>`;
-                }).join("");
+        		// --- Tabel Jawaban Singkat: No | Soal | Jawaban Siswa | Kunci Jawaban ---
+        		const singkatRows = singkatItems.map(({ q, qNum }) => {
+        			const ans = studentAnswersMap.get(String(q.id));
+        			const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+        			const refs = acuanEssayMap.get(String(q.id)) || [];
+        			const keyHtml = refs.length ? refs.map(escapeHtml).join("<br>") : "-";
+        			return `<tr>
+        				<td style="${td} text-align: center; width: 34px;">${qNum}</td>
+        				<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
+        				<td style="${td} background: #fff; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
+        				<td style="${td} background: #fff; white-space: pre-wrap;">${keyHtml}</td>
+        			</tr>`;
+        		}).join("");
 
-                // --- Tabel Essay: No | Soal | Jawaban Siswa (tanpa kunci/acuan) ---
-                const essayRows = essayItems.map(({ q, qNum }) => {
-                    const ans = studentAnswersMap.get(String(q.id));
-                    const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
-                    return `<tr>
-                        <td style="${td} text-align: center; width: 34px;">${qNum}</td>
-                        <td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
-                        <td style="${td} background: ${markBg(q, ans, studentText, null) || "transparent"}; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
-                    </tr>`;
-                }).join("");
+        		// --- Tabel Essay: No | Soal | Jawaban Siswa | Kunci Jawaban ---
+        		const essayRows = essayItems.map(({ q, qNum }) => {
+        			const ans = studentAnswersMap.get(String(q.id));
+        			const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+        			const refs = acuanEssayMap.get(String(q.id)) || [];
+        			const keyHtml = refs.length ? refs.map(escapeHtml).join("<br>") : "-";
+        			return `<tr>
+        				<td style="${td} text-align: center; width: 34px;">${qNum}</td>
+        				<td style="${td} white-space: pre-wrap;">${escapeHtml(q.pertanyaan)}</td>
+        				<td style="${td} background: #fff; white-space: pre-wrap;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</td>
+        				<td style="${td} background: #fff; white-space: pre-wrap;">${keyHtml}</td>
+        			</tr>`;
+        		}).join("");
 
-                const sectionTitle = (t) => `<div style="font-weight: bold; font-size: 11pt; margin: 12px 0 4px 0;">${t}</div>`;
-                const tableOpen = `<table class="print-table" style="width: 100%; border-collapse: collapse;">`;
+        		const sectionTitle = (t) => `<div style="font-weight: bold; font-size: 11pt; margin: 12px 0 4px 0;">${t}</div>`;
+        		const tableOpen = `<table class="print-table" style="width: 100%; border-collapse: collapse;">`;
 
-                bodyHtml = "";
-                if (pgRows) {
-                    bodyHtml += sectionTitle("Soal Pilihan Ganda") + `${tableOpen}
-                        <thead>
-                            <tr>
-                                <th style="${th} width: 34px;">No</th>
-                                <th style="${th} text-align: left;">Soal</th>
-                                <th style="${th} text-align: left; width: 24%;">Jawaban Siswa</th>
-                                <th style="${th} text-align: left; width: 24%;">Kunci Jawaban</th>
-                            </tr>
-                        </thead>
-                        <tbody>${pgRows}</tbody>
-                    </table>`;
-                }
-                if (singkatRows) {
-                    bodyHtml += sectionTitle("Soal Jawaban Singkat") + `${tableOpen}
-                        <thead>
-                            <tr>
-                                <th style="${th} width: 34px;">No</th>
-                                <th style="${th} text-align: left;">Soal</th>
-                                <th style="${th} text-align: left; width: 24%;">Jawaban Siswa</th>
-                                <th style="${th} text-align: left; width: 24%;">Kunci Jawaban</th>
-                            </tr>
-                        </thead>
-                        <tbody>${singkatRows}</tbody>
-                    </table>`;
-                }
-                if (essayRows) {
-                    bodyHtml += sectionTitle("Soal Essay") + `${tableOpen}
-                        <thead>
-                            <tr>
-                                <th style="${th} width: 34px;">No</th>
-                                <th style="${th} text-align: left; width: 38%;">Soal</th>
-                                <th style="${th} text-align: left;">Jawaban Siswa</th>
-                            </tr>
-                        </thead>
-                        <tbody>${essayRows}</tbody>
-                    </table>`;
-                }
-                if (!bodyHtml) bodyHtml = `<div style="margin-top: 14px; font-style: italic;">Belum ada soal pada ujian ini.</div>`;
-            }
+        		bodyHtml = "";
+        		if (pgRows) {
+        			bodyHtml += sectionTitle("Soal Pilihan Ganda") + `${tableOpen}
+        				<thead>
+        					<tr>
+        						<th style="${th} width: 34px;">No</th>
+        						<th style="${th} text-align: left;">Soal</th>
+        						<th style="${th} text-align: left; width: 24%;">Jawaban Siswa</th>
+        						<th style="${th} text-align: left; width: 24%;">Kunci Jawaban</th>
+        					</tr>
+        				</thead>
+        				<tbody>${pgRows}</tbody>
+        			</table>`;
+        		}
+        		if (singkatRows) {
+        			bodyHtml += sectionTitle("Soal Jawaban Singkat") + `${tableOpen}
+        				<thead>
+        					<tr>
+        						<th style="${th} width: 34px;">No</th>
+        						<th style="${th} text-align: left;">Soal</th>
+        						<th style="${th} text-align: left; width: 24%;">Jawaban Siswa</th>
+        						<th style="${th} text-align: left; width: 24%;">Kunci Jawaban</th>
+        					</tr>
+        				</thead>
+        				<tbody>${singkatRows}</tbody>
+        			</table>`;
+        		}
+        		if (essayRows) {
+        			bodyHtml += sectionTitle("Soal Essay") + `${tableOpen}
+        				<thead>
+        					<tr>
+        						<th style="${th} width: 34px;">No</th>
+        						<th style="${th} text-align: left;">Soal</th>
+        						<th style="${th} text-align: left; width: 24%;">Jawaban Siswa</th>
+        						<th style="${th} text-align: left; width: 24%;">Kunci Jawaban</th>
+        					</tr>
+        				</thead>
+        				<tbody>${essayRows}</tbody>
+        			</table>`;
+        		}
+        		if (!bodyHtml) bodyHtml = `<div style="margin-top: 14px; font-style: italic;">Belum ada soal pada ujian ini.</div>`;
+        	}
 
-            // ======================= MODE 2: JAWABAN PER BUTIR =======================
-            if (!isRekap) {
-                const detailHtml = printQuestions.map((q, idx) => {
-                    const qNum = numberOf(q, idx);
-                    const ans = studentAnswersMap.get(String(q.id));
-                    const isPg = q.soal_type === "pg";
-                    const isSingkat = q.soal_type === "jawaban_singkat";
+        	// ======================= MODE 2: JAWABAN PER BUTIR =======================
+        	if (!isRekap) {
+        		const detailHtml = printQuestions.map((q, idx) => {
+        			const qNum = numberOf(q, idx);
+        			const ans = studentAnswersMap.get(String(q.id));
+        			const isPg = q.soal_type === "pg";
+        			const isSingkat = q.soal_type === "jawaban_singkat";
 
-                    const images = [];
-                    if (q.gambar_url) images.push(q.gambar_url);
-                    if (Array.isArray(q.gambar_urls)) q.gambar_urls.forEach(u => { if (u && !images.includes(u)) images.push(u); });
-                    const imagesHtml = images.length
-                        ? `<div style="margin: 6px 0;">${images.map(u => `<img src="${escapeHtml(u)}" alt="Gambar soal" style="margin-right: 8px; border: 1px solid #999;">`).join("")}</div>`
-                        : "";
+        			const images = [];
+        			if (q.gambar_url) images.push(q.gambar_url);
+        			if (Array.isArray(q.gambar_urls)) q.gambar_urls.forEach(u => { if (u && !images.includes(u)) images.push(u); });
+        			const imagesHtml = images.length
+        				? `<div style="margin: 6px 0;">${images.map(u => `<img src="${escapeHtml(u)}" alt="Gambar soal" style="margin-right: 8px; border: 1px solid #999;">`).join("")}</div>`
+        				: "";
 
-                    const headBase = "font-weight: bold; font-size: 10.5pt; margin-bottom: 4px;";
-                    const qText = `<div style="white-space: pre-wrap; font-size: 10.5pt; margin-bottom: 4px;">${escapeHtml(q.pertanyaan)}</div>`;
+        			const headBase = "font-weight: bold; font-size: 10.5pt; margin-bottom: 4px;";
+        			const qText = `<div style="white-space: pre-wrap; font-size: 10.5pt; margin-bottom: 4px;">${escapeHtml(q.pertanyaan)}</div>`;
 
-                    if (isPg) {
-                        const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
-                        const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
-                        const isCorrect = choice && key && choice === key;
-                        const result = !choice ? "TIDAK DIJAWAB" : (isCorrect ? "BENAR" : "SALAH");
-                        const resultColor = !choice ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
-                        const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
-                            ? `<span style="color: ${resultColor};">${result}</span>` : "";
+        			if (isPg) {
+        				const choice = ans?.jawaban_pg ? ans.jawaban_pg.toUpperCase() : "";
+        				const key = (kunciPgMap.get(String(q.id)) || "").toUpperCase();
+        				const isCorrect = choice && key && choice === key;
+        				const result = !choice ? "TIDAK DIJAWAB" : (isCorrect ? "BENAR" : "SALAH");
+        				const resultColor = !choice ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
+        				const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
+        					? `<span style="color: ${resultColor};">${result}</span>` : "";
 
-                        const optRows = ["A", "B", "C", "D"].map(k => {
-                            let bg = "#fff", weight = "normal";
-                            if (k === choice && k === key) { bg = GREEN; weight = "bold"; }
-                            else if (k === choice) { bg = RED; weight = "bold"; }
-                            else if (k === key) { bg = GREEN; weight = "bold"; }
-                            return `<tr style="background: ${bg};">
-                                <td style="border: 1px solid #333; padding: 4px 6px; width: 28px; text-align: center; font-weight: bold;">${k}</td>
-                                <td style="border: 1px solid #333; padding: 4px 8px; font-weight: ${weight}; white-space: pre-wrap;">${escapeHtml(optText(q, k) || (optImg(q, k) ? "" : "-"))}${optImgHtml(q, k)}</td>
-                            </tr>`;
-                        }).join("");
+        				const optRows = ["A", "B", "C", "D"].map(k => {
+        					let bg = "#fff", weight = "normal";
+        					if (k === choice && k === key) { bg = GREEN; weight = "bold"; }
+        					else if (k === choice) { bg = RED; weight = "bold"; }
+        					else if (k === key) { bg = GREEN; weight = "bold"; }
+        					return `<tr style="background: ${bg};">
+        						<td style="border: 1px solid #333; padding: 4px 6px; width: 28px; text-align: center; font-weight: bold;">${k}</td>
+        						<td style="border: 1px solid #333; padding: 4px 8px; font-weight: ${weight}; white-space: pre-wrap;">${escapeHtml(optText(q, k) || (optImg(q, k) ? "" : "-"))}${optImgHtml(q, k)}</td>
+        					</tr>`;
+        				}).join("");
 
-                        return `
-                            <div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
-                                <div style="${headBase} display: flex; justify-content: space-between;">
-                                    <span>Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Pilihan Ganda)</span></span>
-                                    ${labelHtml}
-                                </div>
-                                ${qText}
-                                ${imagesHtml}
-                                <table style="width: 100%; border-collapse: collapse; margin-top: 4px;">${optRows}</table>
-                            </div>`;
-                    }
+        				return `
+        					<div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
+        						<div style="${headBase} display: flex; justify-content: space-between;">
+        							<span>Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Pilihan Ganda)</span></span>
+        							${labelHtml}
+        						</div>
+        						${qText}
+        						${imagesHtml}
+        						<table style="width: 100%; border-collapse: collapse; margin-top: 4px;">${optRows}</table>
+        					</div>`;
+        			}
 
-                    if (isSingkat) {
-                        const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
-                        const refs = acuanEssayMap.get(String(q.id)) || [];
-                        const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
-                        const result = !studentText ? "TIDAK DIJAWAB" : (isCorrect ? "BENAR" : "SALAH");
-                        const resultColor = !studentText ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
-                        const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
-                            ? `<span style="color: ${resultColor};">${result}</span>` : "";
-                        const studentBg = markBg(q, ans, studentText, isCorrect) || GREY;
-                        const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
+        			if (isSingkat) {
+        				const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+        				const refs = acuanEssayMap.get(String(q.id)) || [];
+        				const isCorrect = refs.some(r => r.trim().toLowerCase() === studentText.toLowerCase());
+        				const result = !studentText ? "TIDAK DIJAWAB" : (isCorrect ? "BENAR" : "SALAH");
+        				const resultColor = !studentText ? "#6c757d" : (isCorrect ? "#155724" : "#721c24");
+        				const labelHtml = PRINT_CONFIG.tampilkanLabelBenarSalahLembarJawaban
+        					? `<span style="color: ${resultColor};">${result}</span>` : "";
+        				const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
 
-                        return `
-                            <div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
-                                <div style="${headBase} display: flex; justify-content: space-between;">
-                                    <span>Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Jawaban Singkat)</span></span>
-                                    ${labelHtml}
-                                </div>
-                                ${qText}
-                                ${imagesHtml}
-                                <div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
-                                <div style="${boxStyle} background: ${studentBg};">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</div>
-                                <div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci Jawaban:</div>
-                                <div style="${boxStyle} background: ${GREEN};">${refs.length ? refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("") : '-'}</div>
-                            </div>`;
-                    }
+        				return `
+        					<div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
+        						<div style="${headBase} display: flex; justify-content: space-between;">
+        							<span>Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Jawaban Singkat)</span></span>
+        							${labelHtml}
+        						</div>
+        						${qText}
+        						${imagesHtml}
+        						<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
+        						<div style="${boxStyle} background: #fff;">${studentText ? escapeHtml(studentText) : '<i style="color: #555;">Tidak dijawab</i>'}</div>
+        						<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci Jawaban:</div>
+        						<div style="${boxStyle} background: #fff;">${refs.length ? refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("") : '-'}</div>
+        					</div>`;
+        			}
 
-                    // Essay: hanya jawaban siswa
-                    const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
-                    const refs = acuanEssayMap.get(String(q.id)) || [];
-                    const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
-                    const refHtml = PRINT_CONFIG.tampilkanAcuanEssayLembarJawaban && refs.length ? `
-                        <div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci / Acuan Jawaban:</div>
-                        <div style="${boxStyle} background: ${GREEN};">${refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("")}</div>` : "";
+        			// Essay: jawaban siswa dan kunci / acuan jawaban (warna putih tanpa background)
+        			const studentText = ans?.jawaban_essay ? ans.jawaban_essay.trim() : "";
+        			const refs = acuanEssayMap.get(String(q.id)) || [];
+        			const boxStyle = "border: 1px solid #333; padding: 6px 8px; font-size: 10pt; white-space: pre-wrap; min-height: 22px;";
+        			const refHtml = `
+        				<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Kunci / Acuan Jawaban:</div>
+        				<div style="${boxStyle} background: #fff;">${refs.length ? refs.map((r, i) => `<div>${refs.length > 1 ? `<b>${i + 1}.</b> ` : ""}${escapeHtml(r)}</div>`).join("") : '-'}</div>`;
 
-                    return `
-                        <div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
-                            <div style="${headBase}">Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Essay / Uraian)</span></div>
-                            ${qText}
-                            ${imagesHtml}
-                            <div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
-                            <div style="${boxStyle} background: ${markBg(q, ans, studentText, null) || "transparent"};">${studentText ? escapeHtml(studentText) : "<i>Siswa tidak mengisi jawaban.</i>"}</div>
-                            ${refHtml}
-                        </div>`;
-                }).join("");
+        			return `
+        				<div class="ans-q" style="margin-bottom: 14px; page-break-inside: avoid;">
+        					<div style="${headBase}">Soal No. ${qNum} <span style="font-weight: normal; font-size: 9pt;">(Essay / Uraian)</span></div>
+        					${qText}
+        					${imagesHtml}
+        					<div style="font-size: 9.5pt; font-weight: bold; margin: 6px 0 2px 0;">Jawaban Siswa:</div>
+        					<div style="${boxStyle} background: #fff;">${studentText ? escapeHtml(studentText) : "<i>Siswa tidak mengisi jawaban.</i>"}</div>
+        					${refHtml}
+        				</div>`;
+        		}).join("");
 
-                bodyHtml = `<div style="font-weight: bold; font-size: 11pt; margin: 10px 0 8px 0; border-bottom: 1px solid #000;">Perbandingan Jawaban per Butir Soal</div>${detailHtml}`;
-            }
+        		bodyHtml = `<div style="font-weight: bold; font-size: 11pt; margin: 10px 0 8px 0; border-bottom: 1px solid #000;">Perbandingan Jawaban per Butir Soal</div>${detailHtml}`;
+        	}
 
-            // ======================= TANDA TANGAN =======================
-            const signatureHtml = PRINT_CONFIG.tampilkanTandaTanganLembarJawaban ? `
-                <div class="print-signature-area" style="margin-top: 20px; display: flex; justify-content: flex-end; font-size: 10.5pt; page-break-inside: avoid;">
-                    <div style="text-align: center; min-width: 220px;">
-                        <div>${escapeHtml(printDate)}</div>
-                        <div>Guru Pengampu,</div>
-                        <div style="height: 60px;"></div>
-                        <div style="font-weight: bold; text-decoration: underline;">${escapeHtml(teacherName || "( ........................ )")}</div>
-                    </div>
-                </div>` : "";
+        	// ======================= TANDA TANGAN =======================
+        	const signatureHtml = PRINT_CONFIG.tampilkanTandaTanganLembarJawaban ? `
+        		<div class="print-signature-area" style="margin-top: 20px; display: flex; justify-content: flex-end; font-size: 10.5pt; page-break-inside: avoid;">
+        			<div style="text-align: center; min-width: 220px;">
+        				<div>${escapeHtml(printDate)}</div>
+        				<div>Guru Pengampu,</div>
+        				<div style="height: 60px;"></div>
+        				<div style="font-weight: bold; text-decoration: underline;">${escapeHtml(teacherName || "( ........................ )")}</div>
+        			</div>
+        		</div>` : "";
 
-            const infoRow = (label, value) => `<tr><td style="width: 120px; font-weight: bold; vertical-align: top; padding: 1px 0;">${label}</td><td style="padding: 1px 0;">: ${value}</td></tr>`;
-            const docTitle = isRekap ? "REKAP JAWABAN SISWA" : "LEMBAR JAWABAN SISWA &amp; KUNCI JAWABAN";
-            const legend = `<span style="background: ${GREEN}; padding: 0 6px; border: 1px solid #999;">hijau = jawaban benar / kunci</span>
-                <span style="background: ${RED}; padding: 0 6px; border: 1px solid #999; margin-left: 6px;">merah = jawaban siswa salah</span>`;
+        	const infoRow = (label, value) => `<tr><td style="width: 120px; font-weight: bold; vertical-align: top; padding: 1px 0;">${label}</td><td style="padding: 1px 0;">: ${value}</td></tr>`;
+        	const docTitle = isRekap ? "REKAP JAWABAN SISWA" : "LEMBAR JAWABAN SISWA &amp; KUNCI JAWABAN";
+        	const legend = `<span style="background: ${GREEN}; padding: 0 6px; border: 1px solid #999;">hijau = jawaban benar / kunci</span>
+        		<span style="background: ${RED}; padding: 0 6px; border: 1px solid #999; margin-left: 6px;">merah = jawaban siswa salah</span>`;
 
-            return `
-                <div style="font-family: ${font}; color: #000; width: 100%; box-sizing: border-box;">
-                    <div style="text-align: center; margin-bottom: 12px; border-bottom: 3px double #000; padding-bottom: 8px;">
-                        ${schoolName ? `<h2 style="margin: 0; font-size: 15pt; text-transform: uppercase;">${escapeHtml(schoolName)}</h2>` : ""}
-                        <h3 style="margin: 4px 0 0 0; font-size: 13pt;">${docTitle}</h3>
-                    </div>
-                    <table style="width: 100%; font-size: 10.5pt; border-collapse: collapse; margin-bottom: 6px;">
-                        <tr>
-                            <td style="width: 55%; vertical-align: top;">
-                                <table style="border-collapse: collapse;">
-                                    ${infoRow("Nama Siswa", escapeHtml(attempt.studentName))}
-                                    ${infoRow("NIS", escapeHtml(attempt.studentNis))}
-                                    ${infoRow("Kelas", escapeHtml(attempt.className))}
-                                </table>
-                            </td>
-                            <td style="vertical-align: top;">
-                                <table style="border-collapse: collapse;">
-                                    ${infoRow("Ujian", escapeHtml(attempt.examName))}
-                                    ${infoRow("Mata Pelajaran", escapeHtml(attempt.subjectName))}
-                                    ${infoRow("Dikumpulkan", escapeHtml(formatWibDate(attempt.dikumpulkan_at || attempt.mulai_at)))}
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                    ${summaryHtml}
-                    <div style="font-size: 9pt; margin: 6px 0;">Keterangan warna: ${legend}</div>
-                    ${bodyHtml}
-                    ${signatureHtml}
-                </div>`;
+        	return `
+        		<div style="font-family: ${font}; color: #000; width: 100%; box-sizing: border-box;">
+        			<div style="text-align: center; margin-bottom: 12px; border-bottom: 3px double #000; padding-bottom: 8px;">
+        				${schoolName ? `<h2 style="margin: 0; font-size: 15pt; text-transform: uppercase;">${escapeHtml(schoolName)}</h2>` : ""}
+        				<h3 style="margin: 4px 0 0 0; font-size: 13pt;">${docTitle}</h3>
+        			</div>
+        			<table style="width: 100%; font-size: 10.5pt; border-collapse: collapse; margin-bottom: 6px;">
+        				<tr>
+        					<td style="width: 55%; vertical-align: top;">
+        						<table style="border-collapse: collapse;">
+        							${infoRow("Nama Siswa", escapeHtml(attempt.studentName))}
+        							${infoRow("NIS", escapeHtml(attempt.studentNis))}
+        							${infoRow("Kelas", escapeHtml(attempt.className))}
+        						</table>
+        					</td>
+        					<td style="vertical-align: top;">
+        						<table style="border-collapse: collapse;">
+        							${infoRow("Ujian", escapeHtml(attempt.examName))}
+        							${infoRow("Mata Pelajaran", escapeHtml(attempt.subjectName))}
+        							${infoRow("Dikumpulkan", escapeHtml(formatWibDate(attempt.dikumpulkan_at || attempt.mulai_at)))}
+        						</table>
+        					</td>
+        				</tr>
+        			</table>
+        			${summaryHtml}
+        			<div style="font-size: 9pt; margin: 6px 0;">Keterangan warna (Pilihan Ganda): ${legend}</div>
+        			${bodyHtml}
+        			${signatureHtml}
+        		</div>`;
         }
 
         async function loadExamScores() {
