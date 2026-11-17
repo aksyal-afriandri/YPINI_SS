@@ -241,15 +241,48 @@
 							</ul>
 						</div>
 						<div class="card-body">
-							<div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
-								<div class="d-flex align-items-center mb-2 mb-md-0">
-									<label for="filterExamTarget" class="small font-weight-bold text-muted mr-2 mb-0">Sasaran:</label>
-									<select id="filterExamTarget" class="form-control form-control-sm w-auto" style="min-width: 170px;">
+							<div class="form-row align-items-end mb-2" id="examFilterBar">
+								<div class="form-group col-12 col-md-4 col-lg-3 mb-2">
+									<label for="filterExamSearch" class="small font-weight-bold text-muted mb-1">Cari nama ujian</label>
+									<div class="input-group input-group-sm">
+										<div class="input-group-prepend"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
+										<input type="search" id="filterExamSearch" class="form-control" placeholder="Ketik nama ujian..." autocomplete="off">
+									</div>
+								</div>
+								<div class="form-group col-6 col-md-4 col-lg-2 mb-2">
+									<label for="filterExamSubject" class="small font-weight-bold text-muted mb-1">Pelajaran</label>
+									<select id="filterExamSubject" class="form-control form-control-sm">
+										<option value="">Semua Pelajaran</option>
+									</select>
+								</div>
+								<div class="form-group col-6 col-md-4 col-lg-2 mb-2">
+									<label for="filterExamTarget" class="small font-weight-bold text-muted mb-1">Sasaran</label>
+									<select id="filterExamTarget" class="form-control form-control-sm">
 										<option value="">Semua Sasaran</option>
 									</select>
 								</div>
-								<div id="filterExamInfo" class="small text-muted"></div>
+								<div class="form-group col-6 col-md-4 col-lg-2 mb-2">
+									<label for="filterExamSchedule" class="small font-weight-bold text-muted mb-1">Jadwal</label>
+									<select id="filterExamSchedule" class="form-control form-control-sm">
+										<option value="">Semua Jadwal</option>
+										<option value="today">Hari ini</option>
+										<option value="week">Minggu ini</option>
+										<option value="month">Bulan ini</option>
+										<option value="upcoming">Akan datang</option>
+										<option value="ongoing">Sedang berlangsung</option>
+										<option value="past">Sudah lewat</option>
+										<option value="date">Tanggal tertentu...</option>
+									</select>
+								</div>
+								<div class="form-group col-6 col-md-4 col-lg-2 mb-2 d-none" id="filterExamDateWrap">
+									<label for="filterExamDate" class="small font-weight-bold text-muted mb-1">Tanggal</label>
+									<input type="date" id="filterExamDate" class="form-control form-control-sm">
+								</div>
+								<div class="form-group col-auto mb-2">
+									<button type="button" id="resetExamFilters" class="btn btn-sm btn-outline-secondary" title="Reset semua filter"><i class="fas fa-undo mr-1"></i>Reset</button>
+								</div>
 							</div>
+							<div id="filterExamInfo" class="small text-muted mb-2"></div>
 							<div class="table-responsive">
 								<table class="table table-hover" id="examTable">
 									<thead>
@@ -1092,6 +1125,19 @@
 			container.innerHTML = html;
 		}
 
+		function renderExamSubjectFilter() {
+			const sel = document.getElementById("filterExamSubject");
+			if (!sel) return;
+			const currentVal = sel.value;
+			let list = subjects;
+			if (window.currentUserRole === "guru" && currentGuruPelajaranIds.length > 0) {
+				list = subjects.filter(s => currentGuruPelajaranIds.includes(Number(s.id)));
+			}
+			sel.innerHTML = '<option value="">Semua Pelajaran</option>' +
+				list.map(s => `<option value="${s.id}">${escapeHtml(s.nama_pelajaran)}</option>`).join("");
+			sel.value = list.some(s => String(s.id) === currentVal) ? currentVal : "";
+		}
+
 		function renderExamClassFilter() {
 			const filterSelect = document.getElementById("filterExamTarget");
 			if (!filterSelect) return;
@@ -1270,6 +1316,7 @@
 					examSubject.innerHTML = '<option value="">Pilih mata pelajaran</option>' +
 						selectableSubjects.map((subject) => `<option value="${subject.id}">${escapeHtml(subject.nama_pelajaran)}</option>`).join("");
 				}
+				renderExamSubjectFilter();
 			} catch (err) {
 				console.warn("Gagal memuat data pelajaran:", err);
 				document.getElementById("examSubject").innerHTML = '<option value="">Gagal memuat data pelajaran</option>';
@@ -1317,7 +1364,11 @@
 			}
 
 			exams = rawExams;
+			renderExamSubjectFilter();
+			renderExamList();
+		}
 
+		function renderExamList() {
 			const aktifList = exams.filter(e => !e.is_archived);
 			const arsipList = exams.filter(e => e.is_archived);
 
@@ -1328,7 +1379,51 @@
 			if (badgeArsip) badgeArsip.textContent = arsipList.length;
 
 			const targetFilter = document.getElementById("filterExamTarget")?.value || "";
+			const subjectFilter = document.getElementById("filterExamSubject")?.value || "";
+			const scheduleFilter = document.getElementById("filterExamSchedule")?.value || "";
+			const dateFilter = document.getElementById("filterExamDate")?.value || "";
+			const searchFilter = (document.getElementById("filterExamSearch")?.value || "").trim().toLowerCase();
 			let filteredExams = currentExamTab === 'arsip' ? arsipList : aktifList;
+
+			if (searchFilter) {
+				filteredExams = filteredExams.filter(exam => String(exam.nama_ujian || "").toLowerCase().includes(searchFilter));
+			}
+
+			if (subjectFilter) {
+				filteredExams = filteredExams.filter(exam => String(exam.pelajaran_id) === subjectFilter);
+			}
+
+			if (scheduleFilter) {
+				const now = new Date();
+				const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+				const dayMs = 24 * 60 * 60 * 1000;
+				let rangeStart = null, rangeEnd = null; // jadwal ujian yang beririsan dengan rentang ini
+				if (scheduleFilter === "today") {
+					rangeStart = startOfDay; rangeEnd = new Date(startOfDay.getTime() + dayMs);
+				} else if (scheduleFilter === "week") {
+					// Minggu berjalan: Senin - Minggu
+					const offset = (startOfDay.getDay() + 6) % 7;
+					rangeStart = new Date(startOfDay.getTime() - offset * dayMs);
+					rangeEnd = new Date(rangeStart.getTime() + 7 * dayMs);
+				} else if (scheduleFilter === "month") {
+					rangeStart = new Date(now.getFullYear(), now.getMonth(), 1);
+					rangeEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+				} else if (scheduleFilter === "date" && dateFilter) {
+					const [y, m, d] = dateFilter.split("-").map(Number);
+					rangeStart = new Date(y, m - 1, d); rangeEnd = new Date(y, m - 1, d + 1);
+				}
+
+				filteredExams = filteredExams.filter(exam => {
+					const open = new Date(exam.dibuka_at).getTime();
+					const close = new Date(exam.ditutup_at).getTime();
+					if (isNaN(open) || isNaN(close)) return false;
+					if (scheduleFilter === "upcoming") return open > now.getTime();
+					if (scheduleFilter === "ongoing") return open <= now.getTime() && close >= now.getTime();
+					if (scheduleFilter === "past") return close < now.getTime();
+					if (rangeStart && rangeEnd) return open < rangeEnd.getTime() && close >= rangeStart.getTime();
+					return true; // "date" tanpa tanggal terpilih: belum memfilter
+				});
+			}
 
 			if (targetFilter) {
 				filteredExams = filteredExams.filter(exam => {
@@ -1349,14 +1444,16 @@
 				});
 			}
 
+			const hasActiveFilter = Boolean(targetFilter || subjectFilter || scheduleFilter || searchFilter);
+			const baseCount = (currentExamTab === 'arsip' ? arsipList : aktifList).length;
 			const infoEl = document.getElementById("filterExamInfo");
 			if (infoEl) {
-				infoEl.textContent = targetFilter ? `Menampilkan ${filteredExams.length} ujian` : "";
+				infoEl.textContent = hasActiveFilter ? `Menampilkan ${filteredExams.length} dari ${baseCount} ujian` : "";
 			}
 
 			if (!filteredExams.length) {
-				const emptyMsg = targetFilter
-					? 'Tidak ada ujian yang cocok dengan filter sasaran ini.'
+				const emptyMsg = hasActiveFilter
+					? 'Tidak ada ujian yang cocok dengan filter/pencarian ini.'
 					: (currentExamTab === 'arsip'
 						? 'Tidak ada ujian yang diarsipkan.'
 						: (window.currentUserRole === "guru"
@@ -3536,7 +3633,29 @@
 			checks.forEach(c => c.checked = !allChecked);
 			btn.textContent = allChecked ? `Pilih Semua ${t}` : `Batal Pilih ${t}`;
 		});
-		document.getElementById("filterExamTarget")?.addEventListener("change", () => loadExams());
+		// Filter daftar ujian (sisi klien, tanpa query ulang ke database)
+		document.getElementById("filterExamTarget")?.addEventListener("change", () => renderExamList());
+		document.getElementById("filterExamSubject")?.addEventListener("change", () => renderExamList());
+		document.getElementById("filterExamSchedule")?.addEventListener("change", (e) => {
+			document.getElementById("filterExamDateWrap")?.classList.toggle("d-none", e.target.value !== "date");
+			renderExamList();
+		});
+		document.getElementById("filterExamDate")?.addEventListener("change", () => renderExamList());
+		(function () {
+			let searchTimer = null;
+			document.getElementById("filterExamSearch")?.addEventListener("input", () => {
+				clearTimeout(searchTimer);
+				searchTimer = setTimeout(() => renderExamList(), 200);
+			});
+		})();
+		document.getElementById("resetExamFilters")?.addEventListener("click", () => {
+			["filterExamSearch", "filterExamSubject", "filterExamTarget", "filterExamSchedule", "filterExamDate"].forEach(id => {
+				const el = document.getElementById(id);
+				if (el) el.value = "";
+			});
+			document.getElementById("filterExamDateWrap")?.classList.add("d-none");
+			renderExamList();
+		});
 
 		document.getElementById("questionType").addEventListener("change", (event) => setQuestionType(event.target.value));
 		examForm.addEventListener("submit", saveExam);
