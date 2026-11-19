@@ -64,10 +64,15 @@
                                         id="exampleInputName" value="" autocomplete="username"
                                         placeholder="NIP / Username" required autofocus>
                                 </div>
-                                <div class="form-group">
+                                <div class="form-group position-relative">
                                     <input type="password" name="password" class="form-control form-control-user"
                                         id="exampleInputPassword" autocomplete="current-password"
-                                        placeholder="Password" required>
+                                        placeholder="Password" required style="padding-right: 3rem;">
+                                    <button type="button" id="togglePassword" class="btn btn-link text-gray-600 p-0"
+                                        aria-label="Tampilkan password" aria-pressed="false" title="Tampilkan password"
+                                        style="position: absolute; top: 50%; right: 1.1rem; transform: translateY(-50%); line-height: 1; box-shadow: none;">
+                                        <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                                    </button>
                                 </div>
                                 <div class="form-group">
                                     <div class="custom-control custom-checkbox small">
@@ -93,6 +98,26 @@
         </div>
 
     </div>
+
+    <script>
+    // Tombol lihat / sembunyikan password
+    (function () {
+        const input = document.getElementById("exampleInputPassword");
+        const btn = document.getElementById("togglePassword");
+        const icon = document.getElementById("togglePasswordIcon");
+        if (!input || !btn || !icon) return;
+        btn.addEventListener("click", function () {
+            const show = input.type === "password";
+            input.type = show ? "text" : "password";
+            icon.className = show ? "fas fa-eye-slash" : "fas fa-eye";
+            btn.setAttribute("aria-pressed", show ? "true" : "false");
+            const label = show ? "Sembunyikan password" : "Tampilkan password";
+            btn.setAttribute("aria-label", label);
+            btn.title = label;
+            input.focus();
+        });
+    })();
+    </script>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase-config.js"></script>
