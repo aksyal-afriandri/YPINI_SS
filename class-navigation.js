@@ -171,17 +171,32 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     const result = await apiGet("/data/kelas");
-    const classes = result.data || [];
+    let classes = result.data || [];
+
+    // Guru hanya melihat kelas yang diampu (dan kelas perwaliannya jika wali kelas)
+    const guruScopeEmpty = window.currentUserRole === "guru";
+    if (window.currentUserRole === "guru") {
+      const scope = await getGuruClassScope();
+      classes = classes.filter((record) => {
+        if (!scope.found) return false;
+        if (scope.walasKelasIds.includes(String(record.id))) return true;
+        if (!scope.kelasList.length) return true; // kelas_list kosong = semua kelas
+        return scope.kelasList.includes(String(record.nama_kelas || "").trim().toUpperCase());
+      });
+    }
     classLinks?.replaceChildren();
     attendanceClassLinks?.replaceChildren();
     monitoringClassLinks?.replaceChildren();
     examResultClassLinks?.replaceChildren();
 
     if (!classes.length) {
-      if (classLinks) classLinks.textContent = "Belum ada kelas. Tambahkan melalui Data Kelas.";
-      if (attendanceClassLinks) attendanceClassLinks.textContent = "Belum ada kelas. Tambahkan melalui Data Kelas.";
-      if (monitoringClassLinks) monitoringClassLinks.textContent = "Belum ada kelas. Tambahkan melalui Data Kelas.";
-      if (examResultClassLinks) examResultClassLinks.textContent = "Belum ada kelas. Tambahkan melalui Data Kelas.";
+      const emptyMsg = guruScopeEmpty
+        ? "Belum ada kelas yang Anda ampu. Hubungi Administrator."
+        : "Belum ada kelas. Tambahkan melalui Data Kelas.";
+      if (classLinks) classLinks.textContent = emptyMsg;
+      if (attendanceClassLinks) attendanceClassLinks.textContent = emptyMsg;
+      if (monitoringClassLinks) monitoringClassLinks.textContent = emptyMsg;
+      if (examResultClassLinks) examResultClassLinks.textContent = emptyMsg;
       return;
     }
 
@@ -276,3 +291,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (examResultClassLinks) examResultClassLinks.textContent = error.message || "Daftar kelas gagal dimuat.";
   }
 });
+
+// Ambil kelas yang diampu guru login (data_guru.kelas_list) + kelas perwalian (wali_kelas)
+async function getGuruClassScope() {
+  const scope = { found: false, kelasList: [], walasKelasIds: [] };
+  try {
+    const client = getSupabaseClient();
+    const userNip = window.currentUserProfile?.nip;
+    const userId = window.currentUser?.id;
+    let query = client.from("data_guru").select("id, kelas_list");
+    if (userId) query = query.or(`user_id.eq.${userId}${userNip ? `,nip.eq.${userNip}` : ""}`);
+    const { data: guru, error } = await query.maybeSingle();
+    if (error || !guru) return scope;
+
+    scope.found = true;
+    scope.kelasList = (guru.kelas_list || []).map((k) => String(k).trim().toUpperCase());
+
+    const yearId = await getActiveAcademicYearId().catch(() => null);
+    let waliQ = client.from("wali_kelas").select("kelas_id, kelas_tahun_ajaran_id").eq("guru_id", guru.id);
+    if (yearId) waliQ = waliQ.eq("tahun_ajaran_id", yearId);
+    const { data: waliList } = await waliQ;
+    scope.walasKelasIds = (waliList || []).map((w) => String(w.kelas_tahun_ajaran_id || w.kelas_id));
+  } catch (err) {
+    console.warn("Gagal memuat kelas guru:", err);
+  }
+  return scope;
+}

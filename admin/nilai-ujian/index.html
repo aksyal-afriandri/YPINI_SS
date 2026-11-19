@@ -792,6 +792,106 @@
 		let currentAttemptEssayMarks = new Map(); // soal_id -> true | false (diturunkan otomatis dari nilai manual, dipakai cetak PDF)
 		let currentAttemptEssayScores = new Map(); // soal_id -> nilai manual (angka) untuk essay & jawaban singkat
 
+		// ===== Cakupan data guru (hanya data mapel & kelas yang diampu) =====
+		let guruScopeReady = false;
+		let currentGuruData = null;
+		let currentGuruPelajaranIds = [];
+		let currentGuruKelasList = [];
+		let isWalas = false;
+		let walasKelasIds = [];
+
+		function isGuruUser() {
+			return window.currentUserRole === "guru";
+		}
+
+		function extractTingkat(namaKelas) {
+			if (!namaKelas) return "";
+			const clean = String(namaKelas).trim();
+			const words = [["tujuh","7"],["delapan","8"],["sembilan","9"],["sepuluh","10"],["sebelas","11"],["dua\\s*belas","12"],["enam","6"],["lima","5"],["empat","4"],["tiga","3"],["dua","2"],["satu","1"]];
+			for (const [w, n] of words) if (new RegExp("\\b" + w + "\\b", "i").test(clean)) return n;
+			const romans = [["VIII","8"],["VII","7"],["XII","12"],["XI","11"],["IX","9"],["X","10"],["VI","6"],["IV","4"],["V","5"],["III","3"],["II","2"],["I","1"]];
+			for (const [r, n] of romans) if (new RegExp("\\b" + r + "\\b", "i").test(clean)) return n;
+			const m = clean.match(/\b(\d{1,2})\b/) || clean.match(/(?:kelas\s*)?(\d{1,2})/i);
+			return m ? String(parseInt(m[1], 10)) : "";
+		}
+
+		async function detectGuruScope() {
+			if (!isGuruUser()) { guruScopeReady = true; return; }
+			const client = getSupabaseClient();
+			const userNip = window.currentUserProfile?.nip;
+			const userId = window.currentUser?.id;
+			try {
+				const yearId = await getActiveAcademicYearId().catch(() => null);
+				let query = client.from("data_guru").select("id, nip, nama, pelajaran_id, pelajaran_ids, kelas_list");
+				if (userId) query = query.or(`user_id.eq.${userId}${userNip ? `,nip.eq.${userNip}` : ""}`);
+				const { data: gData, error } = await query.maybeSingle();
+				if (error) throw error;
+				if (gData) {
+					currentGuruData = gData;
+					currentGuruPelajaranIds = Array.isArray(gData.pelajaran_ids) && gData.pelajaran_ids.length
+						? gData.pelajaran_ids.map(Number)
+						: (gData.pelajaran_id ? [Number(gData.pelajaran_id)] : []);
+					currentGuruKelasList = (gData.kelas_list || []).map(k => String(k).trim().toUpperCase());
+
+					let waliQ = client.from("wali_kelas").select("id, kelas_id, kelas_tahun_ajaran_id").eq("guru_id", gData.id);
+					if (yearId) waliQ = waliQ.eq("tahun_ajaran_id", yearId);
+					const { data: waliList } = await waliQ;
+					if (waliList && waliList.length) {
+						isWalas = true;
+						walasKelasIds = waliList.map(w => String(w.kelas_tahun_ajaran_id || w.kelas_id));
+					}
+				}
+			} catch (err) {
+				console.warn("Gagal mendeteksi data guru:", err);
+			}
+			guruScopeReady = true;
+		}
+
+		// Ujian boleh dilihat guru jika mapelnya diampu dan kelas targetnya sesuai kelas yang diampu
+		function isExamInGuruScope(exam) {
+			if (!isGuruUser()) return true;
+			if (!currentGuruData) return false;
+			if (!currentGuruPelajaranIds.includes(Number(exam.pelajaran_id))) return false;
+			if (!currentGuruKelasList.length) return true;
+
+			const tKelas = (exam.target_kelas || "").trim().toUpperCase();
+			const tTingkat = (exam.target_tingkat || "").trim().toUpperCase();
+			if (!tKelas && !tTingkat) return true;
+			if (tKelas === "SEMUA" || tTingkat === "SEMUA") return true;
+			if (tKelas) {
+				const examClassList = tKelas.split(",").map(c => c.trim());
+				if (examClassList.some(c => currentGuruKelasList.includes(c))) return true;
+			}
+			if (tTingkat) {
+				const teacherTingkats = currentGuruKelasList.map(extractTingkat);
+				if (teacherTingkats.includes(tTingkat)) return true;
+			}
+			return false;
+		}
+
+		function isClassInGuruScope(c) {
+			if (!isGuruUser()) return true;
+			if (!currentGuruData) return false;
+			if (isWalas && walasKelasIds.includes(String(c.id))) return true;
+			if (!currentGuruKelasList.length) return true;
+			return currentGuruKelasList.includes(String(c.nama_kelas || "").trim().toUpperCase());
+		}
+
+		// Pengerjaan siswa boleh dilihat guru: (a) siswa di kelas perwaliannya, atau
+		// (b) ujian mapel yang diampu DAN siswa berada di kelas yang diampu
+		function isAttemptInGuruScope(att, examsById) {
+			if (!isGuruUser()) return true;
+			if (!currentGuruData) return false;
+			if (isWalas && att.classId && walasKelasIds.includes(String(att.classId))) return true;
+			const exam = examsById.get(String(att.ujian_id));
+			if (!exam || !isExamInGuruScope(exam)) return false;
+			if (currentGuruKelasList.length) {
+				const raw = String(att.rawClassName || "").trim().toUpperCase();
+				if (!raw || !currentGuruKelasList.includes(raw)) return false;
+			}
+			return true;
+		}
+
 		function showMessage(msg, type = "success") {
 			const box = document.getElementById("pageAlertBox");
 			box.innerHTML = `
@@ -837,7 +937,7 @@
 		async function loadClasses() {
 			try {
 				const result = await apiGet("/data/kelas");
-				allClasses = result.data || [];
+				allClasses = (result.data || []).filter(isClassInGuruScope);
 				const select = document.getElementById("filterClass");
 				select.innerHTML = '<option value="">Semua Kelas</option>';
 				allClasses.forEach(c => {
@@ -875,6 +975,10 @@
 					const client = getSupabaseClient();
 					const { data } = await client.from("data_pelajaran").select("id, nama_pelajaran").order("nama_pelajaran");
 					subjects = data || [];
+				}
+				// Guru hanya melihat mapel yang diampu (wali kelas tetap melihat semua mapel di kelas perwaliannya)
+				if (isGuruUser() && !isWalas) {
+					subjects = subjects.filter(sb => currentGuruPelajaranIds.includes(Number(sb.id)));
 				}
 				allSubjects = subjects;
 				const select = document.getElementById("filterSubject");
@@ -916,9 +1020,10 @@
 				const previousVal = select.value;
 				select.innerHTML = '<option value="">Semua Ujian</option>';
 
+				const visibleExams = (isGuruUser() && !isWalas) ? allExams.filter(isExamInGuruScope) : allExams;
 				const filteredExams = selectedSubjectId
-					? allExams.filter(e => String(e.pelajaran_id) === String(selectedSubjectId))
-					: allExams;
+					? visibleExams.filter(e => String(e.pelajaran_id) === String(selectedSubjectId))
+					: visibleExams;
 
 				filteredExams.forEach(e => {
 					const opt = document.createElement("option");
@@ -968,7 +1073,8 @@
 							: "-";
 						placementsByStudentId.set(String(p.siswa_id), {
 							classYearId: p.kelas_tahun_ajaran_id,
-							className: className
+							className: className,
+							rawClassName: p.kelas_tahun_ajaran?.nama_kelas || ""
 						});
 					});
 				}
@@ -1023,9 +1129,17 @@
 						subjectName: att.ujian?.data_pelajaran?.nama_pelajaran || "-",
 						subjectId: att.ujian?.pelajaran_id || null,
 						className: placement?.className || "Belum ada kelas",
+						rawClassName: placement?.rawClassName || "",
 						classId: placement?.classYearId || null,
 					};
 				});
+
+				// Guru hanya boleh melihat data siswa & ujian yang menjadi tanggung jawabnya
+				if (isGuruUser()) {
+					if (!guruScopeReady) await detectGuruScope();
+					const examsById = new Map((allExams || []).map(e => [String(e.id), e]));
+					allSubmissions = allSubmissions.filter(att => isAttemptInGuruScope(att, examsById));
+				}
 
 				applyFilters();
 			} catch (err) {
@@ -3500,6 +3614,7 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 		document.addEventListener("DOMContentLoaded", async () => {
 			if (!await window.adminSessionReady) return;
 
+			await detectGuruScope();
 			await loadClasses();
 			await loadSubjects();
 			await loadExams();
@@ -3634,4 +3749,3 @@ _Pesan resmi dari Administrasi Sistem Ujian YPINI_`;
 		});
 	</script>
 </body>
-</html>
